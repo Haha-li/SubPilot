@@ -10,6 +10,6 @@ export async function sendWechat(webhookUrl: string, message: string): Promise<b
     }),
   });
 
-  const result = await response.json();
+  const result: any = await response.json();
   return result.errcode === 0;
 }

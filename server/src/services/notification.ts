@@ -28,7 +28,7 @@ interface Subscription {
 async function getConfigMap(): Promise<Record<string, string>> {
   const configs = await db.select().from(schema.config);
   const map: Record<string, string> = {};
-  configs.forEach((c) => { map[c.key] = c.value; });
+  configs.forEach((c: any) => { map[c.key] = c.value; });
   return map;
 }
 

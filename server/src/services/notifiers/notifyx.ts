@@ -10,6 +10,6 @@ export async function sendNotifyX(apiKey: string, message: string): Promise<bool
     }),
   });
 
-  const result = await response.json();
+  const result: any = await response.json();
   return result.status === 'success';
 }

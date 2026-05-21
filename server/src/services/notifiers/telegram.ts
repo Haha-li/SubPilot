@@ -12,6 +12,6 @@ export async function sendTelegram(botToken: string, chatId: string, message: st
     }),
   });
 
-  const result = await response.json();
+  const result: any = await response.json();
   return result.ok === true;
 }

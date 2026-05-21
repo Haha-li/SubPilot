@@ -2,10 +2,14 @@ import 'dotenv/config';
 import express from 'express';
 import cors from 'cors';
 import path from 'path';
+import { initNodeDb } from './db';
 import authRoutes from './routes/auth';
 import subscriptionRoutes from './routes/subscription';
 import configRoutes from './routes/config';
 import { startScheduler } from './services/scheduler';
+
+// Initialize database
+initNodeDb();
 
 const app = express();
 const PORT = Number(process.env.PORT) || 3000;

@@ -33,6 +33,6 @@ export async function sendEmail(config: Record<string, string>, message: string,
     }),
   });
 
-  const result = await response.json();
+  const result: any = await response.json();
   return !!result.id;
 }

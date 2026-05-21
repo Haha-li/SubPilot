@@ -1,15 +1,10 @@
 import { Request, Response, NextFunction } from 'express';
-import jwt from 'jsonwebtoken';
-
-const JWT_SECRET = process.env.JWT_SECRET || 'subpilot-default-secret-change-me';
+import { verifyToken } from '../utils/auth';
+export { generateToken } from '../utils/auth';
 
 export interface AuthRequest extends Request {
   userId?: number;
   username?: string;
-}
-
-export function generateToken(userId: number, username: string): string {
-  return jwt.sign({ userId, username }, JWT_SECRET, { expiresIn: '7d' });
 }
 
 export function authMiddleware(req: AuthRequest, res: Response, next: NextFunction) {
@@ -19,12 +14,12 @@ export function authMiddleware(req: AuthRequest, res: Response, next: NextFuncti
     return res.status(401).json({ success: false, message: '未登录' });
   }
 
-  try {
-    const decoded = jwt.verify(token, JWT_SECRET) as { userId: number; username: string };
-    req.userId = decoded.userId;
-    req.username = decoded.username;
-    next();
-  } catch {
+  const decoded = verifyToken(token);
+  if (!decoded) {
     return res.status(401).json({ success: false, message: '登录已过期' });
   }
+
+  req.userId = decoded.userId;
+  req.username = decoded.username;
+  next();
 }

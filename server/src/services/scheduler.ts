@@ -5,13 +5,13 @@ import { sendNotification } from './notification';
 
 let scheduledTask: cron.ScheduledTask | null = null;
 
-async function checkAndNotify() {
+export async function checkAndNotify() {
   console.log(`[${new Date().toISOString()}] Running scheduled notification check...`);
 
   try {
     const configs = await db.select().from(schema.config);
     const configMap: Record<string, string> = {};
-    configs.forEach((c) => { configMap[c.key] = c.value; });
+    configs.forEach((c: any) => { configMap[c.key] = c.value; });
 
     const timezone = configMap.timezone || 'Asia/Shanghai';
     const notifyHours = (configMap.notify_hours || '8').split(',').map(Number);
