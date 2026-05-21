@@ -1,6 +1,6 @@
 import { Router, Response } from 'express';
 import { authMiddleware, AuthRequest } from '../middleware/auth';
-import { loginHandler, getMeHandler, changePasswordHandler } from '../handlers/auth';
+import { loginHandler, getMeHandler } from '../handlers/auth';
 
 const router = Router();
 
@@ -27,12 +27,6 @@ router.post('/logout', (_req: any, res: Response) => {
 // Get current user
 router.get('/me', authMiddleware, async (req: AuthRequest, res: Response) => {
   const result = await getMeHandler(req.userId!);
-  res.status(result.status).json(result.body);
-});
-
-// Change password
-router.put('/password', authMiddleware, async (req: AuthRequest, res: Response) => {
-  const result = await changePasswordHandler(req.userId!, req.body, process.env.ADMIN_PASSWORD);
   res.status(result.status).json(result.body);
 });
 

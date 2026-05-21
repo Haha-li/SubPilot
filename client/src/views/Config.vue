@@ -8,11 +8,6 @@ const config = ref<Record<string, string>>({});
 const loading = ref(false);
 const saving = ref(false);
 
-// Password change
-const oldPassword = ref('');
-const newPassword = ref('');
-const confirmPassword = ref('');
-
 const channels = [
   { key: 'telegram', name: 'Telegram', desc: '通过 Telegram Bot 推送' },
   { key: 'wechat', name: '企业微信', desc: '通过企业微信群机器人推送' },
@@ -56,32 +51,6 @@ async function testChannel(channel: string) {
     ElMessage.info(data.message);
   } catch (e: any) {
     ElMessage.error('测试失败: ' + (e.response?.data?.message || e.message));
-  }
-}
-
-async function changePassword() {
-  if (newPassword.value !== confirmPassword.value) {
-    ElMessage.warning('两次输入的密码不一致');
-    return;
-  }
-  if (newPassword.value.length < 6) {
-    ElMessage.warning('新密码至少6位');
-    return;
-  }
-
-  try {
-    const { data } = await api.put('/auth/password', {
-      oldPassword: oldPassword.value,
-      newPassword: newPassword.value,
-    });
-    if (data.success) {
-      ElMessage.success('密码修改成功');
-      oldPassword.value = '';
-      newPassword.value = '';
-      confirmPassword.value = '';
-    }
-  } catch (e: any) {
-    ElMessage.error(e.response?.data?.message || '修改失败');
   }
 }
 
@@ -308,32 +277,6 @@ onMounted(loadConfig);
         </el-collapse-transition>
       </el-card>
 
-      <!-- Change Password -->
-      <el-card shadow="never">
-        <template #header>
-          <span class="section-title">修改密码</span>
-        </template>
-        <el-form label-position="top">
-          <el-row :gutter="20">
-            <el-col :xs="24" :md="8">
-              <el-form-item label="旧密码">
-                <el-input v-model="oldPassword" type="password" show-password />
-              </el-form-item>
-            </el-col>
-            <el-col :xs="24" :md="8">
-              <el-form-item label="新密码">
-                <el-input v-model="newPassword" type="password" show-password />
-              </el-form-item>
-            </el-col>
-            <el-col :xs="24" :md="8">
-              <el-form-item label="确认新密码">
-                <el-input v-model="confirmPassword" type="password" show-password />
-              </el-form-item>
-            </el-col>
-          </el-row>
-          <el-button type="primary" @click="changePassword">修改密码</el-button>
-        </el-form>
-      </el-card>
 
       <!-- Save Button -->
       <div class="save-bar">

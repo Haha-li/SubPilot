@@ -1,6 +1,6 @@
 import { Hono } from 'hono';
 import { honoAuth } from '../middleware/auth';
-import { loginHandler, getMeHandler, changePasswordHandler } from '../../handlers/auth';
+import { loginHandler, getMeHandler } from '../../handlers/auth';
 
 const auth = new Hono();
 
@@ -20,14 +20,6 @@ auth.post('/logout', (c) => {
 auth.get('/me', honoAuth, async (c) => {
   const userId = c.get('userId' as never) as unknown as number;
   const result = await getMeHandler(userId);
-  return c.json(result.body, result.status as any);
-});
-
-// Change password
-auth.put('/password', honoAuth, async (c) => {
-  const userId = c.get('userId' as never) as unknown as number;
-  const body = await c.req.json();
-  const result = await changePasswordHandler(userId, body, c.env.ADMIN_PASSWORD);
   return c.json(result.body, result.status as any);
 });
 
