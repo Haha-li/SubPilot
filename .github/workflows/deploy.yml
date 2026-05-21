@@ -88,7 +88,7 @@ jobs:
       - run: npm install
 
       - name: Build frontend
-        run: npm run build
+        run: npx vite build
         env:
           VITE_API_URL: ${{ needs.deploy-backend.outputs.workers_url }}
 
