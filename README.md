@@ -41,9 +41,9 @@ Fork 本仓库后，通过 GitHub Actions 自动部署到 Cloudflare Workers + P
 **第一步：创建 Cloudflare 资源**
 
 1. 登录 [Cloudflare Dashboard](https://dash.cloudflare.com)
-2. 进入 **Workers & Pages** → **D1** → **Create**，数据库名称填 `subpilot`，记下 **Database ID**
-3. 进入 **Workers & Pages** → **Overview** → **Create** → 创建一个 Worker（名称随意，后面会被覆盖）
-4. 进入 **My Profile** → **API Tokens** → **Create Token**，使用 **Edit Cloudflare Workers** 模板
+2. 创建 D1 数据库：左侧菜单 → **Storage & Databases** → **D1 SQL Database** → **Create**，名称填 `subpilot`，创建后进入数据库详情页，复制 **Database ID**
+3. 获取 Account ID：左侧菜单 → **Workers & Pages**，在 **Account details** 区域点击 **Click to copy** 复制 Account ID
+4. 创建 API Token：点击右上角头像 → **My Profile** → **API Tokens** → **Create Token**，在 Custom 下拉中找到 **Edit Cloudflare Workers**，选择后点 **Continue to summary** → **Create Token**，**立即复制保存**（只显示一次）
 
 **第二步：配置 GitHub Secrets**
 
