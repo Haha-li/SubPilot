@@ -1,0 +1,19 @@
+version: '3.8'
+
+services:
+  subpilot:
+    build: .
+    container_name: subpilot
+    ports:
+      - "3000:3000"
+    volumes:
+      - subpilot-data:/app/data
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+      - DB_PATH=/app/data/subpilot.db
+      - JWT_SECRET=${JWT_SECRET:-change-this-in-production}
+    restart: unless-stopped
+
+volumes:
+  subpilot-data:
