@@ -53,30 +53,13 @@ Fork 本仓库后，通过 GitHub Actions 自动部署到 Cloudflare Workers + P
 |---|---|
 | `CLOUDFLARE_API_TOKEN` | 上一步创建的 API Token |
 | `CLOUDFLARE_ACCOUNT_ID` | Cloudflare Dashboard 右侧栏的 Account ID |
+| `D1_DATABASE_ID` | 第一步创建的 D1 Database ID |
+| `JWT_SECRET` | 随机字符串，用于签发登录令牌 |
 | `WORKERS_URL` | Workers 部署后的地址，如 `https://subpilot.xxx.workers.dev` |
 
-**第三步：配置 wrangler.toml**
-
-编辑 `server/wrangler.toml`，填入你的 D1 Database ID：
-
-```toml
-[[d1_databases]]
-binding = "DB"
-database_name = "subpilot"
-database_id = "你的 Database ID"
-```
-
-然后在 Cloudflare Dashboard → Workers → subpilot → **Settings** → **Variables and Secrets** 中添加：
-
-| 变量名 | 类型 | 说明 |
-|---|---|---|
-| `JWT_SECRET` | Secret | 随机字符串，用于签发登录令牌 |
-
-**第四步：推送到 GitHub**
+**第三步：推送到 GitHub**
 
 ```bash
-git add .
-git commit -m "配置 Cloudflare 部署"
 git push origin main
 ```
 
