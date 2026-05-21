@@ -122,8 +122,8 @@ export async function sendNotification(subscription: Subscription, isTest = fals
   return success;
 }
 
-export async function testNotificationChannel(channel: string): Promise<boolean> {
-  const config = await getConfigMap();
+export async function testNotificationChannel(channel: string, formConfig?: Record<string, string>): Promise<boolean> {
+  const config = formConfig || await getConfigMap();
   const testMessage = `🔔 通知测试\n━━━━━━━━━━━━━━\n这是一条来自 SubPilot 的测试通知。\n时间: ${new Date().toLocaleString('zh-CN')}`;
 
   try {

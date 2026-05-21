@@ -36,8 +36,8 @@ export async function updateConfigHandler(body: any) {
 
 export async function testNotifyConfigHandler(body: any) {
   try {
-    const { channel } = body;
-    const result = await testNotificationChannel(channel);
+    const { channel, config: formConfig } = body;
+    const result = await testNotificationChannel(channel, formConfig);
     return { status: 200, body: { success: result, message: result ? '测试通知已发送' : '发送失败，请检查配置' } };
   } catch (error: any) {
     return { status: 500, body: { success: false, message: error.message } };

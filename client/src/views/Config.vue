@@ -49,8 +49,13 @@ async function saveConfig() {
 
 async function testChannel(channel: string) {
   try {
-    const { data } = await api.post('/config/test-notify', { channel });
-    ElMessage.info(data.message);
+    const { data } = await api.post('/config/test-notify', { channel, config: config.value });
+    if (data.success) {
+      ElMessage.success('测试成功，配置已保存');
+      await saveConfig();
+    } else {
+      ElMessage.warning(data.message || '发送失败，请检查配置');
+    }
   } catch (e: any) {
     ElMessage.error('测试失败: ' + (e.response?.data?.message || e.message));
   }
