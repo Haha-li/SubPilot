@@ -39,7 +39,7 @@ CREATE TABLE IF NOT EXISTS notify_logs (
 );
 
 -- Default admin user (password: password)
-INSERT OR IGNORE INTO users (username, password_hash) VALUES ('admin', '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy');
+INSERT OR IGNORE INTO users (username, password_hash) VALUES ('admin', '$2a$10$Ez0XUYU8xc2oxwpXCVH.degeXGIWvWoTLn9RqXQNq5C2t.tIuM1bC');
 
 -- Default config
 INSERT OR IGNORE INTO config (key, value) VALUES ('timezone', 'Asia/Shanghai');
