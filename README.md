@@ -55,7 +55,6 @@ Fork 本仓库后，通过 GitHub Actions 自动部署到 Cloudflare Workers + P
 | `CLOUDFLARE_ACCOUNT_ID` | Cloudflare Dashboard 右侧栏的 Account ID |
 | `D1_DATABASE_ID` | 第一步创建的 D1 Database ID |
 | `JWT_SECRET` | 随机字符串，用于签发登录令牌 |
-| `WORKERS_URL` | Workers 部署后的地址，如 `https://subpilot.xxx.workers.dev` |
 
 **第三步：推送到 GitHub**
 
@@ -66,7 +65,7 @@ git push origin main
 GitHub Actions 会自动：
 - 初始化 D1 数据库表结构
 - 部署后端到 Cloudflare Workers
-- 构建前端并部署到 Cloudflare Pages
+- 自动获取 Workers 地址，构建前端并部署到 Cloudflare Pages
 
 部署完成后访问 `https://你的pages域名.pages.dev`。
 
