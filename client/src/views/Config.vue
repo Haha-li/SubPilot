@@ -10,11 +10,6 @@ const saving = ref(false);
 
 const channels = [
   { key: 'telegram', name: 'Telegram', desc: '通过 Telegram Bot 推送' },
-  { key: 'wechat', name: '企业微信', desc: '通过企业微信群机器人推送' },
-  { key: 'bark', name: 'Bark (iOS)', desc: '通过 Bark App 推送到 iOS' },
-  { key: 'webhook', name: 'Webhook', desc: '自定义 HTTP 回调' },
-  { key: 'email', name: '邮件 (Resend)', desc: '通过 Resend API 发送邮件' },
-  { key: 'notifyx', name: 'NotifyX', desc: '通过 NotifyX 服务推送' },
 ];
 
 const activeChannels = ref<string[]>([]);
@@ -157,124 +152,6 @@ onMounted(loadConfig);
           </div>
         </el-collapse-transition>
 
-        <!-- WeChat Config -->
-        <el-collapse-transition>
-          <div v-if="activeChannels.includes('wechat')" class="channel-config">
-            <div class="config-section-header">
-              <h4>企业微信配置</h4>
-              <el-button size="small" type="primary" plain @click="testChannel('wechat')">测试</el-button>
-            </div>
-            <el-form label-position="top">
-              <el-form-item label="Webhook URL">
-                <el-input v-model="config.wechat_webhook" placeholder="企业微信群机器人 Webhook 地址" />
-              </el-form-item>
-            </el-form>
-          </div>
-        </el-collapse-transition>
-
-        <!-- Bark Config -->
-        <el-collapse-transition>
-          <div v-if="activeChannels.includes('bark')" class="channel-config">
-            <div class="config-section-header">
-              <h4>Bark 配置</h4>
-              <el-button size="small" type="primary" plain @click="testChannel('bark')">测试</el-button>
-            </div>
-            <el-form label-position="top">
-              <el-row :gutter="16">
-                <el-col :xs="24" :md="12">
-                  <el-form-item label="服务器地址">
-                    <el-input v-model="config.bark_url" placeholder="https://api.day.app" />
-                  </el-form-item>
-                </el-col>
-                <el-col :xs="24" :md="12">
-                  <el-form-item label="设备 Key">
-                    <el-input v-model="config.bark_key" placeholder="在 Bark App 内复制" />
-                  </el-form-item>
-                </el-col>
-              </el-row>
-            </el-form>
-          </div>
-        </el-collapse-transition>
-
-        <!-- Webhook Config -->
-        <el-collapse-transition>
-          <div v-if="activeChannels.includes('webhook')" class="channel-config">
-            <div class="config-section-header">
-              <h4>Webhook 配置</h4>
-              <el-button size="small" type="primary" plain @click="testChannel('webhook')">测试</el-button>
-            </div>
-            <el-form label-position="top">
-              <el-row :gutter="16">
-                <el-col :xs="24" :md="12">
-                  <el-form-item label="推送 URL">
-                    <el-input v-model="config.webhook_url" placeholder="https://your-service.com/hooks" />
-                  </el-form-item>
-                </el-col>
-                <el-col :xs="24" :md="12">
-                  <el-form-item label="请求方法">
-                    <el-select v-model="config.webhook_method" style="width: 100%">
-                      <el-option label="POST" value="POST" />
-                      <el-option label="PUT" value="PUT" />
-                    </el-select>
-                  </el-form-item>
-                </el-col>
-              </el-row>
-              <el-form-item label="请求头 (JSON)">
-                <el-input v-model="config.webhook_headers" placeholder='{"Authorization": "Bearer xxx"}' />
-              </el-form-item>
-              <el-form-item label="消息模板">
-                <el-input v-model="config.webhook_template" placeholder="{{formattedMessage}}" />
-                <div class="form-tip">
-                  可用变量: <code v-pre>{{title}}, {{content}}, {{tags}}, {{tagsLine}}, {{timestamp}}, {{formattedMessage}}</code>
-                </div>
-              </el-form-item>
-            </el-form>
-          </div>
-        </el-collapse-transition>
-
-        <!-- Email Config -->
-        <el-collapse-transition>
-          <div v-if="activeChannels.includes('email')" class="channel-config">
-            <div class="config-section-header">
-              <h4>邮件配置 (Resend)</h4>
-              <el-button size="small" type="primary" plain @click="testChannel('email')">测试</el-button>
-            </div>
-            <el-form label-position="top">
-              <el-row :gutter="16">
-                <el-col :xs="24" :md="8">
-                  <el-form-item label="API Key">
-                    <el-input v-model="config.email_api_key" placeholder="Resend API Key" />
-                  </el-form-item>
-                </el-col>
-                <el-col :xs="24" :md="8">
-                  <el-form-item label="发件人邮箱">
-                    <el-input v-model="config.email_from" placeholder="notify@yourdomain.com" />
-                  </el-form-item>
-                </el-col>
-                <el-col :xs="24" :md="8">
-                  <el-form-item label="收件人邮箱">
-                    <el-input v-model="config.email_to" placeholder="you@example.com" />
-                  </el-form-item>
-                </el-col>
-              </el-row>
-            </el-form>
-          </div>
-        </el-collapse-transition>
-
-        <!-- NotifyX Config -->
-        <el-collapse-transition>
-          <div v-if="activeChannels.includes('notifyx')" class="channel-config">
-            <div class="config-section-header">
-              <h4>NotifyX 配置</h4>
-              <el-button size="small" type="primary" plain @click="testChannel('notifyx')">测试</el-button>
-            </div>
-            <el-form label-position="top">
-              <el-form-item label="API Key">
-                <el-input v-model="config.notifyx_api_key" placeholder="从 NotifyX 官网获取" />
-              </el-form-item>
-            </el-form>
-          </div>
-        </el-collapse-transition>
       </el-card>
 
 
