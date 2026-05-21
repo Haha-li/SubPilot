@@ -10,4 +10,4 @@ database_name = "subpilot"
 database_id = "YOUR_D1_DATABASE_ID"
 
 [triggers]
-crons = ["0 * * * *"]
+crons = ["0 0 * * *"]
