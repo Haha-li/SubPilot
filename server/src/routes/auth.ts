@@ -32,7 +32,7 @@ router.get('/me', authMiddleware, async (req: AuthRequest, res: Response) => {
 
 // Change password
 router.put('/password', authMiddleware, async (req: AuthRequest, res: Response) => {
-  const result = await changePasswordHandler(req.userId!, req.body);
+  const result = await changePasswordHandler(req.userId!, req.body, process.env.ADMIN_PASSWORD);
   res.status(result.status).json(result.body);
 });
 

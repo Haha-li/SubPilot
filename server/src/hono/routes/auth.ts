@@ -27,7 +27,7 @@ auth.get('/me', honoAuth, async (c) => {
 auth.put('/password', honoAuth, async (c) => {
   const userId = c.get('userId' as never) as unknown as number;
   const body = await c.req.json();
-  const result = await changePasswordHandler(userId, body);
+  const result = await changePasswordHandler(userId, body, c.env.ADMIN_PASSWORD);
   return c.json(result.body, result.status as any);
 });
 
