@@ -92,6 +92,12 @@ jobs:
         env:
           VITE_API_URL: ${{ needs.deploy-backend.outputs.workers_url }}
 
+      - name: Create Pages project
+        run: npx wrangler pages project create subpilot-frontend --production-branch main || true
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+
       - name: Deploy to Pages
         run: npx wrangler pages deploy dist --project-name=subpilot-frontend
         env:
