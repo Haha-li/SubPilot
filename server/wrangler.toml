@@ -9,5 +9,5 @@ binding = "DB"
 database_name = "subpilot"
 database_id = "YOUR_D1_DATABASE_ID"
 
-[[triggers.crons]]
-cron = "0 0 * * *"
+[triggers]
+crons = ["0 0 * * *"]

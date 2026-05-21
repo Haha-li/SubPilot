@@ -37,8 +37,8 @@ jobs:
           database_name = "subpilot"
           database_id = "D1_DATABASE_ID_PLACEHOLDER"
 
-          [[triggers.crons]]
-          cron = "0 0 * * *"
+          [triggers]
+          crons = ["0 0 * * *"]
           TOML
           sed -i "s/D1_DATABASE_ID_PLACEHOLDER/${{ secrets.D1_DATABASE_ID }}/" wrangler.toml
 
