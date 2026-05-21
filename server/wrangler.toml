@@ -8,8 +8,5 @@ binding = "DB"
 database_name = "subpilot"
 database_id = "YOUR_D1_DATABASE_ID"
 
-[vars]
-JWT_SECRET = "change-this-to-a-random-secret"
-
 [[triggers.crons]]
 cron = "0 0 * * *"

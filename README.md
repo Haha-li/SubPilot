@@ -10,6 +10,7 @@
 - **深色模式** — 侧边栏一键切换深色/浅色主题
 - **复制订阅** — 快速复制已有订阅，预设 14 种订阅类型
 - **双环境部署** — 支持 Docker (Express + SQLite) 和 Cloudflare Workers (Hono + D1)
+- **一键部署** — Fork 后 GitHub Actions 自动部署到 Cloudflare Workers + Pages
 
 ## 技术栈
 
@@ -17,7 +18,7 @@
 |---|---|---|
 | 前端 | Vue 3、TypeScript、Element Plus、Pinia、Vue Router | 同左 |
 | 后端 | Express、Drizzle ORM、SQLite | Hono、Drizzle ORM、Cloudflare D1 |
-| 部署 | Docker、Docker Compose | Cloudflare Workers |
+| 部署 | Docker、Docker Compose | Cloudflare Workers + Pages, GitHub Actions |
 
 ## 快速开始
 
@@ -33,121 +34,100 @@ docker compose up -d
 
 ### Cloudflare Workers 部署
 
-#### 前置条件
+#### 一键部署（推荐）
 
-- [Cloudflare 账号](https://dash.cloudflare.com/sign-up)（免费即可）
+Fork 本仓库后，通过 GitHub Actions 自动部署到 Cloudflare Workers + Pages。
+
+**第一步：创建 Cloudflare 资源**
+
+1. 登录 [Cloudflare Dashboard](https://dash.cloudflare.com)
+2. 进入 **Workers & Pages** → **D1** → **Create**，数据库名称填 `subpilot`，记下 **Database ID**
+3. 进入 **Workers & Pages** → **Overview** → **Create** → 创建一个 Worker（名称随意，后面会被覆盖）
+4. 进入 **My Profile** → **API Tokens** → **Create Token**，使用 **Edit Cloudflare Workers** 模板
+
+**第二步：配置 GitHub Secrets**
+
+在你的 GitHub 仓库 → **Settings** → **Secrets and variables** → **Actions** 中添加：
+
+| Secret 名称 | 说明 |
+|---|---|
+| `CLOUDFLARE_API_TOKEN` | 上一步创建的 API Token |
+| `CLOUDFLARE_ACCOUNT_ID` | Cloudflare Dashboard 右侧栏的 Account ID |
+| `WORKERS_URL` | Workers 部署后的地址，如 `https://subpilot.xxx.workers.dev` |
+
+**第三步：配置 wrangler.toml**
+
+编辑 `server/wrangler.toml`，填入你的 D1 Database ID：
+
+```toml
+[[d1_databases]]
+binding = "DB"
+database_name = "subpilot"
+database_id = "你的 Database ID"
+```
+
+然后在 Cloudflare Dashboard → Workers → subpilot → **Settings** → **Variables and Secrets** 中添加：
+
+| 变量名 | 类型 | 说明 |
+|---|---|---|
+| `JWT_SECRET` | Secret | 随机字符串，用于签发登录令牌 |
+
+**第四步：推送到 GitHub**
+
+```bash
+git add .
+git commit -m "配置 Cloudflare 部署"
+git push origin main
+```
+
+GitHub Actions 会自动：
+- 初始化 D1 数据库表结构
+- 部署后端到 Cloudflare Workers
+- 构建前端并部署到 Cloudflare Pages
+
+部署完成后访问 `https://你的pages域名.pages.dev`。
+
+<details>
+<summary><b>手动部署（不用 GitHub Actions）</b></summary>
+
+**前置条件**
+
+- [Cloudflare 账号](https://dash.cloudflare.com/sign-up)
 - 安装 Wrangler CLI：`npm install -g wrangler`
 - 登录 Wrangler：`wrangler login`
 
-#### 第一步：创建 D1 数据库
+**1. 创建 D1 数据库**
 
 ```bash
 cd server
 wrangler d1 create subpilot
 ```
 
-输出类似：
-```
-[[d1_databases]]
-binding = "DB"
-database_name = "subpilot"
-database_id = "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
-```
+将输出的 `database_id` 填入 `server/wrangler.toml`。
 
-**复制 `database_id`**，下一步要用。
+**2. 设置 JWT_SECRET**
 
-#### 第二步：配置 wrangler.toml
+在 Cloudflare Dashboard → Workers → Settings → Variables and Secrets 中添加 `JWT_SECRET`（Secret 类型）。
 
-编辑 `server/wrangler.toml`：
-
-```toml
-name = "subpilot"
-main = "src/hono/index.ts"
-compatibility_date = "2024-12-01"
-compatibility_flags = ["nodejs_compat"]
-
-[[d1_databases]]
-binding = "DB"
-database_name = "subpilot"
-database_id = "你刚才复制的 database_id"
-
-[vars]
-JWT_SECRET = "改成一个随机字符串"
-
-[[triggers.crons]]
-cron = "0 0 * * *"
-```
-
-#### 第三步：初始化数据库
+**3. 初始化数据库 + 部署后端**
 
 ```bash
-npm run db:migrate:d1
-```
-
-如果本地开发需要 D1，可以创建本地数据库副本：
-```bash
-wrangler d1 create subpilot --local
-```
-
-#### 第四步：部署后端
-
-```bash
+cd server
 npm install
-npm run deploy
+npx wrangler d1 execute subpilot --file=migrations/0001_init.sql
+npx wrangler deploy
 ```
 
-部署成功后会显示 Workers 地址，如 `https://subpilot.xxx.workers.dev`
-
-#### 第五步：部署前端（Cloudflare Pages）
+**4. 部署前端**
 
 ```bash
 cd client
 npm install
-npm run build
-```
-
-两种方式部署前端：
-
-**方式 A：通过 Wrangler**
-```bash
-wrangler pages project create subpilot-frontend
-wrangler pages deploy dist --project-name=subpilot-frontend
-```
-
-**方式 B：通过 Cloudflare Dashboard**
-1. 进入 Cloudflare Dashboard → Pages → Create a project
-2. 连接 GitHub 仓库
-3. 构建设置：Framework preset 选 `None`，Build command 填 `cd client && npm install && npm run build`，Build output directory 填 `client/dist`
-
-#### 第六步：配置前端 API 地址
-
-构建时通过环境变量 `VITE_API_URL` 指向 Workers 地址，**无需修改代码**：
-
-**方式 A：本地构建**
-```bash
-cd client
 VITE_API_URL=https://subpilot.xxx.workers.dev npm run build
+npx wrangler pages deploy dist --project-name=subpilot-frontend
 ```
 
-**方式 B：Cloudflare Dashboard**
-在 Pages 项目设置 → Environment variables 中添加：
-- Variable name: `VITE_API_URL`
-- Value: `https://subpilot.xxx.workers.dev`（你的 Workers 地址）
-
-**方式 C：Wrangler**
-```bash
-wrangler pages deploy dist --project-name=subpilot-frontend --branch main -- VITE_API_URL=https://subpilot.xxx.workers.dev
-```
-
-不设置此变量时，默认使用 `/api`（适用于 Docker 同源部署）。
-
-#### 第七步：配置 CORS
-
-编辑 `server/src/hono/index.ts`，将前端 Pages 域名加入 CORS 白名单：
-
-```ts
-app.use('*', cors({ origin: 'https://你的pages域名.pages.dev', credentials: true }));
-```
+</details>
 
 ### 本地开发
 
