@@ -67,7 +67,7 @@ jobs:
             "https://api.cloudflare.com/client/v4/accounts/${{ secrets.CLOUDFLARE_ACCOUNT_ID }}/workers/subdomain" \
             -H "Authorization: Bearer ${{ secrets.CLOUDFLARE_API_TOKEN }}" \
             -H "Content-Type: application/json" | jq -r '.result.subdomain')
-          echo "url=https://subpilot.${SUBDOMAIN}.workers.dev" >> "$GITHUB_OUTPUT"
+          echo "url=https://subpilot.${SUBDOMAIN}.workers.dev/api" >> "$GITHUB_OUTPUT"
 
   deploy-frontend:
     name: Deploy Pages
