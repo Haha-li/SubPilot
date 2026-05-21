@@ -44,7 +44,7 @@ INSERT OR IGNORE INTO users (username, password_hash) VALUES ('admin', '$2a$10$E
 -- Default config
 INSERT OR IGNORE INTO config (key, value) VALUES ('timezone', 'Asia/Shanghai');
 INSERT OR IGNORE INTO config (key, value) VALUES ('cron_expression', '0 0 * * *');
-INSERT OR IGNORE INTO config (key, value) VALUES ('notify_hours', '8');
+INSERT OR IGNORE INTO config (key, value) VALUES ('notify_hours', '');
 INSERT OR IGNORE INTO config (key, value) VALUES ('notify_channels', '');
 INSERT OR IGNORE INTO config (key, value) VALUES ('telegram_bot_token', '');
 INSERT OR IGNORE INTO config (key, value) VALUES ('telegram_chat_id', '');

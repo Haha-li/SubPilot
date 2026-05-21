@@ -102,9 +102,9 @@ onMounted(loadConfig);
               </el-form-item>
             </el-col>
             <el-col :xs="24" :md="12">
-              <el-form-item label="提醒时间 (小时，逗号分隔)">
-                <el-input v-model="config.notify_hours" placeholder="8" />
-                <div class="form-tip">如: 8,12,18 表示在这些小时触发检查</div>
+              <el-form-item label="检查时间 (小时)">
+                <el-input v-model="config.notify_hours" placeholder="留空则每天执行一次" />
+                <div class="form-tip">多个时间用逗号或空格分隔，如: 8,12,18 或 8 12 18；留空则每天执行一次</div>
               </el-form-item>
             </el-col>
           </el-row>

@@ -13,10 +13,13 @@ export async function checkAndNotify() {
     configs.forEach((c: any) => { configMap[c.key] = c.value; });
 
     const timezone = configMap.timezone || 'Asia/Shanghai';
-    const notifyHours = (configMap.notify_hours || '8').split(',').map(Number);
+    const rawHours = configMap.notify_hours || '';
+    const notifyHours = rawHours.trim()
+      ? rawHours.split(/[,\s]+/).map(Number).filter(n => !isNaN(n) && n >= 0 && n <= 23)
+      : []; // empty = run every check
     const currentHour = new Date().toLocaleString('en-US', { timeZone: timezone, hour12: false, hour: '2-digit' });
 
-    if (!notifyHours.includes(Number(currentHour))) {
+    if (notifyHours.length > 0 && !notifyHours.includes(Number(currentHour))) {
       console.log(`Current hour ${currentHour} not in notify hours [${notifyHours}], skipping`);
       return;
     }
