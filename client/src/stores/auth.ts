@@ -8,8 +8,8 @@ export const useAuthStore = defineStore('auth', () => {
 
   const isAuthenticated = computed(() => !!token.value);
 
-  async function login(user: string, password: string) {
-    const { data } = await api.post('/auth/login', { username: user, password });
+  async function login(password: string) {
+    const { data } = await api.post('/auth/login', { password });
     if (data.success) {
       token.value = data.token;
       username.value = data.username;

@@ -1,29 +1,25 @@
 <script setup lang="ts">
-import { ref, reactive } from 'vue';
+import { ref } from 'vue';
 import { useRouter } from 'vue-router';
 import { useAuthStore } from '../stores/auth';
 import { ElMessage } from 'element-plus';
-import { User, Lock, List } from '@element-plus/icons-vue';
+import { Lock, List } from '@element-plus/icons-vue';
 
 const router = useRouter();
 const authStore = useAuthStore();
 
-const form = reactive({
-  username: '',
-  password: '',
-});
-
+const password = ref('');
 const loading = ref(false);
 
 async function handleLogin() {
-  if (!form.username || !form.password) {
-    ElMessage.warning('请输入用户名和密码');
+  if (!password.value) {
+    ElMessage.warning('请输入密码');
     return;
   }
 
   loading.value = true;
   try {
-    const result = await authStore.login(form.username, form.password);
+    const result = await authStore.login(password.value);
     if (result.success) {
       router.push('/');
     } else {
@@ -46,24 +42,16 @@ async function handleLogin() {
         <p>订阅管理与提醒系统</p>
       </div>
 
-      <el-form :model="form" label-position="top" @submit.prevent="handleLogin">
-        <el-form-item label="用户名">
-          <el-input
-            v-model="form.username"
-            placeholder="请输入用户名"
-            size="large"
-            :prefix-icon="User"
-          />
-        </el-form-item>
-
+      <el-form label-position="top" @submit.prevent="handleLogin">
         <el-form-item label="密码">
           <el-input
-            v-model="form.password"
+            v-model="password"
             type="password"
-            placeholder="请输入密码"
+            placeholder="请输入管理密码"
             size="large"
             show-password
             :prefix-icon="Lock"
+            @keyup.enter="handleLogin"
           />
         </el-form-item>
 

@@ -10,6 +10,7 @@ interface Env {
   Bindings: {
     DB: any; // D1Database
     JWT_SECRET: string;
+    ADMIN_PASSWORD: string;
   };
 }
 

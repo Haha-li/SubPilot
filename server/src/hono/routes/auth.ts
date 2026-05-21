@@ -7,7 +7,7 @@ const auth = new Hono();
 // Login
 auth.post('/login', async (c) => {
   const body = await c.req.json();
-  const result = await loginHandler(body);
+  const result = await loginHandler(body, c.env.ADMIN_PASSWORD);
   return c.json(result.body, result.status as any);
 });
 

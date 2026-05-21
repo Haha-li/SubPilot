@@ -58,6 +58,7 @@ Fork 本仓库后，通过 GitHub Actions 自动部署到 Cloudflare Workers + P
 | `CLOUDFLARE_ACCOUNT_ID` | Cloudflare Dashboard 右侧栏的 Account ID |
 | `D1_DATABASE_ID` | 第一步创建的 D1 Database ID |
 | `JWT_SECRET` | 随机字符串，用于签发登录令牌 |
+| `ADMIN_PASSWORD` | 管理密码（可选，默认 `password`） |
 
 **第三步：推送到 GitHub**
 
