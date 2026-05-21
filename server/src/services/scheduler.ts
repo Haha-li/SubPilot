@@ -1,9 +1,8 @@
-import cron from 'node-cron';
 import { db, schema } from '../db';
 import { eq } from 'drizzle-orm';
 import { sendNotification } from './notification';
 
-let scheduledTask: cron.ScheduledTask | null = null;
+let scheduledTask: any = null;
 
 export async function checkAndNotify() {
   console.log(`[${new Date().toISOString()}] Running scheduled notification check...`);
@@ -55,17 +54,23 @@ export async function checkAndNotify() {
 }
 
 export function startScheduler() {
-  const cronExpression = '0 0 * * *'; // Default: every day at midnight UTC
+  // node-cron is not available on Cloudflare Workers (uses Cron Triggers instead)
+  try {
+    const cron = require('node-cron');
+    const cronExpression = '0 0 * * *';
 
-  if (scheduledTask) {
-    scheduledTask.stop();
+    if (scheduledTask) {
+      scheduledTask.stop();
+    }
+
+    scheduledTask = cron.schedule(cronExpression, checkAndNotify, {
+      timezone: 'UTC',
+    });
+
+    console.log(`Scheduler started with cron: ${cronExpression}`);
+  } catch {
+    console.log('Scheduler skipped (node-cron not available, use Workers Cron Triggers)');
   }
-
-  scheduledTask = cron.schedule(cronExpression, checkAndNotify, {
-    timezone: 'UTC',
-  });
-
-  console.log(`Scheduler started with cron: ${cronExpression}`);
 }
 
 export function stopScheduler() {
