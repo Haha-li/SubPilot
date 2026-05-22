@@ -28,7 +28,30 @@ export async function checkAndNotify() {
     const now = new Date();
 
     for (const sub of subscriptions) {
-      const expiryDate = new Date(sub.expiryDate);
+      let expiryDate = new Date(sub.expiryDate);
+
+      // Auto-renewal: if expired and autoRenew is enabled, advance expiry date
+      if (sub.autoRenew === 1 && expiryDate.getTime() < now.getTime()) {
+        const periodValue = sub.periodValue || 1;
+        const periodUnit = sub.periodUnit || 'month';
+        const oldExpiry = new Date(expiryDate);
+        const newExpiry = new Date(oldExpiry);
+
+        if (periodUnit === 'day') newExpiry.setDate(newExpiry.getDate() + periodValue);
+        else if (periodUnit === 'month') newExpiry.setMonth(newExpiry.getMonth() + periodValue);
+        else if (periodUnit === 'year') newExpiry.setFullYear(newExpiry.getFullYear() + periodValue);
+
+        const newDateStr = newExpiry.toISOString().split('T')[0];
+        await db.update(schema.subscriptions).set({
+          startDate: oldExpiry.toISOString().split('T')[0],
+          expiryDate: newDateStr,
+          updatedAt: now.toISOString(),
+        }).where(eq(schema.subscriptions.id, sub.id));
+
+        console.log(`Auto-renewed: ${sub.name}, new expiry: ${newDateStr}`);
+        expiryDate = newExpiry;
+      }
+
       const diffMs = expiryDate.getTime() - now.getTime();
       const diffDays = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
       const diffHours = diffMs / (1000 * 60 * 60);

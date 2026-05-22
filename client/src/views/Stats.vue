@@ -61,6 +61,31 @@ const byCategory = computed(() => {
 
 const maxCatValue = computed(() => Math.max(1, ...byCategory.value.map(i => i.value)));
 
+const monthlyTrend = computed(() => {
+  const months: { label: string; value: number }[] = [];
+  const now = new Date();
+  for (let i = 5; i >= 0; i--) {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    const year = d.getFullYear();
+    const month = d.getMonth();
+    const monthStart = new Date(year, month, 1).getTime();
+    const monthEnd = new Date(year, month + 1, 0, 23, 59, 59).getTime();
+    let total = 0;
+    activeSubscriptions.value.forEach(sub => {
+      if (!sub.price || sub.price <= 0) return;
+      const expiryTime = new Date(sub.expiryDate).getTime();
+      const startTime = sub.startDate ? new Date(sub.startDate).getTime() : 0;
+      if (expiryTime >= monthStart && startTime <= monthEnd) {
+        total += getMonthlyCost(sub);
+      }
+    });
+    months.push({ label: `${month + 1}月`, value: Math.round(total * 100) / 100 });
+  }
+  return months;
+});
+
+const maxTrendValue = computed(() => Math.max(1, ...monthlyTrend.value.map(i => i.value)));
+
 const sortedSubs = computed(() =>
   [...subStore.subscriptions].sort((a, b) => {
     const ca = getMonthlyCost(a);
@@ -161,6 +186,22 @@ onMounted(() => {
         </el-card>
       </el-col>
     </el-row>
+
+    <!-- Monthly Trend -->
+    <el-card shadow="never" style="margin-top: 20px" v-if="monthlyTrend.some(m => m.value > 0)">
+      <template #header>
+        <span class="section-title">近6个月费用趋势</span>
+      </template>
+      <div class="trend-chart">
+        <div v-for="item in monthlyTrend" :key="item.label" class="trend-col">
+          <div class="trend-value">{{ formatMoney(item.value) }}</div>
+          <div class="trend-track">
+            <div class="trend-fill" :style="{ height: (item.value / maxTrendValue * 100) + '%' }"></div>
+          </div>
+          <div class="trend-label">{{ item.label }}</div>
+        </div>
+      </div>
+    </el-card>
 
     <el-empty v-if="byType.length === 0 && byCategory.length === 0" description="暂无付费订阅数据" />
 
@@ -338,5 +379,56 @@ onMounted(() => {
 .free {
   color: var(--el-text-color-secondary);
   font-size: 12px;
+}
+
+.trend-chart {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-around;
+  height: 200px;
+  gap: 8px;
+  padding: 0 16px;
+}
+
+.trend-col {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  flex: 1;
+  height: 100%;
+}
+
+.trend-value {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--el-text-color-primary);
+  margin-bottom: 4px;
+  white-space: nowrap;
+}
+
+.trend-track {
+  flex: 1;
+  width: 100%;
+  max-width: 48px;
+  background: var(--el-fill-color);
+  border-radius: 4px;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  overflow: hidden;
+}
+
+.trend-fill {
+  width: 100%;
+  background: var(--el-color-primary);
+  border-radius: 4px;
+  transition: height 0.3s;
+  min-height: 2px;
+}
+
+.trend-label {
+  font-size: 13px;
+  color: var(--el-text-color-secondary);
+  margin-top: 8px;
 }
 </style>

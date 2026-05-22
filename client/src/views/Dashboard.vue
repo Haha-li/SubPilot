@@ -13,14 +13,24 @@ const searchKeyword = ref('');
 const categoryFilter = ref('');
 const showLunar = ref(localStorage.getItem('showLunar') === 'true');
 const statusFilter = ref('');
-const sortBy = ref('expiry');
-const sortOrder = ref('asc');
+const sortBy = ref(localStorage.getItem('sortBy') || 'expiry');
+const sortOrder = ref(localStorage.getItem('sortOrder') || 'asc');
 const showImportExport = ref(false);
 const showModal = ref(false);
 const editingSub = ref<Subscription | null>(null);
 const copyMode = ref(false);
 const currentPage = ref(1);
 const pageSize = ref(12);
+
+// Bulk selection
+const selectMode = ref(false);
+const selectedMap = ref<Record<number, boolean>>({});
+const selectedCount = computed(() => Object.keys(selectedMap.value).length);
+
+watch([sortBy, sortOrder], () => {
+  localStorage.setItem('sortBy', sortBy.value);
+  localStorage.setItem('sortOrder', sortOrder.value);
+});
 
 const categorySeparator = /[/,，\s]+/;
 
@@ -88,7 +98,48 @@ const paginatedSubscriptions = computed(() => {
 
 watch([searchKeyword, categoryFilter, statusFilter], () => {
   currentPage.value = 1;
+  selectedMap.value = {};
 });
+
+function toggleSelectMode() {
+  selectMode.value = !selectMode.value;
+  selectedMap.value = {};
+}
+
+function toggleSelection(id: number) {
+  const next = { ...selectedMap.value };
+  if (next[id]) delete next[id]; else next[id] = true;
+  selectedMap.value = next;
+}
+
+function toggleSelectAll() {
+  const allSelected = paginatedSubscriptions.value.every(s => selectedMap.value[s.id]);
+  const next: Record<number, boolean> = {};
+  if (!allSelected) paginatedSubscriptions.value.forEach(s => { next[s.id] = true; });
+  selectedMap.value = next;
+}
+
+async function handleBatchToggle(enable: boolean) {
+  const ids = Object.keys(selectedMap.value).map(Number);
+  for (const id of ids) await subStore.toggleSubscription(id, enable);
+  ElMessage.success(enable ? '已批量启用' : '已批量停用');
+  selectedMap.value = {};
+  selectMode.value = false;
+}
+
+async function handleBatchDelete() {
+  const count = selectedCount.value;
+  try {
+    await ElMessageBox.confirm(`确定删除 ${count} 项订阅？`, '批量删除', {
+      confirmButtonText: '删除', cancelButtonText: '取消', type: 'warning',
+    });
+    const ids = Object.keys(selectedMap.value).map(Number);
+    for (const id of ids) await subStore.deleteSubscription(id);
+    ElMessage.success(`已删除 ${count} 项`);
+    selectedMap.value = {};
+    selectMode.value = false;
+  } catch {}
+}
 
 function getDaysLeft(sub: Subscription): { text: string; type: 'danger' | 'warning' | 'info'; percent: number } {
   const now = new Date();
@@ -248,6 +299,9 @@ onMounted(() => {
       </div>
       <div class="header-actions">
         <el-button :icon="Download" @click="showImportExport = true">导入/导出</el-button>
+        <el-button :type="selectMode ? 'primary' : ''" :plain="!selectMode" @click="toggleSelectMode">
+          {{ selectMode ? '取消' : '选择' }}
+        </el-button>
         <el-button type="primary" :icon="Plus" @click="openAdd">添加订阅</el-button>
       </div>
     </div>
@@ -320,6 +374,12 @@ onMounted(() => {
       >
         <!-- Card Header -->
         <div class="card-header">
+          <el-checkbox
+            v-if="selectMode"
+            :model-value="!!selectedMap[sub.id]"
+            @change="toggleSelection(sub.id)"
+            class="card-checkbox"
+          />
           <div class="card-header-left">
             <h3 class="card-title">{{ sub.name }}</h3>
             <span v-if="sub.customType" class="card-type">{{ sub.customType }}</span>
@@ -397,6 +457,26 @@ onMounted(() => {
         </div>
       </el-card>
       </div>
+
+      <!-- Batch Action Bar -->
+      <transition name="el-fade-in">
+        <div v-if="selectMode && selectedCount > 0" class="batch-action-bar">
+          <div class="batch-info">
+            <el-checkbox
+              :model-value="paginatedSubscriptions.length > 0 && paginatedSubscriptions.every(s => selectedMap[s.id])"
+              :indeterminate="selectedCount > 0 && !paginatedSubscriptions.every(s => selectedMap[s.id])"
+              @change="toggleSelectAll"
+            />
+            <span>已选择 {{ selectedCount }} 项</span>
+          </div>
+          <div class="batch-buttons">
+            <el-button size="small" type="success" plain @click="handleBatchToggle(true)">批量启用</el-button>
+            <el-button size="small" type="info" plain @click="handleBatchToggle(false)">批量停用</el-button>
+            <el-button size="small" type="danger" plain @click="handleBatchDelete">批量删除</el-button>
+          </div>
+        </div>
+      </transition>
+
       <el-pagination
         v-if="filteredSubscriptions.length > pageSize"
         v-model:current-page="currentPage"
@@ -592,5 +672,34 @@ html.dark .card-grid :deep(.el-card) {
   margin-top: 24px;
   display: flex;
   justify-content: flex-end;
+}
+
+.card-checkbox {
+  margin-right: 8px;
+  flex-shrink: 0;
+}
+
+.batch-action-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 20px;
+  background: var(--el-bg-color);
+  border: 1px solid var(--el-border-color-light);
+  border-radius: 12px;
+  margin-top: 16px;
+}
+
+.batch-info {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  color: var(--el-text-color-primary);
+}
+
+.batch-buttons {
+  display: flex;
+  gap: 8px;
 }
 </style>
