@@ -59,12 +59,18 @@ function cancelRename() {
 
 function handleAdd() {
   const name = newCategoryName.value.trim();
-  if (!name) return;
+  if (!name) {
+    ElMessage.warning('请输入分类名称');
+    return;
+  }
   const sep = /[/,，\s]+/;
   const tokens = name.split(sep).map(t => t.trim()).filter(Boolean);
   let added = 0;
+  let skipped = 0;
   tokens.forEach(t => {
-    if (!customCategories.value.includes(t) && !categories.value.some(c => c.name === t)) {
+    if (customCategories.value.includes(t) || categories.value.some(c => c.name === t)) {
+      skipped++;
+    } else {
       customCategories.value.push(t);
       added++;
     }
@@ -72,6 +78,8 @@ function handleAdd() {
   if (added > 0) {
     localStorage.setItem('customCategories', JSON.stringify(customCategories.value));
     ElMessage.success(`已添加 ${added} 个分类`);
+  } else if (skipped > 0) {
+    ElMessage.info('分类已存在');
   }
   newCategoryName.value = '';
 }
