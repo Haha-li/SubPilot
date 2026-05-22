@@ -90,12 +90,23 @@ function calculateExpiry() {
     ElMessage.warning('请先选择开始日期');
     return;
   }
-  const start = new Date(form.value.startDate);
+  const date = new Date(form.value.startDate);
+
+  // Add trial period first if enabled
+  if (form.value.hasTrial && form.value.trialValue && form.value.trialUnit) {
+    const tv = form.value.trialValue;
+    if (form.value.trialUnit === 'day') date.setDate(date.getDate() + tv);
+    else if (form.value.trialUnit === 'month') date.setMonth(date.getMonth() + tv);
+    else if (form.value.trialUnit === 'year') date.setFullYear(date.getFullYear() + tv);
+  }
+
+  // Then add subscription period
   const { periodValue, periodUnit } = form.value;
-  if (periodUnit === 'day') start.setDate(start.getDate() + periodValue);
-  else if (periodUnit === 'month') start.setMonth(start.getMonth() + periodValue);
-  else if (periodUnit === 'year') start.setFullYear(start.getFullYear() + periodValue);
-  form.value.expiryDate = start.toISOString().split('T')[0];
+  if (periodUnit === 'day') date.setDate(date.getDate() + periodValue);
+  else if (periodUnit === 'month') date.setMonth(date.getMonth() + periodValue);
+  else if (periodUnit === 'year') date.setFullYear(date.getFullYear() + periodValue);
+
+  form.value.expiryDate = date.toISOString().split('T')[0];
 }
 
 function handleClose() {
