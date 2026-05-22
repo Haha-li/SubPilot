@@ -38,11 +38,11 @@ function formatNotifyMessage(subscription: Subscription, config: Record<string, 
   const diffMs = expiryDate.getTime() - now.getTime();
   const diffDays = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
 
-  let lunarInfo = '';
+  let lunar = '';
   if (subscription.useLunar) {
-    const lunar = solar2lunar(expiryDate.getFullYear(), expiryDate.getMonth() + 1, expiryDate.getDate());
-    if (lunar) {
-      lunarInfo = `\n农历: ${lunar.fullStr}`;
+    const lunarDate = solar2lunar(expiryDate.getFullYear(), expiryDate.getMonth() + 1, expiryDate.getDate());
+    if (lunarDate) {
+      lunar = lunarDate.fullStr;
     }
   }
 
@@ -50,13 +50,26 @@ function formatNotifyMessage(subscription: Subscription, config: Record<string, 
                  diffDays === 0 ? '今天到期' :
                  `还有 ${diffDays} 天到期`;
 
+  const template = config.notify_template || '';
+
+  if (template) {
+    return template
+      .replace(/\{\{name\}\}/g, subscription.name)
+      .replace(/\{\{type\}\}/g, subscription.customType || '其他')
+      .replace(/\{\{expiryDate\}\}/g, subscription.expiryDate)
+      .replace(/\{\{status\}\}/g, status)
+      .replace(/\{\{daysLeft\}\}/g, String(diffDays))
+      .replace(/\{\{lunar\}\}/g, lunar)
+      .replace(/\{\{notes\}\}/g, subscription.notes || '');
+  }
+
   return `📋 订阅提醒\n` +
     `━━━━━━━━━━━━━━\n` +
     `名称: ${subscription.name}\n` +
     `类型: ${subscription.customType || '其他'}\n` +
     `到期: ${subscription.expiryDate}\n` +
     `状态: ${status}` +
-    lunarInfo +
+    (lunar ? `\n农历: ${lunar}` : '') +
     (subscription.notes ? `\n备注: ${subscription.notes}` : '');
 }
 

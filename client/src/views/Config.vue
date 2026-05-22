@@ -111,6 +111,26 @@ onMounted(loadConfig);
         </el-form>
       </el-card>
 
+      <!-- Notify Template -->
+      <el-card shadow="never">
+        <template #header>
+          <span class="section-title">通知模板</span>
+        </template>
+        <el-form label-position="top">
+          <el-form-item label="消息模板（留空使用默认模板）">
+            <el-input
+              v-model="config.notify_template"
+              type="textarea"
+              :rows="6"
+              placeholder="📋 订阅提醒&#10;━━━━━━━━━━━━━━&#10;名称: {{name}}&#10;类型: {{type}}&#10;到期: {{expiryDate}}&#10;状态: {{status}}"
+            />
+            <div class="form-tip">
+              可用变量: <code>{{name}}</code> <code>{{type}}</code> <code>{{expiryDate}}</code> <code>{{status}}</code> <code>{{daysLeft}}</code> <code>{{lunar}}</code> <code>{{notes}}</code>
+            </div>
+          </el-form-item>
+        </el-form>
+      </el-card>
+
       <!-- Notification Channels -->
       <el-card shadow="never">
         <template #header>
