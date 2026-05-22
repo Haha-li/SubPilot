@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, onMounted, watch } from 'vue';
+import { useMediaQuery } from '@vueuse/core';
 import { useNotifyLogsStore, type NotifyLog } from '../stores/notifyLogs';
 import { useSubscriptionStore } from '../stores/subscription';
 import { ElMessageBox, ElMessage } from 'element-plus';
@@ -7,6 +8,7 @@ import { Search, Delete } from '@element-plus/icons-vue';
 
 const logsStore = useNotifyLogsStore();
 const subStore = useSubscriptionStore();
+const isMobile = useMediaQuery('(max-width: 768px)');
 
 const subscriptionId = ref('');
 const channel = ref('');
@@ -142,14 +144,15 @@ onMounted(() => {
 
     <!-- Table -->
     <el-card shadow="never">
+      <div class="table-wrapper">
       <el-table :data="logsStore.logs" v-loading="logsStore.loading" stripe style="width: 100%">
-        <el-table-column label="订阅" prop="subscriptionName" width="140" />
-        <el-table-column label="渠道" width="100">
+        <el-table-column label="订阅" prop="subscriptionName" min-width="100" />
+        <el-table-column label="渠道" min-width="80">
           <template #default="{ row }">
             <el-tag size="small" effect="plain">{{ channelMap[row.channel] || row.channel }}</el-tag>
           </template>
         </el-table-column>
-        <el-table-column label="状态" width="80">
+        <el-table-column label="状态" min-width="70">
           <template #default="{ row }">
             <el-tag :type="row.status === 'success' ? 'success' : 'danger'" size="small" effect="light">
               {{ row.status === 'success' ? '成功' : '失败' }}
@@ -157,17 +160,18 @@ onMounted(() => {
           </template>
         </el-table-column>
         <el-table-column label="消息" prop="message" show-overflow-tooltip />
-        <el-table-column label="时间" width="180">
+        <el-table-column label="时间" min-width="140">
           <template #default="{ row }">
             {{ formatTime(row.createdAt) }}
           </template>
         </el-table-column>
-        <el-table-column label="操作" width="80" align="center">
+        <el-table-column label="操作" min-width="70" align="center">
           <template #default="{ row }">
             <el-button type="primary" link size="small" @click="showDetail(row)">详情</el-button>
           </template>
         </el-table-column>
       </el-table>
+      </div>
 
       <div class="pagination-wrap">
         <el-pagination
@@ -176,7 +180,8 @@ onMounted(() => {
           v-model:page-size="pageSize"
           :total="logsStore.total"
           :page-sizes="[20, 50, 100]"
-          layout="total, sizes, prev, pager, next"
+          :layout="isMobile ? 'total, prev, next' : 'total, sizes, prev, pager, next'"
+          :small="isMobile"
           background
           @current-change="handlePageChange"
           @size-change="handlePageChange"
@@ -185,7 +190,7 @@ onMounted(() => {
     </el-card>
 
     <!-- Detail Dialog -->
-    <el-dialog v-model="detailVisible" title="通知详情" width="560px" @close="detailLog = null">
+    <el-dialog v-model="detailVisible" title="通知详情" :width="isMobile ? '95%' : '560px'" @close="detailLog = null">
       <template v-if="detailLog">
         <el-descriptions :column="1" border>
           <el-descriptions-item label="订阅">{{ detailLog.subscriptionName }}</el-descriptions-item>

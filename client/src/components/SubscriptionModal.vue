@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, watch } from 'vue';
+import { useMediaQuery } from '@vueuse/core';
 import { useSubscriptionStore, type Subscription } from '../stores/subscription';
 import { solar2lunar } from '../utils/lunar';
 import { ElMessage } from 'element-plus';
@@ -15,6 +16,7 @@ const emit = defineEmits<{
 }>();
 
 const subStore = useSubscriptionStore();
+const isMobile = useMediaQuery('(max-width: 768px)');
 
 const allCategories = computed(() => {
   const cats = new Set<string>();
@@ -160,7 +162,7 @@ onMounted(() => {
   <el-dialog
     v-model="dialogVisible"
     :title="title"
-    width="680px"
+    :width="isMobile ? '95%' : '680px'"
     :close-on-click-modal="false"
     @close="handleClose"
   >

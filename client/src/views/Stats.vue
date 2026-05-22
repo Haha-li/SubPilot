@@ -213,6 +213,7 @@ onMounted(() => {
           <span class="table-count">共 {{ subStore.subscriptions.length }} 项，{{ paidSubscriptions.length }} 项付费</span>
         </div>
       </template>
+      <div class="table-wrapper">
       <el-table :data="sortedSubs" stripe style="width: 100%">
         <el-table-column label="订阅名称" prop="name" min-width="120">
           <template #default="{ row }">
@@ -222,29 +223,30 @@ onMounted(() => {
             </div>
           </template>
         </el-table-column>
-        <el-table-column label="类型" prop="customType" width="120">
+        <el-table-column label="类型" prop="customType" min-width="100">
           <template #default="{ row }">
             {{ row.customType || '-' }}
           </template>
         </el-table-column>
-        <el-table-column label="续订周期" width="100">
+        <el-table-column label="续订周期" min-width="80">
           <template #default="{ row }">
             {{ getPeriodLabel(row) }}
           </template>
         </el-table-column>
-        <el-table-column label="费用" width="130">
+        <el-table-column label="费用" min-width="100">
           <template #default="{ row }">
             <span v-if="row.price > 0" class="money">{{ getPriceLabel(row) }}</span>
             <span v-else class="free">免费</span>
           </template>
         </el-table-column>
-        <el-table-column label="折合月费" width="110" sortable>
+        <el-table-column label="折合月费" min-width="90" sortable>
           <template #default="{ row }">
             <span v-if="row.price > 0" class="money">{{ formatMoney(getMonthlyCost(row)) }}</span>
             <span v-else>-</span>
           </template>
         </el-table-column>
       </el-table>
+      </div>
     </el-card>
   </div>
 </template>
@@ -315,7 +317,7 @@ onMounted(() => {
 }
 
 .bar-label {
-  width: 80px;
+  width: clamp(50px, 20vw, 80px);
   text-align: right;
   font-size: 13px;
   color: var(--el-text-color-regular);
@@ -341,7 +343,7 @@ onMounted(() => {
 }
 
 .bar-value {
-  width: 80px;
+  width: clamp(50px, 20vw, 80px);
   font-size: 13px;
   font-weight: 600;
   color: var(--el-text-color-primary);

@@ -118,6 +118,8 @@ watch(() => subStore.subscriptions, () => {
   flex-direction: column;
   gap: 2px;
   margin-top: 4px;
+  max-height: 56px;
+  overflow-y: auto;
 }
 
 .cal-tag {

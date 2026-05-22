@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, computed, watch, onMounted } from 'vue';
+import { useMediaQuery } from '@vueuse/core';
 import { useSubscriptionStore, type Subscription } from '../stores/subscription';
 import { solar2lunar } from '../utils/lunar';
 import { ElMessageBox, ElMessage } from 'element-plus';
@@ -8,6 +9,7 @@ import SubscriptionModal from '../components/SubscriptionModal.vue';
 import ImportExportDrawer from '../components/ImportExportDrawer.vue';
 
 const subStore = useSubscriptionStore();
+const isMobile = useMediaQuery('(max-width: 768px)');
 
 const searchKeyword = ref('');
 const categoryFilter = ref('');
@@ -497,7 +499,8 @@ onMounted(() => {
         v-model:page-size="pageSize"
         :total="filteredSubscriptions.length"
         :page-sizes="[12, 24, 48]"
-        layout="total, sizes, prev, pager, next"
+        :layout="isMobile ? 'total, prev, next' : 'total, sizes, prev, pager, next'"
+        :small="isMobile"
         background
         class="pagination"
       />
@@ -677,6 +680,7 @@ html.dark .card-grid :deep(.el-card) {
 .card-actions {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: 8px;
   padding-top: 12px;
   border-top: 1px solid var(--el-border-color-lighter);
@@ -696,7 +700,9 @@ html.dark .card-grid :deep(.el-card) {
 .batch-action-bar {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   justify-content: space-between;
+  gap: 8px;
   padding: 12px 20px;
   background: var(--el-bg-color);
   border: 1px solid var(--el-border-color-light);

@@ -13,3 +13,14 @@ body {
 html.dark {
   color-scheme: dark;
 }
+
+/* Responsive utilities */
+.table-wrapper {
+  overflow-x: auto;
+}
+
+@media (max-width: 768px) {
+  .app-main {
+    padding: 12px !important;
+  }
+}
