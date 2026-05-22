@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue';
+import { ref, computed, onMounted, watch, nextTick } from 'vue';
 import { useSubscriptionStore } from '../stores/subscription';
 
 const subStore = useSubscriptionStore();
@@ -7,11 +7,10 @@ const currentDate = ref(new Date());
 
 const activeSubscriptions = computed(() => subStore.subscriptions.filter(s => s.isActive));
 
-function getSubsForDate(dateStr: string): { name: string; type: string; isExpiry: boolean }[] {
+function getSubsForDate(dateStr: string): { name: string; isExpiry: boolean }[] {
   return activeSubscriptions.value
     .filter(s => {
       if (s.expiryDate === dateStr) return true;
-      // Also show if this date is within reminder window and before expiry
       const cellTime = new Date(dateStr).getTime();
       const expiryTime = new Date(s.expiryDate).getTime();
       const diffDays = Math.ceil((expiryTime - cellTime) / (1000 * 60 * 60 * 24));
@@ -20,13 +19,64 @@ function getSubsForDate(dateStr: string): { name: string; type: string; isExpiry
     })
     .map(s => ({
       name: s.name,
-      type: s.customType || '',
       isExpiry: s.expiryDate === dateStr,
     }));
 }
 
+function renderCalendarCells() {
+  nextTick(() => {
+    const cells = document.querySelectorAll('.el-calendar-table td');
+    cells.forEach((td) => {
+      const dayEl = td.querySelector('.el-calendar-day')
+      if (!dayEl) return;
+
+      // Remove old injected tags
+      dayEl.querySelectorAll('.cal-subs-injected').forEach(el => el.remove());
+
+      // Get date from the cell's text content and current calendar month
+      const text = dayEl.textContent?.trim() || '';
+      const dayNum = parseInt(text);
+      if (isNaN(dayNum)) return;
+
+      // Determine which month this cell belongs to
+      const classes = (td as HTMLElement).className || '';
+      let date: Date;
+      if (classes.includes('prev')) {
+        date = new Date(currentDate.value.getFullYear(), currentDate.value.getMonth() - 1, dayNum);
+      } else if (classes.includes('next')) {
+        date = new Date(currentDate.value.getFullYear(), currentDate.value.getMonth() + 1, dayNum);
+      } else {
+        date = new Date(currentDate.value.getFullYear(), currentDate.value.getMonth(), dayNum);
+      }
+
+      const dateStr = date.toISOString().split('T')[0];
+      const subs = getSubsForDate(dateStr);
+      if (subs.length === 0) return;
+
+      const container = document.createElement('div');
+      container.className = 'cal-subs-injected';
+      subs.forEach(sub => {
+        const tag = document.createElement('span');
+        tag.className = sub.isExpiry ? 'cal-tag cal-tag-danger' : 'cal-tag cal-tag-warning';
+        tag.textContent = sub.name;
+        tag.title = sub.name;
+        container.appendChild(tag);
+      });
+      dayEl.appendChild(container);
+    });
+  });
+}
+
 onMounted(() => {
-  if (subStore.subscriptions.length === 0) subStore.fetchSubscriptions();
+  subStore.fetchSubscriptions().then(renderCalendarCells);
+});
+
+watch(currentDate, () => {
+  renderCalendarCells();
+});
+
+watch(() => subStore.subscriptions, () => {
+  renderCalendarCells();
 });
 </script>
 
@@ -38,22 +88,7 @@ onMounted(() => {
     </div>
 
     <el-card shadow="never">
-      <el-calendar v-model="currentDate">
-        <template #dateCell="{ data }">
-          <div class="cal-cell" :class="{ 'is-other': data.type !== 'current' }">
-            <span class="cal-day">{{ data.day.split('-')[2] }}</span>
-            <div class="cal-subs">
-              <div
-                v-for="sub in getSubsForDate(data.day)"
-                :key="sub.name"
-                class="cal-sub-item"
-              >
-                <el-tag size="small" effect="light" :type="sub.isExpiry ? 'danger' : 'warning'">{{ sub.name }}</el-tag>
-              </div>
-            </div>
-          </div>
-        </template>
-      </el-calendar>
+      <el-calendar v-model="currentDate" />
     </el-card>
   </div>
 </template>
@@ -75,36 +110,37 @@ onMounted(() => {
   margin-top: 4px;
 }
 
-.cal-cell {
-  min-height: 72px;
-  display: flex;
-  flex-direction: column;
-}
-
-.cal-cell.is-other {
-  opacity: 0.4;
-}
-
-.cal-day {
-  font-size: 14px;
-  font-weight: 500;
-  margin-bottom: 4px;
-}
-
-.cal-subs {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  overflow: hidden;
-}
-
-.cal-sub-item :deep(.el-tag) {
+.cal-tag {
+  display: block;
   font-size: 11px;
-  height: 20px;
+  line-height: 18px;
   padding: 0 6px;
+  border-radius: 3px;
+  margin-top: 2px;
   max-width: 100%;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.cal-tag-danger {
+  background-color: var(--el-color-danger-light-9, #fef0f0);
+  color: var(--el-color-danger, #f56c6c);
+  border: 1px solid var(--el-color-danger-light-8, #fde2e2);
+}
+
+.cal-tag-warning {
+  background-color: var(--el-color-warning-light-9, #fdf6ec);
+  color: var(--el-color-warning, #e6a23c);
+  border: 1px solid var(--el-color-warning-light-8, #faecd8);
+}
+</style>
+
+<style>
+.cal-subs-injected {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-top: 4px;
 }
 </style>
