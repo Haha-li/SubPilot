@@ -1,4 +1,4 @@
-import { sqliteTable, text, integer } from 'drizzle-orm/sqlite-core';
+import { sqliteTable, text, integer, real } from 'drizzle-orm/sqlite-core';
 
 export const users = sqliteTable('users', {
   id: integer('id').primaryKey({ autoIncrement: true }),
@@ -22,6 +22,7 @@ export const subscriptions = sqliteTable('subscriptions', {
   autoRenew: integer('auto_renew').default(1),
   useLunar: integer('use_lunar').default(0),
   notes: text('notes').default(''),
+  price: real('price').default(0),
   createdAt: text('created_at').default(new Date().toISOString()),
   updatedAt: text('updated_at').default(new Date().toISOString()),
 });

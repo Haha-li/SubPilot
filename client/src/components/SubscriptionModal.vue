@@ -31,6 +31,7 @@ const form = ref({
   useLunar: false,
   showLunar: true,
   notes: '',
+  price: 0,
 });
 
 const loading = ref(false);
@@ -135,6 +136,7 @@ onMounted(() => {
       useLunar: !!sub.useLunar,
       showLunar: true,
       notes: sub.notes || '',
+      price: sub.price || 0,
     };
   }
 });
@@ -259,15 +261,24 @@ onMounted(() => {
         </el-col>
       </el-row>
 
-      <!-- Notes -->
-      <el-form-item label="备注">
-        <el-input
-          v-model="form.notes"
-          type="textarea"
-          :rows="3"
-          placeholder="可添加相关备注信息..."
-        />
-      </el-form-item>
+      <!-- Notes + Price -->
+      <el-row :gutter="16">
+        <el-col :xs="24" :md="16">
+          <el-form-item label="备注">
+            <el-input
+              v-model="form.notes"
+              type="textarea"
+              :rows="3"
+              placeholder="可添加相关备注信息..."
+            />
+          </el-form-item>
+        </el-col>
+        <el-col :xs="24" :md="8">
+          <el-form-item label="费用 (元/周期)">
+            <el-input-number v-model="form.price" :min="0" :precision="2" style="width: 100%" />
+          </el-form-item>
+        </el-col>
+      </el-row>
     </el-form>
 
     <template #footer>

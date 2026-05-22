@@ -3,14 +3,19 @@ import { ref, computed, watch, onMounted } from 'vue';
 import { useSubscriptionStore, type Subscription } from '../stores/subscription';
 import { solar2lunar } from '../utils/lunar';
 import { ElMessageBox, ElMessage } from 'element-plus';
-import { Plus, Search, Delete, CopyDocument, Edit, Bell, VideoPause, VideoPlay } from '@element-plus/icons-vue';
+import { Plus, Search, Delete, CopyDocument, Edit, Bell, VideoPause, VideoPlay, Download } from '@element-plus/icons-vue';
 import SubscriptionModal from '../components/SubscriptionModal.vue';
+import ImportExportDrawer from '../components/ImportExportDrawer.vue';
 
 const subStore = useSubscriptionStore();
 
 const searchKeyword = ref('');
 const categoryFilter = ref('');
 const showLunar = ref(localStorage.getItem('showLunar') === 'true');
+const statusFilter = ref('');
+const sortBy = ref('expiry');
+const sortOrder = ref('asc');
+const showImportExport = ref(false);
 const showModal = ref(false);
 const editingSub = ref<Subscription | null>(null);
 const copyMode = ref(false);
@@ -48,6 +53,31 @@ const filteredSubscriptions = computed(() => {
     });
   }
 
+  if (statusFilter.value) {
+    list = list.filter((sub) => {
+      if (statusFilter.value === 'active') return sub.isActive;
+      if (statusFilter.value === 'inactive') return !sub.isActive;
+      if (statusFilter.value === 'expired') {
+        return sub.isActive && new Date(sub.expiryDate).getTime() < Date.now();
+      }
+      if (statusFilter.value === 'soon') {
+        if (!sub.isActive) return false;
+        const diffDays = Math.ceil((new Date(sub.expiryDate).getTime() - Date.now()) / (1000 * 60 * 60 * 24));
+        return diffDays >= 0 && diffDays <= 7;
+      }
+      return true;
+    });
+  }
+
+  list.sort((a, b) => {
+    let cmp = 0;
+    if (sortBy.value === 'name') cmp = a.name.localeCompare(b.name, 'zh-CN');
+    else if (sortBy.value === 'created') cmp = (a.createdAt || '').localeCompare(b.createdAt || '');
+    else if (sortBy.value === 'price') cmp = (b.price || 0) - (a.price || 0);
+    else cmp = (a.expiryDate || '').localeCompare(b.expiryDate || '');
+    return sortOrder.value === 'desc' ? -cmp : cmp;
+  });
+
   return list;
 });
 
@@ -56,7 +86,7 @@ const paginatedSubscriptions = computed(() => {
   return filteredSubscriptions.value.slice(start, start + pageSize.value);
 });
 
-watch([searchKeyword, categoryFilter], () => {
+watch([searchKeyword, categoryFilter, statusFilter], () => {
   currentPage.value = 1;
 });
 
@@ -217,12 +247,15 @@ onMounted(() => {
         <h2 class="dashboard-title">订阅管理</h2>
         <p class="dashboard-subtitle">管理您的所有订阅服务</p>
       </div>
-      <el-button type="primary" :icon="Plus" @click="openAdd">添加订阅</el-button>
+      <div class="header-actions">
+        <el-button :icon="Download" @click="showImportExport = true">导入/导出</el-button>
+        <el-button type="primary" :icon="Plus" @click="openAdd">添加订阅</el-button>
+      </div>
     </div>
 
     <!-- Filters -->
     <el-row :gutter="12" align="middle" class="filter-bar">
-      <el-col :span="14">
+      <el-col :xs="24" :sm="8">
         <el-input
           v-model="searchKeyword"
           placeholder="搜索名称、类型或备注..."
@@ -230,17 +263,39 @@ onMounted(() => {
           clearable
         />
       </el-col>
-      <el-col :span="6">
+      <el-col :xs="12" :sm="4">
         <el-select v-model="categoryFilter" placeholder="全部分类" clearable style="width: 100%">
           <el-option v-for="cat in allCategories" :key="cat" :label="cat" :value="cat" />
         </el-select>
       </el-col>
-      <el-col :span="4">
-        <el-switch
-          v-model="showLunar"
-          active-text="农历"
-          @change="toggleLunar"
-        />
+      <el-col :xs="12" :sm="4">
+        <el-select v-model="statusFilter" placeholder="全部状态" clearable style="width: 100%">
+          <el-option label="正常" value="active" />
+          <el-option label="已停用" value="inactive" />
+          <el-option label="已过期" value="expired" />
+          <el-option label="即将到期" value="soon" />
+        </el-select>
+      </el-col>
+      <el-col :xs="12" :sm="4">
+        <el-select v-model="sortBy" style="width: 100%">
+          <el-option label="按到期日" value="expiry" />
+          <el-option label="按名称" value="name" />
+          <el-option label="按创建时间" value="created" />
+          <el-option label="按费用" value="price" />
+        </el-select>
+      </el-col>
+      <el-col :xs="12" :sm="4">
+        <div class="filter-right">
+          <el-button-group>
+            <el-button :type="sortOrder === 'asc' ? 'primary' : ''" size="default" plain @click="sortOrder = 'asc'">升序</el-button>
+            <el-button :type="sortOrder === 'desc' ? 'primary' : ''" size="default" plain @click="sortOrder = 'desc'">降序</el-button>
+          </el-button-group>
+          <el-switch
+            v-model="showLunar"
+            active-text="农历"
+            @change="toggleLunar"
+          />
+        </div>
       </el-col>
     </el-row>
 
@@ -361,6 +416,10 @@ onMounted(() => {
       @close="showModal = false"
       @saved="showModal = false"
     />
+    <ImportExportDrawer
+      v-if="showImportExport"
+      @close="showImportExport = false"
+    />
   </div>
 </template>
 
@@ -380,6 +439,11 @@ onMounted(() => {
   }
 }
 
+.header-actions {
+  display: flex;
+  gap: 12px;
+}
+
 .dashboard-title {
   font-size: 24px;
   font-weight: 700;
@@ -394,6 +458,13 @@ onMounted(() => {
 
 .filter-bar {
   margin-bottom: 24px;
+}
+
+.filter-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  justify-content: flex-end;
 }
 
 .empty-state {

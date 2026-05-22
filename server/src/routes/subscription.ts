@@ -8,8 +8,27 @@ import {
   toggleSubscriptionHandler,
   testNotifySubscriptionHandler,
 } from '../handlers/subscription';
+import { exportSubscriptionsHandler, importSubscriptionsHandler } from '../handlers/importExport';
 
 const router = Router();
+
+// Export subscriptions (must be before /:id routes)
+router.get('/export', authMiddleware, async (req: AuthRequest, res: Response) => {
+  const result: any = await exportSubscriptionsHandler(req.query);
+  if (result.download) {
+    res.setHeader('Content-Type', result.contentType);
+    res.setHeader('Content-Disposition', `attachment; filename="${result.filename}"`);
+    res.send(result.body);
+  } else {
+    res.status(result.status).json(result.body);
+  }
+});
+
+// Import subscriptions (must be before /:id routes)
+router.post('/import', authMiddleware, async (req: AuthRequest, res: Response) => {
+  const result = await importSubscriptionsHandler(req.body);
+  res.status(result.status).json(result.body);
+});
 
 // Get all subscriptions
 router.get('/', authMiddleware, async (req: AuthRequest, res: Response) => {

@@ -4,7 +4,7 @@ import { useRouter, useRoute } from 'vue-router';
 import { useDark, useToggle } from '@vueuse/core';
 import { useAuthStore } from '../stores/auth';
 import {
-  List, Folder, Setting,
+  List, Folder, Setting, Document, DataLine,
   Sunny, Moon, DArrowLeft, DArrowRight, SwitchButton,
 } from '@element-plus/icons-vue';
 
@@ -49,6 +49,14 @@ function toggleCollapse() {
         <el-menu-item index="/">
           <el-icon><Folder /></el-icon>
           <template #title>订阅管理</template>
+        </el-menu-item>
+        <el-menu-item index="/stats">
+          <el-icon><DataLine /></el-icon>
+          <template #title>费用统计</template>
+        </el-menu-item>
+        <el-menu-item index="/logs">
+          <el-icon><Document /></el-icon>
+          <template #title>通知日志</template>
         </el-menu-item>
         <el-menu-item index="/config">
           <el-icon><Setting /></el-icon>

@@ -17,6 +17,7 @@ export interface Subscription {
   autoRenew: number;
   useLunar: number;
   notes: string;
+  price: number;
   createdAt: string;
   updatedAt: string;
 }

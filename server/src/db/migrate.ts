@@ -91,5 +91,12 @@ for (const [key, value] of Object.entries(defaultConfig)) {
   insertConfig.run(key, value);
 }
 
+// Add price column if not exists
+try {
+  sqlite.exec('ALTER TABLE subscriptions ADD COLUMN price REAL DEFAULT 0');
+} catch (e: any) {
+  if (!e.message.includes('duplicate column name')) throw e;
+}
+
 console.log('Database migration completed successfully');
 sqlite.close();

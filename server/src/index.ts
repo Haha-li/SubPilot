@@ -6,6 +6,7 @@ import { initNodeDb } from './db';
 import authRoutes from './routes/auth';
 import subscriptionRoutes from './routes/subscription';
 import configRoutes from './routes/config';
+import notifyLogsRoutes from './routes/notifyLogs';
 import { startScheduler } from './services/scheduler';
 
 // Initialize database
@@ -25,6 +26,7 @@ app.use(express.json());
 app.use('/api/auth', authRoutes);
 app.use('/api/subscriptions', subscriptionRoutes);
 app.use('/api/config', configRoutes);
+app.use('/api/notify-logs', notifyLogsRoutes);
 
 // Serve static frontend in production
 if (process.env.NODE_ENV === 'production') {

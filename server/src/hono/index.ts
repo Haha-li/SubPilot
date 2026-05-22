@@ -4,6 +4,7 @@ import { initD1Db } from '../db/d1';
 import { authRoutes } from './routes/auth';
 import { subscriptionRoutes } from './routes/subscription';
 import { configRoutes } from './routes/config';
+import { notifyLogsRoutes } from './routes/notifyLogs';
 import { checkAndNotify } from '../services/scheduler';
 
 interface Env {
@@ -28,6 +29,7 @@ app.use('*', async (c, next) => {
 app.route('/api/auth', authRoutes);
 app.route('/api/subscriptions', subscriptionRoutes);
 app.route('/api/config', configRoutes);
+app.route('/api/notify-logs', notifyLogsRoutes);
 
 export default {
   fetch: app.fetch,

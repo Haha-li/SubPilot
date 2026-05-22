@@ -8,8 +8,34 @@ import {
   toggleSubscriptionHandler,
   testNotifySubscriptionHandler,
 } from '../../handlers/subscription';
+import { exportSubscriptionsHandler, importSubscriptionsHandler } from '../../handlers/importExport';
 
 const subs = new Hono();
+
+// Export subscriptions (must be before /:id routes)
+subs.get('/export', honoAuth, async (c) => {
+  const query: any = {};
+  const format = c.req.query('format');
+  if (format) query.format = format;
+  const result: any = await exportSubscriptionsHandler(query);
+  if (result.download) {
+    return new Response(result.body, {
+      status: 200,
+      headers: {
+        'Content-Type': result.contentType,
+        'Content-Disposition': `attachment; filename="${result.filename}"`,
+      },
+    });
+  }
+  return c.json(result.body, result.status as any);
+});
+
+// Import subscriptions (must be before /:id routes)
+subs.post('/import', honoAuth, async (c) => {
+  const body = await c.req.json();
+  const result = await importSubscriptionsHandler(body);
+  return c.json(result.body, result.status as any);
+});
 
 // Get all subscriptions
 subs.get('/', honoAuth, async (c) => {
