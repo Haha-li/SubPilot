@@ -35,7 +35,7 @@ function renderPreview(template: string) {
     .replace(/\{\{daysLeft\}\}/g, '10')
     .replace(/\{\{lunar\}\}/g, '四月十五')
     .replace(/\{\{notes\}\}/g, '这是一条示例备注')
-    .replace(/\{\{time\}\}/g, new Date().toLocaleString('zh-CN'))
+    .replace(/\{\{time\}\}/g, new Date().toLocaleString('zh-CN', { timeZone: config.value.timezone || 'Asia/Shanghai' }))
     .replace(/\{\{timezone\}\}/g, config.value.timezone || 'Asia/Shanghai');
 }
 
