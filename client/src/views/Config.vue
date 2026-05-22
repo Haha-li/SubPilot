@@ -93,6 +93,20 @@ async function testChannel(channel: string) {
   }
 }
 
+async function testTemplate() {
+  const channel = activeChannels.value[0] || 'telegram';
+  try {
+    const { data } = await api.post('/config/test-notify', { channel, config: config.value });
+    if (data.success) {
+      ElMessage.success('测试通知已发送');
+    } else {
+      ElMessage.warning(data.message || '发送失败，请检查配置');
+    }
+  } catch (e: any) {
+    ElMessage.error('测试失败: ' + (e.response?.data?.message || e.message));
+  }
+}
+
 function toggleChannel(channel: string) {
   const idx = activeChannels.value.indexOf(channel);
   if (idx >= 0) {
@@ -146,7 +160,10 @@ onMounted(loadConfig);
       <!-- Notify Template -->
       <el-card shadow="never">
         <template #header>
-          <span class="section-title">通知模板</span>
+          <div style="display: flex; align-items: center; justify-content: space-between;">
+            <span class="section-title">通知模板</span>
+            <el-button size="small" type="primary" plain @click="testTemplate">测试推送</el-button>
+          </div>
         </template>
         <el-row :gutter="16">
           <el-col :xs="24" :md="12">
@@ -154,7 +171,7 @@ onMounted(loadConfig);
             <el-input
               v-model="config.notify_template"
               type="textarea"
-              :rows="10"
+              class="template-editor"
             />
           </el-col>
           <el-col :xs="24" :md="12">
@@ -498,6 +515,11 @@ onMounted(loadConfig);
   justify-content: flex-end;
 }
 
+.template-editor :deep(textarea) {
+  height: 240px;
+  resize: none;
+}
+
 .template-preview {
   background-color: var(--el-fill-color-light);
   border: 1px solid var(--el-border-color);
@@ -509,7 +531,8 @@ onMounted(loadConfig);
   white-space: pre-wrap;
   word-break: break-word;
   margin: 0;
-  min-height: 218px;
+  height: 240px;
+  overflow-y: auto;
 }
 
 .template-label {
