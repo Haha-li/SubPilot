@@ -46,6 +46,9 @@ const form = ref({
   notes: '',
   price: 0,
   priceUnit: 'month',
+  hasTrial: false,
+  trialValue: 7,
+  trialUnit: 'day',
 });
 
 const loading = ref(false);
@@ -111,13 +114,15 @@ async function handleSubmit() {
 
   loading.value = true;
   try {
-    const { showLunar, category, ...rest } = form.value;
+    const { showLunar, category, hasTrial, ...rest } = form.value;
     const payload = {
       ...rest,
       category: category.join(', '),
       isActive: Number(rest.isActive),
       autoRenew: Number(rest.autoRenew),
       useLunar: Number(rest.useLunar),
+      trialValue: hasTrial ? rest.trialValue : null,
+      trialUnit: hasTrial ? rest.trialUnit : null,
     };
     if (isEditing.value) {
       await subStore.updateSubscription(props.subscription!.id, payload as any);
@@ -153,6 +158,9 @@ onMounted(() => {
       notes: sub.notes || '',
       price: sub.price || 0,
       priceUnit: sub.priceUnit || 'month',
+      hasTrial: !!(sub.trialValue && sub.trialUnit),
+      trialValue: sub.trialValue || 7,
+      trialUnit: sub.trialUnit || 'day',
     };
   }
 });
@@ -292,6 +300,27 @@ onMounted(() => {
               <el-switch v-model="form.isActive" active-text="启用订阅" />
               <el-switch v-model="form.autoRenew" active-text="自动续订" />
             </div>
+          </el-form-item>
+        </el-col>
+      </el-row>
+
+      <!-- Trial Period -->
+      <el-row :gutter="16">
+        <el-col :xs="24" :md="12">
+          <el-form-item label="免费试用">
+            <el-switch v-model="form.hasTrial" active-text="开启试用期" />
+          </el-form-item>
+        </el-col>
+        <el-col v-if="form.hasTrial" :xs="24" :md="12">
+          <el-form-item label="试用时长">
+            <el-input v-model.number="form.trialValue" type="number" :min="1">
+              <template #append>
+                <el-select v-model="form.trialUnit" style="width: 80px">
+                  <el-option v-for="opt in periodOptions" :key="opt.value" :label="opt.label" :value="opt.value" />
+                </el-select>
+              </template>
+            </el-input>
+            <div class="form-tip">从开始日期起算的免费试用期</div>
           </el-form-item>
         </el-col>
       </el-row>

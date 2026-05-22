@@ -25,6 +25,8 @@ export const subscriptions = sqliteTable('subscriptions', {
   price: real('price').default(0),
   priceUnit: text('price_unit').default('month'),
   isPinned: integer('is_pinned').default(0),
+  trialValue: integer('trial_value'),
+  trialUnit: text('trial_unit'),
   createdAt: text('created_at').default(new Date().toISOString()),
   updatedAt: text('updated_at').default(new Date().toISOString()),
 });

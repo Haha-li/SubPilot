@@ -33,7 +33,7 @@ export async function listSubscriptionsHandler(query: any) {
 
 export async function createSubscriptionHandler(body: any) {
   try {
-    const { name, customType, category, startDate, expiryDate, periodValue, periodUnit, reminderValue, reminderUnit, isActive, autoRenew, useLunar, notes, price, priceUnit } = body;
+    const { name, customType, category, startDate, expiryDate, periodValue, periodUnit, reminderValue, reminderUnit, isActive, autoRenew, useLunar, notes, price, priceUnit, trialValue, trialUnit } = body;
 
     if (!name || !expiryDate) {
       return { status: 400, body: { success: false, message: '订阅名称和到期日期为必填项' } };
@@ -56,6 +56,8 @@ export async function createSubscriptionHandler(body: any) {
       notes: notes || '',
       price: price ?? 0,
       priceUnit: priceUnit || 'month',
+      trialValue: trialValue || null,
+      trialUnit: trialUnit || null,
       createdAt: now,
       updatedAt: now,
     });
@@ -71,7 +73,7 @@ export async function createSubscriptionHandler(body: any) {
 
 export async function updateSubscriptionHandler(id: number, body: any) {
   try {
-    const { name, customType, category, startDate, expiryDate, periodValue, periodUnit, reminderValue, reminderUnit, isActive, autoRenew, useLunar, notes, price, priceUnit, isPinned } = body;
+    const { name, customType, category, startDate, expiryDate, periodValue, periodUnit, reminderValue, reminderUnit, isActive, autoRenew, useLunar, notes, price, priceUnit, isPinned, trialValue, trialUnit } = body;
 
     const [existing] = await db.select().from(schema.subscriptions).where(eq(schema.subscriptions.id, id)).limit(1);
     if (!existing) {
@@ -96,6 +98,8 @@ export async function updateSubscriptionHandler(id: number, body: any) {
       price: price ?? existing.price,
       priceUnit: priceUnit ?? existing.priceUnit,
       isPinned: isPinned !== undefined ? (isPinned ? 1 : 0) : existing.isPinned,
+      trialValue: trialValue !== undefined ? trialValue : existing.trialValue,
+      trialUnit: trialUnit !== undefined ? trialUnit : existing.trialUnit,
       updatedAt: now,
     }).where(eq(schema.subscriptions.id, id));
 

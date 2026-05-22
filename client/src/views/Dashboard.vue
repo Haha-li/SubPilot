@@ -247,6 +247,10 @@ function getReminderText(sub: Subscription): string {
   return unit === 'hour' ? `${value}小时前` : `${value}天前`;
 }
 
+function periodLabel(unit: string): string {
+  return { day: '天', month: '月', year: '年' }[unit] || unit;
+}
+
 function openAdd() {
   editingSub.value = null;
   copyMode.value = false;
@@ -439,6 +443,11 @@ onMounted(() => {
 
         <!-- Notes -->
         <p v-if="sub.notes" class="card-notes">{{ sub.notes }}</p>
+
+        <!-- Trial Badge -->
+        <div v-if="sub.trialValue && sub.trialUnit" class="card-trial">
+          <el-tag size="small" type="success" effect="light">试用 {{ sub.trialValue }}{{ periodLabel(sub.trialUnit) }}</el-tag>
+        </div>
 
         <!-- Reminder -->
         <div class="card-reminder">提前 {{ getReminderText(sub) }} 提醒</div>
@@ -669,6 +678,10 @@ html.dark .card-grid :deep(.el-card) {
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
+}
+
+.card-trial {
+  margin-bottom: 8px;
 }
 
 .card-reminder {
