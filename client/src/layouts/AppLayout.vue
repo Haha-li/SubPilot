@@ -5,7 +5,7 @@ import { useDark, useToggle, useMediaQuery } from '@vueuse/core';
 import { useAuthStore } from '../stores/auth';
 import {
   List, Folder, Setting, Document, DataLine, PriceTag, Calendar,
-  Sunny, Moon, DArrowLeft, DArrowRight, SwitchButton, Expand,
+  Sunny, Moon, DArrowLeft, DArrowRight, SwitchButton, Expand, Tools,
 } from '@element-plus/icons-vue';
 
 const router = useRouter();
@@ -75,7 +75,7 @@ function toggleDrawer() {
             <template #title>通知日志</template>
           </el-menu-item>
           <el-menu-item index="/config" @click="drawerOpen = false">
-            <el-icon><Setting /></el-icon>
+            <el-icon><Tools /></el-icon>
             <template #title>系统配置</template>
           </el-menu-item>
         </el-menu>
@@ -131,7 +131,7 @@ function toggleDrawer() {
           <template #title>通知日志</template>
         </el-menu-item>
         <el-menu-item index="/config">
-          <el-icon><Setting /></el-icon>
+          <el-icon><Tools /></el-icon>
           <template #title>系统配置</template>
         </el-menu-item>
       </el-menu>
