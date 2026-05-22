@@ -16,7 +16,8 @@ const defaultTemplate = `📋 订阅提醒
 状态: {{status}}
 剩余: {{daysLeft}} 天
 农历: {{lunar}}
-备注: {{notes}}`;
+备注: {{notes}}
+时间: {{time}}`;
 
 function renderPreview(template: string) {
   const today = new Date();
@@ -32,7 +33,8 @@ function renderPreview(template: string) {
     .replace(/\{\{status\}\}/g, '还有 10 天到期')
     .replace(/\{\{daysLeft\}\}/g, '10')
     .replace(/\{\{lunar\}\}/g, '四月十五')
-    .replace(/\{\{notes\}\}/g, '这是一条示例备注');
+    .replace(/\{\{notes\}\}/g, '这是一条示例备注')
+    .replace(/\{\{time\}\}/g, new Date().toLocaleString('zh-CN'));
 }
 
 const previewText = computed(() => renderPreview(config.value.notify_template));
@@ -180,7 +182,7 @@ onMounted(loadConfig);
           </el-col>
         </el-row>
         <div class="form-tip" style="margin-top: 12px;">
-          <span v-pre>变量: <code>{{name}}</code>名称 <code>{{type}}</code>类型 <code>{{expiryDate}}</code>到期日 <code>{{status}}</code>状态 <code>{{daysLeft}}</code>剩余天数 <code>{{lunar}}</code>农历 <code>{{notes}}</code>备注</span>
+          <span v-pre>变量: <code>{{name}}</code>名称 <code>{{type}}</code>类型 <code>{{expiryDate}}</code>到期日 <code>{{status}}</code>状态 <code>{{daysLeft}}</code>剩余天数 <code>{{lunar}}</code>农历 <code>{{notes}}</code>备注 <code>{{time}}</code>当前时间</span>
         </div>
       </el-card>
 

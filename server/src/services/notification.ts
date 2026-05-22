@@ -59,7 +59,8 @@ function formatNotifyMessage(subscription: Subscription, config: Record<string, 
     .replace(/\{\{status\}\}/g, status)
     .replace(/\{\{daysLeft\}\}/g, String(diffDays))
     .replace(/\{\{lunar\}\}/g, lunar)
-    .replace(/\{\{notes\}\}/g, subscription.notes || '');
+    .replace(/\{\{notes\}\}/g, subscription.notes || '')
+    .replace(/\{\{time\}\}/g, new Date().toLocaleString('zh-CN'));
 }
 
 export async function sendNotification(subscription: Subscription, isTest = false): Promise<boolean> {
