@@ -13,6 +13,7 @@ services:
       - PORT=3000
       - DB_PATH=/app/data/subpilot.db
       - JWT_SECRET=${JWT_SECRET:-change-this-in-production}
+      - ADMIN_PASSWORD=${ADMIN_PASSWORD:-password}
     restart: unless-stopped
 
 volumes:

@@ -4,17 +4,33 @@
 
 ## 功能
 
-- **订阅管理** — 卡片网格展示，支持搜索、分类筛选、状态筛选、排序（到期日/名称/创建时间/费用）
-- **到期提醒** — 支持 Telegram、企业微信、Bark、Webhook、邮件(Resend)、NotifyX 六种通知渠道
+- **订阅管理** — 卡片网格展示，支持搜索、分类筛选、状态筛选、排序（到期日/名称/创建时间/费用）、置顶
+- **日历视图** — 日历上直观查看各订阅到期日，支持农历显示
+- **试用期支持** — 订阅可设置免费试用期，到期计算自动叠加试用时长
+- **到期提醒** — 通过 Telegram Bot 推送到期提醒
 - **通知模板** — 自定义通知模板，实时预览，支持 9 种变量（名称、类型、到期日、状态、天数、农历、备注、时间、时区）
 - **通知日志** — 查看所有通知发送记录，支持按订阅/渠道/状态/日期筛选
 - **导入/导出** — 支持 JSON 和 CSV 格式批量导入导出订阅数据
 - **费用统计** — 订阅费用按月/年汇总，按类型和分类分布，费用明细表
 - **农历支持** — 日期显示农历，周期可按农历计算
 - **深色模式** — 侧边栏一键切换深色/浅色主题
+- **响应式布局** — 移动端自适应，侧边栏抽屉模式，日历卡片适配
 - **复制订阅** — 快速复制已有订阅，预设 14 种订阅类型
 - **双环境部署** — 支持 Docker (Express + SQLite) 和 Cloudflare Workers (Hono + D1)
 - **一键部署** — Fork 后 GitHub Actions 自动部署到 Cloudflare Workers + Pages
+
+## 截图
+
+**桌面端**
+
+| | |
+|---|---|
+| ![订阅管理](screenshots/dashboard-dark.jpg) | ![日历视图](screenshots/calendar.jpg) |
+| ![通知日志](screenshots/logs-desktop.jpg) | ![系统设置](screenshots/settings.jpg) |
+
+**移动端**
+
+<img src="screenshots/logs.jpg" width="375" alt="移动端通知日志"> |
 
 ## 技术栈
 
@@ -30,7 +46,7 @@
 
 ```bash
 cp .env.example .env
-# 编辑 .env 设置 JWT_SECRET
+# 编辑 .env 设置 JWT_SECRET 和 ADMIN_PASSWORD
 docker compose up -d
 ```
 
@@ -142,14 +158,7 @@ npm run dev
 
 ## 通知渠道
 
-| 渠道 | 说明 |
-|------|------|
-| Telegram | 通过 Bot Token + Chat ID 推送 |
-| 企业微信 | 通过群机器人 Webhook 推送 |
-| Bark | 推送到 iOS 设备 |
-| Webhook | 自定义 HTTP 回调 |
-| 邮件 | 通过 Resend API 发送 |
-| NotifyX | 通过 NotifyX 服务推送 |
+通过 Telegram Bot 推送到期提醒。在设置页面配置 Bot Token 和 Chat ID 即可启用。
 
 ## License
 
