@@ -58,7 +58,8 @@ function renderCalendarCells() {
       subs.forEach(sub => {
         const tag = document.createElement('span');
         tag.className = sub.isExpiry ? 'cal-tag cal-tag-danger' : 'cal-tag cal-tag-warning';
-        tag.textContent = (sub.isExpiry ? '到期 ' : '提醒 ') + sub.name;
+        const dot = sub.isExpiry ? '● ' : '◆ ';
+        tag.textContent = dot + sub.name;
         tag.title = sub.isExpiry ? `${sub.name} - 今日到期` : `${sub.name} - 即将到期`;
         container.appendChild(tag);
       });
@@ -84,7 +85,7 @@ watch(() => subStore.subscriptions, () => {
   <div>
     <div class="page-header">
       <h2 class="page-title">订阅日历</h2>
-      <p class="page-subtitle">按日历视图查看订阅到期日期（<span class="cal-tag cal-tag-danger" style="display:inline-block;vertical-align:middle;font-size:12px;line-height:20px;padding:0 8px;margin:0 4px;">到期</span> = 当日到期<span class="cal-tag cal-tag-warning" style="display:inline-block;vertical-align:middle;font-size:12px;line-height:20px;padding:0 8px;margin:0 4px;">提醒</span> = 提前提醒）</p>
+      <p class="page-subtitle">按日历视图查看订阅到期日期（<span style="color:var(--el-color-danger)">● 到期</span> = 当日到期　<span style="color:var(--el-color-warning)">◆ 提醒</span> = 提前提醒）</p>
     </div>
 
     <el-card shadow="never">
@@ -113,9 +114,10 @@ watch(() => subStore.subscriptions, () => {
 .cal-tag {
   display: block;
   font-size: 11px;
+  font-weight: 500;
   line-height: 18px;
-  padding: 0 6px;
-  border-radius: 3px;
+  padding: 1px 6px;
+  border-radius: 4px;
   margin-top: 2px;
   max-width: 100%;
   overflow: hidden;
@@ -126,13 +128,13 @@ watch(() => subStore.subscriptions, () => {
 .cal-tag-danger {
   background-color: var(--el-color-danger-light-9, #fef0f0);
   color: var(--el-color-danger, #f56c6c);
-  border: 1px solid var(--el-color-danger-light-8, #fde2e2);
+  border: 1px solid var(--el-color-danger-light-7, #fac8c8);
 }
 
 .cal-tag-warning {
   background-color: var(--el-color-warning-light-9, #fdf6ec);
   color: var(--el-color-warning, #e6a23c);
-  border: 1px solid var(--el-color-warning-light-8, #faecd8);
+  border: 1px solid var(--el-color-warning-light-7, #f5dab1);
 }
 </style>
 
