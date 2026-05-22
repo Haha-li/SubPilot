@@ -230,7 +230,6 @@ async function handleTestNotify(sub: Subscription) {
 }
 
 function toggleLunar() {
-  showLunar.value = !showLunar.value;
   localStorage.setItem('showLunar', String(showLunar.value));
 }
 
