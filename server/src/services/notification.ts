@@ -60,7 +60,8 @@ function formatNotifyMessage(subscription: Subscription, config: Record<string, 
     .replace(/\{\{daysLeft\}\}/g, String(diffDays))
     .replace(/\{\{lunar\}\}/g, lunar)
     .replace(/\{\{notes\}\}/g, subscription.notes || '')
-    .replace(/\{\{time\}\}/g, new Date().toLocaleString('zh-CN'));
+    .replace(/\{\{time\}\}/g, new Date().toLocaleString('zh-CN'))
+    .replace(/\{\{timezone\}\}/g, config.timezone || 'Asia/Shanghai');
 }
 
 export async function sendNotification(subscription: Subscription, isTest = false): Promise<boolean> {

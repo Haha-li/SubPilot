@@ -17,7 +17,8 @@ const defaultTemplate = `📋 订阅提醒
 剩余: {{daysLeft}} 天
 农历: {{lunar}}
 备注: {{notes}}
-时间: {{time}}`;
+时间: {{time}}
+时区: {{timezone}}`;
 
 function renderPreview(template: string) {
   const today = new Date();
@@ -34,7 +35,8 @@ function renderPreview(template: string) {
     .replace(/\{\{daysLeft\}\}/g, '10')
     .replace(/\{\{lunar\}\}/g, '四月十五')
     .replace(/\{\{notes\}\}/g, '这是一条示例备注')
-    .replace(/\{\{time\}\}/g, new Date().toLocaleString('zh-CN'));
+    .replace(/\{\{time\}\}/g, new Date().toLocaleString('zh-CN'))
+    .replace(/\{\{timezone\}\}/g, config.value.timezone || 'Asia/Shanghai');
 }
 
 const previewText = computed(() => renderPreview(config.value.notify_template));
@@ -141,10 +143,22 @@ onMounted(loadConfig);
                 <el-select v-model="config.timezone" style="width: 100%">
                   <el-option label="中国标准时间 (UTC+8)" value="Asia/Shanghai" />
                   <el-option label="香港时间 (UTC+8)" value="Asia/Hong_Kong" />
+                  <el-option label="台北时间 (UTC+8)" value="Asia/Taipei" />
+                  <el-option label="新加坡时间 (UTC+8)" value="Asia/Singapore" />
+                  <el-option label="韩国时间 (UTC+9)" value="Asia/Seoul" />
                   <el-option label="日本时间 (UTC+9)" value="Asia/Tokyo" />
-                  <el-option label="美国东部时间" value="America/New_York" />
-                  <el-option label="美国太平洋时间" value="America/Los_Angeles" />
-                  <el-option label="英国时间" value="Europe/London" />
+                  <el-option label="泰国时间 (UTC+7)" value="Asia/Bangkok" />
+                  <el-option label="印度时间 (UTC+5:30)" value="Asia/Kolkata" />
+                  <el-option label="迪拜时间 (UTC+4)" value="Asia/Dubai" />
+                  <el-option label="澳大利亚东部 (UTC+10)" value="Australia/Sydney" />
+                  <el-option label="莫斯科时间 (UTC+3)" value="Europe/Moscow" />
+                  <el-option label="柏林时间 (UTC+1/2)" value="Europe/Berlin" />
+                  <el-option label="巴黎时间 (UTC+1/2)" value="Europe/Paris" />
+                  <el-option label="伦敦时间 (UTC+0/1)" value="Europe/London" />
+                  <el-option label="美国东部时间 (UTC-5/4)" value="America/New_York" />
+                  <el-option label="美国中部时间 (UTC-6/5)" value="America/Chicago" />
+                  <el-option label="美国太平洋时间 (UTC-8/7)" value="America/Los_Angeles" />
+                  <el-option label="圣保罗时间 (UTC-3)" value="America/Sao_Paulo" />
                   <el-option label="UTC" value="UTC" />
                 </el-select>
               </el-form-item>
@@ -182,7 +196,7 @@ onMounted(loadConfig);
           </el-col>
         </el-row>
         <div class="form-tip" style="margin-top: 12px;">
-          <span v-pre>变量: <code>{{name}}</code>名称 <code>{{type}}</code>类型 <code>{{expiryDate}}</code>到期日 <code>{{status}}</code>状态 <code>{{daysLeft}}</code>剩余天数 <code>{{lunar}}</code>农历 <code>{{notes}}</code>备注 <code>{{time}}</code>当前时间</span>
+          <span v-pre>变量: <code>{{name}}</code>名称 <code>{{type}}</code>类型 <code>{{expiryDate}}</code>到期日 <code>{{status}}</code>状态 <code>{{daysLeft}}</code>剩余天数 <code>{{lunar}}</code>农历 <code>{{notes}}</code>备注 <code>{{time}}</code>当前时间 <code>{{timezone}}</code>时区</span>
         </div>
       </el-card>
 
