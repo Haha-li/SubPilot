@@ -71,7 +71,7 @@ export async function createSubscriptionHandler(body: any) {
 
 export async function updateSubscriptionHandler(id: number, body: any) {
   try {
-    const { name, customType, category, startDate, expiryDate, periodValue, periodUnit, reminderValue, reminderUnit, isActive, autoRenew, useLunar, notes, price, priceUnit } = body;
+    const { name, customType, category, startDate, expiryDate, periodValue, periodUnit, reminderValue, reminderUnit, isActive, autoRenew, useLunar, notes, price, priceUnit, isPinned } = body;
 
     const [existing] = await db.select().from(schema.subscriptions).where(eq(schema.subscriptions.id, id)).limit(1);
     if (!existing) {
@@ -95,6 +95,7 @@ export async function updateSubscriptionHandler(id: number, body: any) {
       notes: notes ?? existing.notes,
       price: price ?? existing.price,
       priceUnit: priceUnit ?? existing.priceUnit,
+      isPinned: isPinned !== undefined ? (isPinned ? 1 : 0) : existing.isPinned,
       updatedAt: now,
     }).where(eq(schema.subscriptions.id, id));
 

@@ -3,7 +3,7 @@ import { ref, computed, watch, onMounted } from 'vue';
 import { useSubscriptionStore, type Subscription } from '../stores/subscription';
 import { solar2lunar } from '../utils/lunar';
 import { ElMessageBox, ElMessage } from 'element-plus';
-import { Plus, Search, Delete, CopyDocument, Edit, Bell, VideoPause, VideoPlay, Download } from '@element-plus/icons-vue';
+import { Plus, Search, Delete, CopyDocument, Edit, Bell, VideoPause, VideoPlay, Download, Star } from '@element-plus/icons-vue';
 import SubscriptionModal from '../components/SubscriptionModal.vue';
 import ImportExportDrawer from '../components/ImportExportDrawer.vue';
 
@@ -80,6 +80,10 @@ const filteredSubscriptions = computed(() => {
   }
 
   list.sort((a, b) => {
+    // Pinned items first
+    const pinDiff = (b.isPinned || 0) - (a.isPinned || 0);
+    if (pinDiff !== 0) return pinDiff;
+
     let cmp = 0;
     if (sortBy.value === 'name') cmp = a.name.localeCompare(b.name, 'zh-CN');
     else if (sortBy.value === 'created') cmp = (a.createdAt || '').localeCompare(b.createdAt || '');
@@ -275,6 +279,10 @@ async function handleToggle(sub: Subscription) {
   await subStore.toggleSubscription(sub.id, !sub.isActive);
 }
 
+async function handlePin(sub: Subscription) {
+  await subStore.togglePin(sub.id, !sub.isPinned);
+}
+
 async function handleTestNotify(sub: Subscription) {
   const result = await subStore.testNotify(sub.id);
   ElMessage.info(result.message);
@@ -381,7 +389,10 @@ onMounted(() => {
             class="card-checkbox"
           />
           <div class="card-header-left">
-            <h3 class="card-title">{{ sub.name }}</h3>
+            <h3 class="card-title">
+              <el-icon v-if="sub.isPinned" class="pin-icon" @click="handlePin(sub)"><Star /></el-icon>
+              {{ sub.name }}
+            </h3>
             <span v-if="sub.customType" class="card-type">{{ sub.customType }}</span>
           </div>
           <el-tag :type="getStatusType(sub)" size="small" effect="light">
@@ -432,6 +443,9 @@ onMounted(() => {
 
         <!-- Actions -->
         <div class="card-actions">
+          <el-button size="small" :type="sub.isPinned ? 'warning' : ''" plain @click="handlePin(sub)">
+            <el-icon><Star /></el-icon> {{ sub.isPinned ? '取消置顶' : '置顶' }}
+          </el-button>
           <el-button size="small" type="primary" plain @click="openEdit(sub)">
             <el-icon><Edit /></el-icon> 编辑
           </el-button>
@@ -701,5 +715,12 @@ html.dark .card-grid :deep(.el-card) {
 .batch-buttons {
   display: flex;
   gap: 8px;
+}
+
+.pin-icon {
+  color: var(--el-color-warning);
+  cursor: pointer;
+  margin-right: 4px;
+  vertical-align: middle;
 }
 </style>

@@ -19,6 +19,7 @@ export interface Subscription {
   notes: string;
   price: number;
   priceUnit: string;
+  isPinned: number;
   createdAt: string;
   updatedAt: string;
 }
@@ -77,9 +78,17 @@ export const useSubscriptionStore = defineStore('subscription', () => {
     return data;
   }
 
+  async function togglePin(id: number, isPinned: boolean) {
+    const { data } = await api.put(`/subscriptions/${id}`, { isPinned });
+    if (data.success) {
+      await fetchSubscriptions();
+    }
+    return data;
+  }
+
   return {
     subscriptions, loading,
     fetchSubscriptions, createSubscription, updateSubscription,
-    deleteSubscription, toggleSubscription, testNotify,
+    deleteSubscription, toggleSubscription, testNotify, togglePin,
   };
 });

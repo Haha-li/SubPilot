@@ -15,6 +15,9 @@ const defaultTemplate = `📋 订阅提醒
 到期: {{expiryDate}}
 状态: {{status}}
 剩余: {{daysLeft}} 天
+费用: {{price}}
+周期: {{period}}
+提醒: {{reminder}}
 农历: {{lunar}}
 备注: {{notes}}
 时间: {{time}}
@@ -35,6 +38,9 @@ function renderPreview(template: string) {
     .replace(/\{\{daysLeft\}\}/g, '10')
     .replace(/\{\{lunar\}\}/g, '四月十五')
     .replace(/\{\{notes\}\}/g, '这是一条示例备注')
+    .replace(/\{\{price\}\}/g, '¥25.00/月')
+    .replace(/\{\{period\}\}/g, '1月')
+    .replace(/\{\{reminder\}\}/g, '7天前')
     .replace(/\{\{time\}\}/g, new Date().toLocaleString('zh-CN', { timeZone: config.value.timezone || 'Asia/Shanghai' }))
     .replace(/\{\{timezone\}\}/g, config.value.timezone || 'Asia/Shanghai');
 }
@@ -196,7 +202,7 @@ onMounted(loadConfig);
           </el-col>
         </el-row>
         <div class="form-tip" style="margin-top: 12px;">
-          <span v-pre>变量: <code>{{name}}</code>名称 <code>{{type}}</code>类型 <code>{{expiryDate}}</code>到期日 <code>{{status}}</code>状态 <code>{{daysLeft}}</code>剩余天数 <code>{{lunar}}</code>农历 <code>{{notes}}</code>备注 <code>{{time}}</code>当前时间 <code>{{timezone}}</code>时区</span>
+          <span v-pre>变量: <code>{{name}}</code>名称 <code>{{type}}</code>类型 <code>{{expiryDate}}</code>到期日 <code>{{status}}</code>状态 <code>{{daysLeft}}</code>剩余天数 <code>{{price}}</code>费用 <code>{{period}}</code>周期 <code>{{reminder}}</code>提前提醒 <code>{{lunar}}</code>农历 <code>{{notes}}</code>备注 <code>{{time}}</code>当前时间 <code>{{timezone}}</code>时区</span>
         </div>
       </el-card>
 

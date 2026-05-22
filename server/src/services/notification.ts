@@ -23,6 +23,8 @@ interface Subscription {
   autoRenew: number | null;
   useLunar: number | null;
   notes: string | null;
+  price: number | null;
+  priceUnit: string | null;
 }
 
 async function getConfigMap(): Promise<Record<string, string>> {
@@ -52,6 +54,16 @@ function formatNotifyMessage(subscription: Subscription, config: Record<string, 
 
   const template = config.notify_template || '📋 订阅提醒\n━━━━━━━━━━━━━━\n名称: {{name}}\n类型: {{type}}\n到期: {{expiryDate}}\n状态: {{status}}\n剩余: {{daysLeft}} 天\n农历: {{lunar}}\n备注: {{notes}}';
 
+  const unitMap: Record<string, string> = { day: '/天', month: '/月', year: '/年' };
+  const periodUnitMap: Record<string, string> = { day: '天', month: '月', year: '年' };
+  const price = subscription.price && subscription.price > 0
+    ? `¥${subscription.price.toFixed(2)}${unitMap[subscription.priceUnit || 'month'] || '/月'}`
+    : '免费';
+  const period = `${subscription.periodValue || 1}${periodUnitMap[subscription.periodUnit || 'month'] || '月'}`;
+  const reminderValue = subscription.reminderValue ?? 7;
+  const reminderUnit = subscription.reminderUnit || 'day';
+  const reminder = reminderUnit === 'hour' ? `${reminderValue}小时前` : `${reminderValue}天前`;
+
   return template
     .replace(/\{\{name\}\}/g, subscription.name)
     .replace(/\{\{type\}\}/g, subscription.customType || '其他')
@@ -60,6 +72,9 @@ function formatNotifyMessage(subscription: Subscription, config: Record<string, 
     .replace(/\{\{daysLeft\}\}/g, String(diffDays))
     .replace(/\{\{lunar\}\}/g, lunar)
     .replace(/\{\{notes\}\}/g, subscription.notes || '')
+    .replace(/\{\{price\}\}/g, price)
+    .replace(/\{\{period\}\}/g, period)
+    .replace(/\{\{reminder\}\}/g, reminder)
     .replace(/\{\{time\}\}/g, new Date().toLocaleString('zh-CN', { timeZone: config.timezone || 'Asia/Shanghai' }))
     .replace(/\{\{timezone\}\}/g, config.timezone || 'Asia/Shanghai');
 }
