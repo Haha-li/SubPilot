@@ -339,7 +339,7 @@ onMounted(() => {
           <el-option label="即将到期" value="soon" />
         </el-select>
       </el-col>
-      <el-col :xs="12" :sm="4">
+      <el-col :xs="24" :sm="4">
         <el-select v-model="sortBy" style="width: 100%">
           <el-option label="按到期日" value="expiry" />
           <el-option label="按名称" value="name" />
@@ -347,7 +347,7 @@ onMounted(() => {
           <el-option label="按费用" value="price" />
         </el-select>
       </el-col>
-      <el-col :xs="12" :sm="4">
+      <el-col :xs="24" :sm="4">
         <div class="filter-right">
           <el-button-group>
             <el-button :type="sortOrder === 'asc' ? 'primary' : ''" size="default" plain @click="sortOrder = 'asc'">升序</el-button>

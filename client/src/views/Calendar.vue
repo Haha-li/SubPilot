@@ -122,6 +122,21 @@ watch(() => subStore.subscriptions, () => {
   overflow-y: auto;
 }
 
+@media (max-width: 768px) {
+  .el-calendar-table td {
+    height: auto !important;
+  }
+  .el-calendar-day {
+    min-height: 52px !important;
+    padding: 2px 4px !important;
+  }
+  .cal-tag {
+    font-size: 10px;
+    line-height: 16px;
+    padding: 0 4px;
+  }
+}
+
 .cal-tag {
   display: block;
   font-size: 11px;
