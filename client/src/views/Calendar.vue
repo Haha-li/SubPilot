@@ -7,6 +7,7 @@ const subStore = useSubscriptionStore();
 const currentDate = ref(new Date());
 const isMobile = useMediaQuery('(max-width: 768px)');
 const selectedDate = ref('');
+let delegationBound = false;
 
 const activeSubscriptions = computed(() => subStore.subscriptions.filter(s => s.isActive));
 
@@ -50,6 +51,26 @@ function getDateFromCell(td: HTMLElement): string | null {
   return date.toISOString().split('T')[0];
 }
 
+function bindMobileClick() {
+  if (delegationBound) return;
+  const table = document.querySelector('.el-calendar-table');
+  if (!table) return;
+  delegationBound = true;
+  table.addEventListener('click', (e) => {
+    if (!isMobile.value) return;
+    const td = (e.target as HTMLElement).closest('td');
+    if (!td) return;
+    const dateStr = getDateFromCell(td as HTMLElement);
+    if (!dateStr) return;
+    const subs = getSubsForDate(dateStr);
+    if (subs.length === 0) {
+      selectedDate.value = '';
+      return;
+    }
+    selectedDate.value = selectedDate.value === dateStr ? '' : dateStr;
+  });
+}
+
 function renderCalendarCells() {
   nextTick(() => {
     const cells = document.querySelectorAll('.el-calendar-table td');
@@ -76,12 +97,7 @@ function renderCalendarCells() {
           dotsWrap.appendChild(dot);
         });
         dayEl.appendChild(dotsWrap);
-
-        // Click handler to show detail below
         (td as HTMLElement).style.cursor = 'pointer';
-        td.addEventListener('click', () => {
-          selectedDate.value = selectedDate.value === dateStr ? '' : dateStr;
-        });
       } else {
         // Desktop: show full tags
         const container = document.createElement('div');
@@ -101,7 +117,10 @@ function renderCalendarCells() {
 }
 
 onMounted(() => {
-  subStore.fetchSubscriptions().then(renderCalendarCells);
+  subStore.fetchSubscriptions().then(() => {
+    renderCalendarCells();
+    bindMobileClick();
+  });
 });
 
 watch(currentDate, () => {
