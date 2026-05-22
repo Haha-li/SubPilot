@@ -7,6 +7,36 @@ import api from '../utils/api';
 const config = ref<Record<string, string>>({});
 const loading = ref(false);
 const saving = ref(false);
+const showPreview = ref(false);
+
+const defaultTemplate = `📋 订阅提醒
+━━━━━━━━━━━━━━
+名称: {{name}}
+类型: {{type}}
+到期: {{expiryDate}}
+状态: {{status}}
+剩余: {{daysLeft}} 天
+农历: {{lunar}}
+备注: {{notes}}`;
+
+function renderPreview(template: string) {
+  const today = new Date();
+  const expiryDate = new Date(today.getTime() + 10 * 24 * 60 * 60 * 1000);
+  const yyyy = expiryDate.getFullYear();
+  const mm = String(expiryDate.getMonth() + 1).padStart(2, '0');
+  const dd = String(expiryDate.getDate()).padStart(2, '0');
+
+  return (template || defaultTemplate)
+    .replace(/\{\{name\}\}/g, '示例订阅')
+    .replace(/\{\{type\}\}/g, '视频会员')
+    .replace(/\{\{expiryDate\}\}/g, `${yyyy}-${mm}-${dd}`)
+    .replace(/\{\{status\}\}/g, '还有 10 天到期')
+    .replace(/\{\{daysLeft\}\}/g, '10')
+    .replace(/\{\{lunar\}\}/g, '四月十五')
+    .replace(/\{\{notes\}\}/g, '这是一条示例备注');
+}
+
+const previewText = computed(() => renderPreview(config.value.notify_template));
 
 const channels = [
   { key: 'telegram', name: 'Telegram', desc: '通过 Telegram Bot 推送', visible: true },
@@ -25,6 +55,9 @@ async function loadConfig() {
   loading.value = true;
   try {
     const { data } = await api.get('/config');
+    if (!data.notify_template) {
+      data.notify_template = defaultTemplate;
+    }
     config.value = data;
     activeChannels.value = (data.notify_channels || '').split(',').filter(Boolean);
   } finally {
@@ -114,18 +147,24 @@ onMounted(loadConfig);
       <!-- Notify Template -->
       <el-card shadow="never">
         <template #header>
-          <span class="section-title">通知模板</span>
+          <div style="display: flex; align-items: center; justify-content: space-between;">
+            <span class="section-title">通知模板</span>
+            <el-button size="small" @click="showPreview = !showPreview">
+              {{ showPreview ? '编辑' : '预览' }}
+            </el-button>
+          </div>
         </template>
         <el-form label-position="top">
-          <el-form-item label="消息模板（留空使用默认模板）">
+          <el-form-item>
             <el-input
+              v-if="!showPreview"
               v-model="config.notify_template"
               type="textarea"
-              :rows="6"
-              placeholder="📋 订阅提醒&#10;━━━━━━━━━━━━━━&#10;名称: {{name}}&#10;类型: {{type}}&#10;到期: {{expiryDate}}&#10;状态: {{status}}"
+              :rows="8"
             />
+            <pre v-else class="template-preview">{{ previewText }}</pre>
             <div class="form-tip">
-              可用变量: <code>{{name}}</code> <code>{{type}}</code> <code>{{expiryDate}}</code> <code>{{status}}</code> <code>{{daysLeft}}</code> <code>{{lunar}}</code> <code>{{notes}}</code>
+              变量: <code>{{name}}</code> <code>{{type}}</code> <code>{{expiryDate}}</code> <code>{{status}}</code> <code>{{daysLeft}}</code> <code>{{lunar}}</code> <code>{{notes}}</code>
             </div>
           </el-form-item>
         </el-form>
@@ -460,5 +499,19 @@ onMounted(loadConfig);
 .save-bar {
   display: flex;
   justify-content: flex-end;
+}
+
+.template-preview {
+  background-color: var(--el-fill-color-light);
+  border: 1px solid var(--el-border-color);
+  border-radius: 8px;
+  padding: 16px;
+  font-family: inherit;
+  font-size: 14px;
+  line-height: 1.6;
+  white-space: pre-wrap;
+  word-break: break-word;
+  margin: 0;
+  min-height: 180px;
 }
 </style>

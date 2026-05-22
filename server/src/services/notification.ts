@@ -50,27 +50,16 @@ function formatNotifyMessage(subscription: Subscription, config: Record<string, 
                  diffDays === 0 ? '今天到期' :
                  `还有 ${diffDays} 天到期`;
 
-  const template = config.notify_template || '';
+  const template = config.notify_template || '📋 订阅提醒\n━━━━━━━━━━━━━━\n名称: {{name}}\n类型: {{type}}\n到期: {{expiryDate}}\n状态: {{status}}\n剩余: {{daysLeft}} 天\n农历: {{lunar}}\n备注: {{notes}}';
 
-  if (template) {
-    return template
-      .replace(/\{\{name\}\}/g, subscription.name)
-      .replace(/\{\{type\}\}/g, subscription.customType || '其他')
-      .replace(/\{\{expiryDate\}\}/g, subscription.expiryDate)
-      .replace(/\{\{status\}\}/g, status)
-      .replace(/\{\{daysLeft\}\}/g, String(diffDays))
-      .replace(/\{\{lunar\}\}/g, lunar)
-      .replace(/\{\{notes\}\}/g, subscription.notes || '');
-  }
-
-  return `📋 订阅提醒\n` +
-    `━━━━━━━━━━━━━━\n` +
-    `名称: ${subscription.name}\n` +
-    `类型: ${subscription.customType || '其他'}\n` +
-    `到期: ${subscription.expiryDate}\n` +
-    `状态: ${status}` +
-    (lunar ? `\n农历: ${lunar}` : '') +
-    (subscription.notes ? `\n备注: ${subscription.notes}` : '');
+  return template
+    .replace(/\{\{name\}\}/g, subscription.name)
+    .replace(/\{\{type\}\}/g, subscription.customType || '其他')
+    .replace(/\{\{expiryDate\}\}/g, subscription.expiryDate)
+    .replace(/\{\{status\}\}/g, status)
+    .replace(/\{\{daysLeft\}\}/g, String(diffDays))
+    .replace(/\{\{lunar\}\}/g, lunar)
+    .replace(/\{\{notes\}\}/g, subscription.notes || '');
 }
 
 export async function sendNotification(subscription: Subscription, isTest = false): Promise<boolean> {
