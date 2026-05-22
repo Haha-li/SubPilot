@@ -40,52 +40,97 @@ function toggleDrawer() {
 
 <template>
   <el-container class="app-layout">
-    <!-- Mobile overlay -->
-    <div
-      v-if="isMobile && drawerOpen"
-      class="mobile-overlay"
-      @click="drawerOpen = false"
-    />
+    <!-- Mobile overlay + drawer -->
+    <template v-if="isMobile">
+      <div v-if="drawerOpen" class="mobile-overlay" @click="drawerOpen = false" />
+      <div v-if="drawerOpen" class="mobile-sidebar">
+        <div class="logo-area">
+          <el-icon :size="24" color="#f59e0b"><List /></el-icon>
+          <span class="logo-text">SubPilot</span>
+        </div>
+        <el-menu
+          :default-active="route.path"
+          :collapse-transition="false"
+          router
+          class="app-menu"
+        >
+          <el-menu-item index="/" @click="drawerOpen = false">
+            <el-icon><Folder /></el-icon>
+            <template #title>订阅管理</template>
+          </el-menu-item>
+          <el-menu-item index="/stats" @click="drawerOpen = false">
+            <el-icon><DataLine /></el-icon>
+            <template #title>费用统计</template>
+          </el-menu-item>
+          <el-menu-item index="/categories" @click="drawerOpen = false">
+            <el-icon><PriceTag /></el-icon>
+            <template #title>分类管理</template>
+          </el-menu-item>
+          <el-menu-item index="/calendar" @click="drawerOpen = false">
+            <el-icon><Calendar /></el-icon>
+            <template #title>订阅日历</template>
+          </el-menu-item>
+          <el-menu-item index="/logs" @click="drawerOpen = false">
+            <el-icon><Document /></el-icon>
+            <template #title>通知日志</template>
+          </el-menu-item>
+          <el-menu-item index="/config" @click="drawerOpen = false">
+            <el-icon><Setting /></el-icon>
+            <template #title>系统配置</template>
+          </el-menu-item>
+        </el-menu>
+        <div class="sidebar-bottom">
+          <el-button text class="sidebar-btn" @click="toggleDark()">
+            <el-icon :size="18"><Sunny v-if="isDark" /><Moon v-else /></el-icon>
+            <span class="btn-label">{{ isDark ? '浅色模式' : '深色模式' }}</span>
+          </el-button>
+          <el-button text class="sidebar-btn" @click="handleLogout">
+            <el-icon :size="18"><SwitchButton /></el-icon>
+            <span class="btn-label">退出登录</span>
+          </el-button>
+        </div>
+      </div>
+    </template>
 
+    <!-- Desktop sidebar -->
     <el-aside
-      v-show="!isMobile || drawerOpen"
-      :width="isMobile ? '220px' : (isCollapsed ? '64px' : '220px')"
+      v-if="!isMobile"
+      :width="isCollapsed ? '64px' : '220px'"
       class="app-aside"
-      :class="{ 'mobile-drawer': isMobile, 'drawer-open': isMobile && drawerOpen }"
     >
       <div class="logo-area">
         <el-icon :size="24" color="#f59e0b"><List /></el-icon>
-        <span v-show="isMobile || !isCollapsed" class="logo-text">SubPilot</span>
+        <span v-show="!isCollapsed" class="logo-text">SubPilot</span>
       </div>
 
       <el-menu
         :default-active="route.path"
-        :collapse="!isMobile && isCollapsed"
+        :collapse="isCollapsed"
         :collapse-transition="false"
         router
         class="app-menu"
       >
-        <el-menu-item index="/" @click="isMobile && (drawerOpen = false)">
+        <el-menu-item index="/">
           <el-icon><Folder /></el-icon>
           <template #title>订阅管理</template>
         </el-menu-item>
-        <el-menu-item index="/stats" @click="isMobile && (drawerOpen = false)">
+        <el-menu-item index="/stats">
           <el-icon><DataLine /></el-icon>
           <template #title>费用统计</template>
         </el-menu-item>
-        <el-menu-item index="/categories" @click="isMobile && (drawerOpen = false)">
+        <el-menu-item index="/categories">
           <el-icon><PriceTag /></el-icon>
           <template #title>分类管理</template>
         </el-menu-item>
-        <el-menu-item index="/calendar" @click="isMobile && (drawerOpen = false)">
+        <el-menu-item index="/calendar">
           <el-icon><Calendar /></el-icon>
           <template #title>订阅日历</template>
         </el-menu-item>
-        <el-menu-item index="/logs" @click="isMobile && (drawerOpen = false)">
+        <el-menu-item index="/logs">
           <el-icon><Document /></el-icon>
           <template #title>通知日志</template>
         </el-menu-item>
-        <el-menu-item index="/config" @click="isMobile && (drawerOpen = false)">
+        <el-menu-item index="/config">
           <el-icon><Setting /></el-icon>
           <template #title>系统配置</template>
         </el-menu-item>
@@ -95,10 +140,10 @@ function toggleDrawer() {
         <el-tooltip :content="isDark ? '浅色模式' : '深色模式'" placement="right" :show-after="500">
           <el-button text class="sidebar-btn" @click="toggleDark()">
             <el-icon :size="18"><Sunny v-if="isDark" /><Moon v-else /></el-icon>
-            <span v-show="isMobile || !isCollapsed" class="btn-label">{{ isDark ? '浅色模式' : '深色模式' }}</span>
+            <span v-show="!isCollapsed" class="btn-label">{{ isDark ? '浅色模式' : '深色模式' }}</span>
           </el-button>
         </el-tooltip>
-        <el-tooltip v-if="!isMobile" content="收起侧边栏" placement="right" :show-after="500">
+        <el-tooltip content="收起侧边栏" placement="right" :show-after="500">
           <el-button text class="sidebar-btn" @click="toggleCollapse">
             <el-icon :size="18"><DArrowLeft v-if="!isCollapsed" /><DArrowRight v-else /></el-icon>
             <span v-show="!isCollapsed" class="btn-label">收起侧边栏</span>
@@ -107,7 +152,7 @@ function toggleDrawer() {
         <el-tooltip content="退出登录" placement="right" :show-after="500">
           <el-button text class="sidebar-btn" @click="handleLogout">
             <el-icon :size="18"><SwitchButton /></el-icon>
-            <span v-show="isMobile || !isCollapsed" class="btn-label">退出登录</span>
+            <span v-show="!isCollapsed" class="btn-label">退出登录</span>
           </el-button>
         </el-tooltip>
       </div>
@@ -143,13 +188,18 @@ function toggleDrawer() {
   overflow: hidden;
 }
 
-.app-aside.mobile-drawer {
+.mobile-sidebar {
   position: fixed;
   left: 0;
   top: 0;
   bottom: 0;
-  z-index: 2001;
   width: 220px;
+  z-index: 2001;
+  background: var(--el-bg-color);
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+  border-right: 1px solid var(--el-border-color-light);
 }
 
 .mobile-overlay {
