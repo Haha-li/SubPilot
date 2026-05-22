@@ -3,6 +3,7 @@ import { ref, computed, onMounted, watch } from 'vue';
 import { useMediaQuery } from '@vueuse/core';
 import { useSubscriptionStore, type Subscription } from '../stores/subscription';
 import { solar2lunar } from '../utils/lunar';
+import { currencies, getSymbol } from '../utils/currency';
 import { ElMessage } from 'element-plus';
 
 const props = defineProps<{
@@ -46,6 +47,7 @@ const form = ref({
   notes: '',
   price: 0,
   priceUnit: 'month',
+  currency: 'CNY',
   hasTrial: false,
   trialValue: 7,
   trialUnit: 'day',
@@ -169,6 +171,7 @@ onMounted(() => {
       notes: sub.notes || '',
       price: sub.price || 0,
       priceUnit: sub.priceUnit || 'month',
+      currency: sub.currency || 'CNY',
       hasTrial: !!(sub.trialValue && sub.trialUnit),
       trialValue: sub.trialValue || 7,
       trialUnit: sub.trialUnit || 'day',
@@ -272,11 +275,16 @@ onMounted(() => {
         <el-col :xs="24" :md="12">
           <el-form-item label="费用">
             <el-input v-model.number="form.price" type="number" :min="0" placeholder="0">
+              <template #prepend>
+                <el-select v-model="form.currency" style="width: 90px">
+                  <el-option v-for="c in currencies" :key="c.code" :label="c.code" :value="c.code" />
+                </el-select>
+              </template>
               <template #append>
                 <el-select v-model="form.priceUnit" style="width: 80px">
-                  <el-option label="元/年" value="year" />
-                  <el-option label="元/月" value="month" />
-                  <el-option label="元/天" value="day" />
+                  <el-option label="/年" value="year" />
+                  <el-option label="/月" value="month" />
+                  <el-option label="/天" value="day" />
                 </el-select>
               </template>
             </el-input>

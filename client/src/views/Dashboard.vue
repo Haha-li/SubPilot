@@ -3,6 +3,7 @@ import { ref, computed, watch, onMounted } from 'vue';
 import { useMediaQuery } from '@vueuse/core';
 import { useSubscriptionStore, type Subscription } from '../stores/subscription';
 import { solar2lunar } from '../utils/lunar';
+import { getSymbol } from '../utils/currency';
 import { ElMessageBox, ElMessage } from 'element-plus';
 import { Plus, Search, Delete, CopyDocument, Edit, Bell, VideoPause, VideoPlay, Download, Star } from '@element-plus/icons-vue';
 import SubscriptionModal from '../components/SubscriptionModal.vue';
@@ -251,6 +252,13 @@ function periodLabel(unit: string): string {
   return { day: '天', month: '月', year: '年' }[unit] || unit;
 }
 
+function getPriceText(sub: Subscription): string {
+  if (!sub.price || sub.price <= 0) return '';
+  const sym = getSymbol(sub.currency || 'CNY');
+  const unitMap: Record<string, string> = { day: '/天', month: '/月', year: '/年' };
+  return `${sym}${sub.price.toFixed(2)}${unitMap[sub.priceUnit] || '/月'}`;
+}
+
 function openAdd() {
   editingSub.value = null;
   copyMode.value = false;
@@ -443,6 +451,9 @@ onMounted(() => {
 
         <!-- Notes -->
         <p v-if="sub.notes" class="card-notes">{{ sub.notes }}</p>
+
+        <!-- Price -->
+        <div v-if="getPriceText(sub)" class="card-price">{{ getPriceText(sub) }}</div>
 
         <!-- Trial Badge -->
         <div v-if="sub.trialValue && sub.trialUnit" class="card-trial">
@@ -688,6 +699,13 @@ html.dark .card-grid :deep(.el-card) {
   font-size: 12px;
   color: var(--el-text-color-secondary);
   margin-bottom: 16px;
+}
+
+.card-price {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--el-color-primary);
+  margin-bottom: 12px;
 }
 
 .card-actions {

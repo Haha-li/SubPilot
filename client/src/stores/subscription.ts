@@ -19,6 +19,7 @@ export interface Subscription {
   notes: string;
   price: number;
   priceUnit: string;
+  currency: string;
   isPinned: number;
   trialValue: number | null;
   trialUnit: string | null;

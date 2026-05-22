@@ -1,23 +1,23 @@
 <script setup lang="ts">
-import { computed, onMounted } from 'vue';
+import { ref, computed, onMounted } from 'vue';
 import { useSubscriptionStore, type Subscription } from '../stores/subscription';
+import { currencies, convert, getSymbol } from '../utils/currency';
 
 const subStore = useSubscriptionStore();
+const displayCurrency = ref('CNY');
 
-function getMonthlyCost(sub: Subscription): number {
+function getMonthlyCostInCurrency(sub: Subscription, target: string): number {
   const price = sub.price || 0;
   if (price <= 0) return 0;
   const unit = sub.priceUnit || 'month';
-  if (unit === 'month') return price;
-  if (unit === 'year') return price / 12;
-  if (unit === 'day') return price * 30;
-  return price;
+  const monthly = unit === 'year' ? price / 12 : unit === 'day' ? price * 30 : price;
+  return convert(monthly, sub.currency || 'CNY', target);
 }
 
 const activeSubscriptions = computed(() => subStore.subscriptions.filter(s => s.isActive));
 
 const totalMonthly = computed(() =>
-  activeSubscriptions.value.reduce((sum, s) => sum + getMonthlyCost(s), 0)
+  activeSubscriptions.value.reduce((sum, s) => sum + getMonthlyCostInCurrency(s, displayCurrency.value), 0)
 );
 
 const totalYearly = computed(() => totalMonthly.value * 12);
@@ -36,7 +36,7 @@ const byType = computed(() => {
   const map: Record<string, number> = {};
   paidSubscriptions.value.forEach(s => {
     const type = s.customType || '未分类';
-    map[type] = (map[type] || 0) + getMonthlyCost(s);
+    map[type] = (map[type] || 0) + getMonthlyCostInCurrency(s, displayCurrency.value);
   });
   return Object.entries(map)
     .map(([label, value]) => ({ label, value }))
@@ -51,7 +51,7 @@ const byCategory = computed(() => {
     const cat = (s.category || '').trim();
     const tokens = cat ? cat.split(/[/,，\s]+/).filter(Boolean) : ['未分类'];
     tokens.forEach(t => {
-      map[t] = (map[t] || 0) + getMonthlyCost(s);
+      map[t] = (map[t] || 0) + getMonthlyCostInCurrency(s, displayCurrency.value);
     });
   });
   return Object.entries(map)
@@ -76,7 +76,7 @@ const monthlyTrend = computed(() => {
       const expiryTime = new Date(sub.expiryDate).getTime();
       const startTime = sub.startDate ? new Date(sub.startDate).getTime() : 0;
       if (expiryTime >= monthStart && startTime <= monthEnd) {
-        total += getMonthlyCost(sub);
+        total += getMonthlyCostInCurrency(sub, displayCurrency.value);
       }
     });
     months.push({ label: `${month + 1}月`, value: Math.round(total * 100) / 100 });
@@ -88,15 +88,15 @@ const maxTrendValue = computed(() => Math.max(1, ...monthlyTrend.value.map(i => 
 
 const sortedSubs = computed(() =>
   [...subStore.subscriptions].sort((a, b) => {
-    const ca = getMonthlyCost(a);
-    const cb = getMonthlyCost(b);
+    const ca = getMonthlyCostInCurrency(a, displayCurrency.value);
+    const cb = getMonthlyCostInCurrency(b, displayCurrency.value);
     if (cb !== ca) return cb - ca;
     return a.name.localeCompare(b.name, 'zh-CN');
   })
 );
 
 function formatMoney(val: number): string {
-  return '¥' + val.toFixed(2);
+  return getSymbol(displayCurrency.value) + val.toFixed(2);
 }
 
 function getPeriodLabel(sub: Subscription): string {
@@ -106,7 +106,8 @@ function getPeriodLabel(sub: Subscription): string {
 
 function getPriceLabel(sub: Subscription): string {
   const unitMap: Record<string, string> = { day: '/天', month: '/月', year: '/年' };
-  return formatMoney(sub.price) + (unitMap[sub.priceUnit] || '/月');
+  const sym = getSymbol(sub.currency || 'CNY');
+  return `${sym}${(sub.price || 0).toFixed(2)}${unitMap[sub.priceUnit] || '/月'}`;
 }
 
 onMounted(() => {
@@ -119,8 +120,16 @@ onMounted(() => {
 <template>
   <div>
     <div class="page-header">
-      <h2 class="page-title">费用统计</h2>
-      <p class="page-subtitle">订阅费用分析与概览</p>
+      <div>
+        <h2 class="page-title">费用统计</h2>
+        <p class="page-subtitle">订阅费用分析与概览</p>
+      </div>
+      <div class="currency-switcher">
+        <span class="currency-label">统计币种</span>
+        <el-select v-model="displayCurrency" style="width: 100px">
+          <el-option v-for="c in currencies" :key="c.code" :label="c.code" :value="c.code" />
+        </el-select>
+      </div>
     </div>
 
     <!-- Summary Cards -->
@@ -253,7 +262,22 @@ onMounted(() => {
 
 <style scoped>
 .page-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
   margin-bottom: 24px;
+}
+
+.currency-switcher {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.currency-label {
+  font-size: 13px;
+  color: var(--el-text-color-secondary);
+  white-space: nowrap;
 }
 
 .page-title {

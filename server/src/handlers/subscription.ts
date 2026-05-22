@@ -33,7 +33,7 @@ export async function listSubscriptionsHandler(query: any) {
 
 export async function createSubscriptionHandler(body: any) {
   try {
-    const { name, customType, category, startDate, expiryDate, periodValue, periodUnit, reminderValue, reminderUnit, isActive, autoRenew, useLunar, notes, price, priceUnit, trialValue, trialUnit } = body;
+    const { name, customType, category, startDate, expiryDate, periodValue, periodUnit, reminderValue, reminderUnit, isActive, autoRenew, useLunar, notes, price, priceUnit, currency, trialValue, trialUnit } = body;
 
     if (!name || !expiryDate) {
       return { status: 400, body: { success: false, message: '订阅名称和到期日期为必填项' } };
@@ -56,6 +56,7 @@ export async function createSubscriptionHandler(body: any) {
       notes: notes || '',
       price: price ?? 0,
       priceUnit: priceUnit || 'month',
+      currency: currency || 'CNY',
       trialValue: trialValue || null,
       trialUnit: trialUnit || null,
       createdAt: now,
@@ -73,7 +74,7 @@ export async function createSubscriptionHandler(body: any) {
 
 export async function updateSubscriptionHandler(id: number, body: any) {
   try {
-    const { name, customType, category, startDate, expiryDate, periodValue, periodUnit, reminderValue, reminderUnit, isActive, autoRenew, useLunar, notes, price, priceUnit, isPinned, trialValue, trialUnit } = body;
+    const { name, customType, category, startDate, expiryDate, periodValue, periodUnit, reminderValue, reminderUnit, isActive, autoRenew, useLunar, notes, price, priceUnit, currency, isPinned, trialValue, trialUnit } = body;
 
     const [existing] = await db.select().from(schema.subscriptions).where(eq(schema.subscriptions.id, id)).limit(1);
     if (!existing) {
@@ -97,6 +98,7 @@ export async function updateSubscriptionHandler(id: number, body: any) {
       notes: notes ?? existing.notes,
       price: price ?? existing.price,
       priceUnit: priceUnit ?? existing.priceUnit,
+      currency: currency ?? existing.currency,
       isPinned: isPinned !== undefined ? (isPinned ? 1 : 0) : existing.isPinned,
       trialValue: trialValue !== undefined ? trialValue : existing.trialValue,
       trialUnit: trialUnit !== undefined ? trialUnit : existing.trialUnit,

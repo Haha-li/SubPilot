@@ -25,6 +25,7 @@ interface Subscription {
   notes: string | null;
   price: number | null;
   priceUnit: string | null;
+  currency: string | null;
 }
 
 async function getConfigMap(): Promise<Record<string, string>> {
@@ -56,8 +57,13 @@ function formatNotifyMessage(subscription: Subscription, config: Record<string, 
 
   const unitMap: Record<string, string> = { day: '/天', month: '/月', year: '/年' };
   const periodUnitMap: Record<string, string> = { day: '天', month: '月', year: '年' };
+  const symbolMap: Record<string, string> = {
+    CNY: '¥', USD: '$', EUR: '€', GBP: '£', JPY: '¥',
+    HKD: 'HK$', KRW: '₩', TWD: 'NT$', SGD: 'S$', CAD: 'C$', AUD: 'A$',
+  };
+  const sym = symbolMap[subscription.currency || 'CNY'] || subscription.currency || '¥';
   const price = subscription.price && subscription.price > 0
-    ? `¥${subscription.price.toFixed(2)}${unitMap[subscription.priceUnit || 'month'] || '/月'}`
+    ? `${sym}${subscription.price.toFixed(2)}${unitMap[subscription.priceUnit || 'month'] || '/月'}`
     : '免费';
   const period = `${subscription.periodValue || 1}${periodUnitMap[subscription.periodUnit || 'month'] || '月'}`;
   const reminderValue = subscription.reminderValue ?? 7;
@@ -195,6 +201,9 @@ export async function testTemplateNotification(channel: string, formConfig?: Rec
     autoRenew: 1,
     useLunar: 1,
     notes: '这是一条示例备注',
+    price: 29,
+    priceUnit: 'month',
+    currency: 'CNY',
   };
 
   const message = formatNotifyMessage(mockSub, config);
