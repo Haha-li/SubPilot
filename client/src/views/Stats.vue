@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue';
 import { useSubscriptionStore, type Subscription } from '../stores/subscription';
-import { currencies, convert, getSymbol } from '../utils/currency';
+import { currencies, convert, getSymbol, fetchRates } from '../utils/currency';
 
 const subStore = useSubscriptionStore();
 const displayCurrency = ref('CNY');
@@ -110,7 +110,8 @@ function getPriceLabel(sub: Subscription): string {
   return `${sym}${(sub.price || 0).toFixed(2)}${unitMap[sub.priceUnit] || '/月'}`;
 }
 
-onMounted(() => {
+onMounted(async () => {
+  fetchRates();
   if (subStore.subscriptions.length === 0) {
     subStore.fetchSubscriptions();
   }

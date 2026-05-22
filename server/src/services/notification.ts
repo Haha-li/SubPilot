@@ -58,8 +58,15 @@ function formatNotifyMessage(subscription: Subscription, config: Record<string, 
   const unitMap: Record<string, string> = { day: '/天', month: '/月', year: '/年' };
   const periodUnitMap: Record<string, string> = { day: '天', month: '月', year: '年' };
   const symbolMap: Record<string, string> = {
-    CNY: '¥', USD: '$', EUR: '€', GBP: '£', JPY: '¥',
-    HKD: 'HK$', KRW: '₩', TWD: 'NT$', SGD: 'S$', CAD: 'C$', AUD: 'A$',
+    CNY: '¥', JPY: '¥', KRW: '₩', HKD: 'HK$', TWD: 'NT$', SGD: 'S$',
+    THB: '฿', MYR: 'RM', IDR: 'Rp', PHP: '₱', VND: '₫', INR: '₹',
+    PKR: '₨', BDT: '৳', LKR: 'Rs', EUR: '€', GBP: '£', CHF: 'CHF',
+    SEK: 'kr', NOK: 'kr', DKK: 'kr', PLN: 'zł', CZK: 'Kč', HUF: 'Ft',
+    RUB: '₽', TRY: '₺', UAH: '₴', RON: 'lei', BGN: 'лв', USD: '$',
+    CAD: 'C$', MXN: 'MX$', BRL: 'R$', ARS: 'ARS', CLP: 'CLP',
+    COP: 'COL$', PEN: 'S/', AUD: 'A$', NZD: 'NZ$', AED: 'د.إ',
+    SAR: '﷼', ILS: '₪', ZAR: 'R', EGP: 'E£', NGN: '₦', KES: 'KSh',
+    MAD: 'MAD',
   };
   const sym = symbolMap[subscription.currency || 'CNY'] || subscription.currency || '¥';
   const price = subscription.price && subscription.price > 0
