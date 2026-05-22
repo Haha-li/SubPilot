@@ -111,6 +111,7 @@ export async function sendNotification(subscription: Subscription, isTest = fals
         status: result ? 'success' : 'failed',
         message: result ? '发送成功' : '发送失败',
         content: message,
+        createdAt: new Date().toISOString(),
       });
 
       if (result) success = true;
@@ -121,6 +122,7 @@ export async function sendNotification(subscription: Subscription, isTest = fals
         status: 'failed',
         message: error.message,
         content: message,
+        createdAt: new Date().toISOString(),
       });
     }
   }

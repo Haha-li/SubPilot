@@ -67,6 +67,14 @@ function showDetail(log: NotifyLog) {
   detailVisible.value = true;
 }
 
+function formatTime(val: string | null): string {
+  if (!val) return '-';
+  const d = new Date(val);
+  if (isNaN(d.getTime())) return val;
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+}
+
 onMounted(() => {
   fetchLogs();
   if (subStore.subscriptions.length === 0) {
@@ -149,7 +157,11 @@ onMounted(() => {
           </template>
         </el-table-column>
         <el-table-column label="消息" prop="message" show-overflow-tooltip />
-        <el-table-column label="时间" prop="createdAt" width="180" />
+        <el-table-column label="时间" width="180">
+          <template #default="{ row }">
+            {{ formatTime(row.createdAt) }}
+          </template>
+        </el-table-column>
         <el-table-column label="操作" width="80" align="center">
           <template #default="{ row }">
             <el-button type="primary" link size="small" @click="showDetail(row)">详情</el-button>
@@ -183,7 +195,7 @@ onMounted(() => {
               {{ detailLog.status === 'success' ? '成功' : '失败' }}
             </el-tag>
           </el-descriptions-item>
-          <el-descriptions-item label="时间">{{ detailLog.createdAt }}</el-descriptions-item>
+          <el-descriptions-item label="时间">{{ formatTime(detailLog.createdAt) }}</el-descriptions-item>
           <el-descriptions-item v-if="detailLog.message" label="结果">{{ detailLog.message }}</el-descriptions-item>
         </el-descriptions>
         <div v-if="detailLog.content" class="detail-content">
