@@ -33,7 +33,7 @@ export async function listSubscriptionsHandler(query: any) {
 
 export async function createSubscriptionHandler(body: any) {
   try {
-    const { name, customType, category, startDate, expiryDate, periodValue, periodUnit, reminderValue, reminderUnit, isActive, autoRenew, useLunar, notes, price } = body;
+    const { name, customType, category, startDate, expiryDate, periodValue, periodUnit, reminderValue, reminderUnit, isActive, autoRenew, useLunar, notes, price, priceUnit } = body;
 
     if (!name || !expiryDate) {
       return { status: 400, body: { success: false, message: '订阅名称和到期日期为必填项' } };
@@ -55,6 +55,7 @@ export async function createSubscriptionHandler(body: any) {
       useLunar: useLunar ? 1 : 0,
       notes: notes || '',
       price: price ?? 0,
+      priceUnit: priceUnit || 'month',
       createdAt: now,
       updatedAt: now,
     });
@@ -70,7 +71,7 @@ export async function createSubscriptionHandler(body: any) {
 
 export async function updateSubscriptionHandler(id: number, body: any) {
   try {
-    const { name, customType, category, startDate, expiryDate, periodValue, periodUnit, reminderValue, reminderUnit, isActive, autoRenew, useLunar, notes, price } = body;
+    const { name, customType, category, startDate, expiryDate, periodValue, periodUnit, reminderValue, reminderUnit, isActive, autoRenew, useLunar, notes, price, priceUnit } = body;
 
     const [existing] = await db.select().from(schema.subscriptions).where(eq(schema.subscriptions.id, id)).limit(1);
     if (!existing) {
@@ -93,6 +94,7 @@ export async function updateSubscriptionHandler(id: number, body: any) {
       useLunar: useLunar !== undefined ? (useLunar ? 1 : 0) : existing.useLunar,
       notes: notes ?? existing.notes,
       price: price ?? existing.price,
+      priceUnit: priceUnit ?? existing.priceUnit,
       updatedAt: now,
     }).where(eq(schema.subscriptions.id, id));
 

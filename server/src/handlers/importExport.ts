@@ -2,7 +2,7 @@ import { db, schema } from '../db';
 
 function toCSV(items: any[]): string {
   if (items.length === 0) return '';
-  const fields = ['name', 'customType', 'category', 'startDate', 'expiryDate', 'periodValue', 'periodUnit', 'reminderValue', 'reminderUnit', 'isActive', 'autoRenew', 'useLunar', 'notes', 'price'];
+  const fields = ['name', 'customType', 'category', 'startDate', 'expiryDate', 'periodValue', 'periodUnit', 'reminderValue', 'reminderUnit', 'isActive', 'autoRenew', 'useLunar', 'notes', 'price', 'priceUnit'];
   const header = fields.join(',');
   const rows = items.map(item =>
     fields.map(f => {
@@ -135,6 +135,7 @@ export async function importSubscriptionsHandler(body: any) {
         useLunar: row.useLunar ? Number(row.useLunar) : 0,
         notes: row.notes || '',
         price: Number(row.price) || 0,
+        priceUnit: row.priceUnit || 'month',
         createdAt: now,
         updatedAt: now,
       });

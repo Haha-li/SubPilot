@@ -23,6 +23,7 @@ export const subscriptions = sqliteTable('subscriptions', {
   useLunar: integer('use_lunar').default(0),
   notes: text('notes').default(''),
   price: real('price').default(0),
+  priceUnit: text('price_unit').default('month'),
   createdAt: text('created_at').default(new Date().toISOString()),
   updatedAt: text('updated_at').default(new Date().toISOString()),
 });

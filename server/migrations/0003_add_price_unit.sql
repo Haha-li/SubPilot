@@ -1,2 +1,1 @@
-ALTER TABLE subscriptions ADD COLUMN price REAL DEFAULT 0;
 ALTER TABLE subscriptions ADD COLUMN price_unit TEXT DEFAULT 'month';

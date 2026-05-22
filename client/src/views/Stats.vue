@@ -7,11 +7,10 @@ const subStore = useSubscriptionStore();
 function getMonthlyCost(sub: Subscription): number {
   const price = sub.price || 0;
   if (price <= 0) return 0;
-  const unit = sub.periodUnit || 'month';
-  const value = sub.periodValue || 1;
-  if (unit === 'month') return price / value;
-  if (unit === 'year') return price / (value * 12);
-  if (unit === 'day') return (price * 30) / value;
+  const unit = sub.priceUnit || 'month';
+  if (unit === 'month') return price;
+  if (unit === 'year') return price / 12;
+  if (unit === 'day') return price * 30;
   return price;
 }
 
@@ -160,9 +159,9 @@ onMounted(() => {
             {{ row.periodValue }}{{ row.periodUnit === 'day' ? '天' : row.periodUnit === 'year' ? '年' : '月' }}
           </template>
         </el-table-column>
-        <el-table-column label="原价/周期" width="110">
+        <el-table-column label="原价" width="130">
           <template #default="{ row }">
-            {{ row.price > 0 ? formatMoney(row.price) : '-' }}
+            {{ row.price > 0 ? formatMoney(row.price) + '/' + (row.priceUnit === 'day' ? '天' : row.priceUnit === 'year' ? '年' : '月') : '-' }}
           </template>
         </el-table-column>
         <el-table-column label="折合月费" width="110" sortable>

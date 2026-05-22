@@ -18,6 +18,7 @@ export interface Subscription {
   useLunar: number;
   notes: string;
   price: number;
+  priceUnit: string;
   createdAt: string;
   updatedAt: string;
 }

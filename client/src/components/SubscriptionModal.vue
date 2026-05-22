@@ -32,6 +32,7 @@ const form = ref({
   showLunar: true,
   notes: '',
   price: 0,
+  priceUnit: 'month',
 });
 
 const loading = ref(false);
@@ -137,6 +138,7 @@ onMounted(() => {
       showLunar: true,
       notes: sub.notes || '',
       price: sub.price || 0,
+      priceUnit: sub.priceUnit || 'month',
     };
   }
 });
@@ -230,12 +232,29 @@ onMounted(() => {
         </el-col>
       </el-row>
 
-      <!-- Auto calculate -->
-      <div class="calc-row">
-        <el-button type="primary" plain size="small" @click="calculateExpiry">
-          自动计算到期日期
-        </el-button>
-      </div>
+      <!-- Price -->
+      <el-row :gutter="16">
+        <el-col :xs="24" :md="12">
+          <el-form-item label="费用">
+            <el-input v-model.number="form.price" type="number" :min="0" placeholder="0">
+              <template #append>
+                <el-select v-model="form.priceUnit" style="width: 80px">
+                  <el-option label="元/年" value="year" />
+                  <el-option label="元/月" value="month" />
+                  <el-option label="元/天" value="day" />
+                </el-select>
+              </template>
+            </el-input>
+          </el-form-item>
+        </el-col>
+        <el-col :xs="24" :md="12">
+          <div class="calc-row">
+            <el-button type="primary" plain size="small" @click="calculateExpiry">
+              自动计算到期日期
+            </el-button>
+          </div>
+        </el-col>
+      </el-row>
 
       <!-- Reminder -->
       <el-row :gutter="16">
@@ -261,24 +280,15 @@ onMounted(() => {
         </el-col>
       </el-row>
 
-      <!-- Notes + Price -->
-      <el-row :gutter="16">
-        <el-col :xs="24" :md="16">
-          <el-form-item label="备注">
-            <el-input
-              v-model="form.notes"
-              type="textarea"
-              :rows="3"
-              placeholder="可添加相关备注信息..."
-            />
-          </el-form-item>
-        </el-col>
-        <el-col :xs="24" :md="8">
-          <el-form-item label="费用 (元/周期)">
-            <el-input-number v-model="form.price" :min="0" :precision="2" style="width: 100%" />
-          </el-form-item>
-        </el-col>
-      </el-row>
+      <!-- Notes -->
+      <el-form-item label="备注">
+        <el-input
+          v-model="form.notes"
+          type="textarea"
+          :rows="3"
+          placeholder="可添加相关备注信息..."
+        />
+      </el-form-item>
     </el-form>
 
     <template #footer>

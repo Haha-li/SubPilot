@@ -97,6 +97,11 @@ try {
 } catch (e: any) {
   if (!e.message.includes('duplicate column name')) throw e;
 }
+try {
+  sqlite.exec("ALTER TABLE subscriptions ADD COLUMN price_unit TEXT DEFAULT 'month'");
+} catch (e: any) {
+  if (!e.message.includes('duplicate column name')) throw e;
+}
 
 console.log('Database migration completed successfully');
 sqlite.close();
