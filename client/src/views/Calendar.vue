@@ -58,8 +58,8 @@ function renderCalendarCells() {
       subs.forEach(sub => {
         const tag = document.createElement('span');
         tag.className = sub.isExpiry ? 'cal-tag cal-tag-danger' : 'cal-tag cal-tag-warning';
-        tag.textContent = sub.name;
-        tag.title = sub.name;
+        tag.textContent = (sub.isExpiry ? '到期 ' : '提醒 ') + sub.name;
+        tag.title = sub.isExpiry ? `${sub.name} - 今日到期` : `${sub.name} - 即将到期`;
         container.appendChild(tag);
       });
       dayEl.appendChild(container);
@@ -84,7 +84,7 @@ watch(() => subStore.subscriptions, () => {
   <div>
     <div class="page-header">
       <h2 class="page-title">订阅日历</h2>
-      <p class="page-subtitle">按日历视图查看订阅到期日期</p>
+      <p class="page-subtitle">按日历视图查看订阅到期日期（<span class="cal-tag cal-tag-danger" style="display:inline-block;vertical-align:middle;font-size:12px;line-height:20px;padding:0 8px;margin:0 4px;">到期</span> = 当日到期<span class="cal-tag cal-tag-warning" style="display:inline-block;vertical-align:middle;font-size:12px;line-height:20px;padding:0 8px;margin:0 4px;">提醒</span> = 提前提醒）</p>
     </div>
 
     <el-card shadow="never">
