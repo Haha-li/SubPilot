@@ -39,5 +39,6 @@ export const notifyLogs = sqliteTable('notify_logs', {
   channel: text('channel').notNull(),
   status: text('status').notNull(),
   message: text('message'),
+  content: text('content'),
   createdAt: text('created_at').default(new Date().toISOString()),
 });

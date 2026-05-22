@@ -110,6 +110,7 @@ export async function sendNotification(subscription: Subscription, isTest = fals
         channel,
         status: result ? 'success' : 'failed',
         message: result ? '发送成功' : '发送失败',
+        content: message,
       });
 
       if (result) success = true;
@@ -119,6 +120,7 @@ export async function sendNotification(subscription: Subscription, isTest = fals
         channel,
         status: 'failed',
         message: error.message,
+        content: message,
       });
     }
   }

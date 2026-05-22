@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, onMounted, watch } from 'vue';
-import { useNotifyLogsStore } from '../stores/notifyLogs';
+import { useNotifyLogsStore, type NotifyLog } from '../stores/notifyLogs';
 import { useSubscriptionStore } from '../stores/subscription';
 import { ElMessageBox, ElMessage } from 'element-plus';
 import { Search, Delete } from '@element-plus/icons-vue';
@@ -15,6 +15,9 @@ const startDate = ref('');
 const endDate = ref('');
 const currentPage = ref(1);
 const pageSize = ref(20);
+
+const detailVisible = ref(false);
+const detailLog = ref<NotifyLog | null>(null);
 
 const channelMap: Record<string, string> = {
   telegram: 'Telegram',
@@ -57,6 +60,11 @@ async function handleClear() {
     await logsStore.clearLogs();
     ElMessage.success('日志已清空');
   } catch {}
+}
+
+function showDetail(log: NotifyLog) {
+  detailLog.value = log;
+  detailVisible.value = true;
 }
 
 onMounted(() => {
@@ -142,6 +150,11 @@ onMounted(() => {
         </el-table-column>
         <el-table-column label="消息" prop="message" show-overflow-tooltip />
         <el-table-column label="时间" prop="createdAt" width="180" />
+        <el-table-column label="操作" width="80" align="center">
+          <template #default="{ row }">
+            <el-button type="primary" link size="small" @click="showDetail(row)">详情</el-button>
+          </template>
+        </el-table-column>
       </el-table>
 
       <div class="pagination-wrap">
@@ -158,6 +171,28 @@ onMounted(() => {
         />
       </div>
     </el-card>
+
+    <!-- Detail Dialog -->
+    <el-dialog v-model="detailVisible" title="通知详情" width="560px" @close="detailLog = null">
+      <template v-if="detailLog">
+        <el-descriptions :column="1" border>
+          <el-descriptions-item label="订阅">{{ detailLog.subscriptionName }}</el-descriptions-item>
+          <el-descriptions-item label="渠道">{{ channelMap[detailLog.channel] || detailLog.channel }}</el-descriptions-item>
+          <el-descriptions-item label="状态">
+            <el-tag :type="detailLog.status === 'success' ? 'success' : 'danger'" size="small" effect="light">
+              {{ detailLog.status === 'success' ? '成功' : '失败' }}
+            </el-tag>
+          </el-descriptions-item>
+          <el-descriptions-item label="时间">{{ detailLog.createdAt }}</el-descriptions-item>
+          <el-descriptions-item v-if="detailLog.message" label="结果">{{ detailLog.message }}</el-descriptions-item>
+        </el-descriptions>
+        <div v-if="detailLog.content" class="detail-content">
+          <div class="detail-content-label">推送内容</div>
+          <pre class="detail-content-text">{{ detailLog.content }}</pre>
+        </div>
+        <div v-else class="detail-empty">暂无推送内容记录</div>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
@@ -197,5 +232,36 @@ onMounted(() => {
   margin-top: 16px;
   display: flex;
   justify-content: flex-end;
+}
+
+.detail-content {
+  margin-top: 16px;
+}
+
+.detail-content-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--el-text-color-primary);
+  margin-bottom: 8px;
+}
+
+.detail-content-text {
+  background: var(--el-fill-color-light);
+  border: 1px solid var(--el-border-color-lighter);
+  border-radius: 6px;
+  padding: 12px;
+  font-size: 13px;
+  line-height: 1.6;
+  white-space: pre-wrap;
+  word-break: break-all;
+  margin: 0;
+  color: var(--el-text-color-primary);
+}
+
+.detail-empty {
+  margin-top: 16px;
+  text-align: center;
+  color: var(--el-text-color-secondary);
+  font-size: 13px;
 }
 </style>

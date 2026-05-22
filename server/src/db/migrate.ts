@@ -102,6 +102,11 @@ try {
 } catch (e: any) {
   if (!e.message.includes('duplicate column name')) throw e;
 }
+try {
+  sqlite.exec('ALTER TABLE notify_logs ADD COLUMN content TEXT');
+} catch (e: any) {
+  if (!e.message.includes('duplicate column name')) throw e;
+}
 
 console.log('Database migration completed successfully');
 sqlite.close();

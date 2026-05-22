@@ -9,6 +9,7 @@ export interface NotifyLog {
   channel: string;
   status: string;
   message: string | null;
+  content: string | null;
   createdAt: string;
 }
 
