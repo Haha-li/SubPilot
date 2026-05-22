@@ -7,7 +7,6 @@ import api from '../utils/api';
 const config = ref<Record<string, string>>({});
 const loading = ref(false);
 const saving = ref(false);
-const showPreview = ref(false);
 
 const defaultTemplate = `📋 订阅提醒
 ━━━━━━━━━━━━━━
@@ -147,27 +146,25 @@ onMounted(loadConfig);
       <!-- Notify Template -->
       <el-card shadow="never">
         <template #header>
-          <div style="display: flex; align-items: center; justify-content: space-between;">
-            <span class="section-title">通知模板</span>
-            <el-button size="small" @click="showPreview = !showPreview">
-              {{ showPreview ? '编辑' : '预览' }}
-            </el-button>
-          </div>
+          <span class="section-title">通知模板</span>
         </template>
-        <el-form label-position="top">
-          <el-form-item>
+        <el-row :gutter="16">
+          <el-col :xs="24" :md="12">
+            <div class="template-label">编辑</div>
             <el-input
-              v-if="!showPreview"
               v-model="config.notify_template"
               type="textarea"
-              :rows="8"
+              :rows="10"
             />
-            <pre v-else class="template-preview">{{ previewText }}</pre>
-            <div class="form-tip">
-              <span v-pre>变量: <code>{{name}}</code>名称 <code>{{type}}</code>类型 <code>{{expiryDate}}</code>到期日 <code>{{status}}</code>状态 <code>{{daysLeft}}</code>剩余天数 <code>{{lunar}}</code>农历 <code>{{notes}}</code>备注</span>
-            </div>
-          </el-form-item>
-        </el-form>
+          </el-col>
+          <el-col :xs="24" :md="12">
+            <div class="template-label">预览</div>
+            <pre class="template-preview">{{ previewText }}</pre>
+          </el-col>
+        </el-row>
+        <div class="form-tip" style="margin-top: 12px;">
+          <span v-pre>变量: <code>{{name}}</code>名称 <code>{{type}}</code>类型 <code>{{expiryDate}}</code>到期日 <code>{{status}}</code>状态 <code>{{daysLeft}}</code>剩余天数 <code>{{lunar}}</code>农历 <code>{{notes}}</code>备注</span>
+        </div>
       </el-card>
 
       <!-- Notification Channels -->
@@ -512,6 +509,12 @@ onMounted(loadConfig);
   white-space: pre-wrap;
   word-break: break-word;
   margin: 0;
-  min-height: 180px;
+  min-height: 218px;
+}
+
+.template-label {
+  font-size: 12px;
+  color: var(--el-text-color-secondary);
+  margin-bottom: 6px;
 }
 </style>
