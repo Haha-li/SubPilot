@@ -2,11 +2,14 @@
 import { ref, computed, onMounted } from 'vue';
 import { useSubscriptionStore } from '../stores/subscription';
 import { ElMessageBox, ElMessage } from 'element-plus';
-import { Edit, Delete } from '@element-plus/icons-vue';
+import { Edit, Delete, Plus } from '@element-plus/icons-vue';
 import api from '../utils/api';
 
 const subStore = useSubscriptionStore();
 const categorySeparator = /[/,，\s]+/;
+
+const newCategoryName = ref('');
+const customCategories = ref<string[]>(JSON.parse(localStorage.getItem('customCategories') || '[]'));
 
 function normalizeCategoryTokens(category: string): string[] {
   return (category || '').split(categorySeparator).map(t => t.trim()).filter(Boolean);
@@ -36,6 +39,10 @@ const categories = computed<CategoryInfo[]>(() => {
       map[t] = (map[t] || 0) + 1;
     });
   });
+  // Include custom categories with 0 count
+  customCategories.value.forEach(c => {
+    if (!(c in map)) map[c] = 0;
+  });
   return Object.entries(map)
     .map(([name, count]) => ({ name, count, color: getColor(name) }))
     .sort((a, b) => b.count - a.count);
@@ -48,6 +55,25 @@ function startRename(cat: CategoryInfo) {
 
 function cancelRename() {
   editingCategory.value = null;
+}
+
+function handleAdd() {
+  const name = newCategoryName.value.trim();
+  if (!name) return;
+  const sep = /[/,，\s]+/;
+  const tokens = name.split(sep).map(t => t.trim()).filter(Boolean);
+  let added = 0;
+  tokens.forEach(t => {
+    if (!customCategories.value.includes(t) && !categories.value.some(c => c.name === t)) {
+      customCategories.value.push(t);
+      added++;
+    }
+  });
+  if (added > 0) {
+    localStorage.setItem('customCategories', JSON.stringify(customCategories.value));
+    ElMessage.success(`已添加 ${added} 个分类`);
+  }
+  newCategoryName.value = '';
 }
 
 async function confirmRename() {
@@ -92,6 +118,8 @@ async function handleDelete(cat: CategoryInfo) {
 
   delete categoryColors.value[cat.name];
   localStorage.setItem('categoryColors', JSON.stringify(categoryColors.value));
+  customCategories.value = customCategories.value.filter(c => c !== cat.name);
+  localStorage.setItem('customCategories', JSON.stringify(customCategories.value));
   await subStore.fetchSubscriptions();
   ElMessage.success('已删除分类');
 }
@@ -109,8 +137,14 @@ onMounted(() => {
 <template>
   <div>
     <div class="page-header">
-      <h2 class="page-title">分类管理</h2>
-      <p class="page-subtitle">管理订阅分类标签，重命名或删除分类</p>
+      <div>
+        <h2 class="page-title">分类管理</h2>
+        <p class="page-subtitle">管理订阅分类标签，新增、重命名或删除分类</p>
+      </div>
+      <div class="add-row">
+        <el-input v-model="newCategoryName" placeholder="输入分类名称" clearable style="width: 200px" @keyup.enter="handleAdd" />
+        <el-button type="primary" :icon="Plus" @click="handleAdd">新增分类</el-button>
+      </div>
     </div>
 
     <el-empty v-if="categories.length === 0" description="暂无分类标签" />
@@ -161,7 +195,18 @@ onMounted(() => {
 
 <style scoped>
 .page-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
   margin-bottom: 24px;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.add-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
 }
 
 .page-title {

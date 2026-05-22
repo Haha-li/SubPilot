@@ -16,10 +16,21 @@ const emit = defineEmits<{
 
 const subStore = useSubscriptionStore();
 
+const allCategories = computed(() => {
+  const cats = new Set<string>();
+  const sep = /[/,，\s]+/;
+  subStore.subscriptions.forEach(sub => {
+    (sub.category || '').split(sep).map(t => t.trim()).filter(Boolean).forEach(t => cats.add(t));
+  });
+  const custom = JSON.parse(localStorage.getItem('customCategories') || '[]');
+  custom.forEach((c: string) => cats.add(c));
+  return Array.from(cats).sort((a, b) => a.localeCompare(b, 'zh-CN'));
+});
+
 const form = ref({
   name: '',
   customType: '',
-  category: '',
+  category: [] as string[],
   startDate: '',
   expiryDate: '',
   periodValue: 1,
@@ -98,9 +109,10 @@ async function handleSubmit() {
 
   loading.value = true;
   try {
-    const { showLunar, ...rest } = form.value;
+    const { showLunar, category, ...rest } = form.value;
     const payload = {
       ...rest,
+      category: category.join(', '),
       isActive: Number(rest.isActive),
       autoRenew: Number(rest.autoRenew),
       useLunar: Number(rest.useLunar),
@@ -125,7 +137,7 @@ onMounted(() => {
     form.value = {
       name: props.copy ? sub.name + ' (副本)' : sub.name,
       customType: sub.customType || '',
-      category: sub.category || '',
+      category: (sub.category || '').split(/[/,，\s]+/).map(t => t.trim()).filter(Boolean),
       startDate: sub.startDate || '',
       expiryDate: sub.expiryDate,
       periodValue: sub.periodValue || 1,
@@ -169,7 +181,9 @@ onMounted(() => {
         </el-col>
         <el-col :xs="24" :md="8">
           <el-form-item label="分类标签">
-            <el-input v-model="form.category" placeholder="用 / 分隔多个标签" />
+            <el-select v-model="form.category" multiple filterable allow-create clearable placeholder="选择或输入分类" style="width: 100%">
+              <el-option v-for="c in allCategories" :key="c" :label="c" :value="c" />
+            </el-select>
           </el-form-item>
         </el-col>
       </el-row>
