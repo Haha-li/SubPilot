@@ -7,19 +7,22 @@ const currentDate = ref(new Date());
 
 const activeSubscriptions = computed(() => subStore.subscriptions.filter(s => s.isActive));
 
-function getSubsForDate(date: Date): { name: string; type: string }[] {
-  const y = date.getFullYear();
-  const m = String(date.getMonth() + 1).padStart(2, '0');
-  const d = String(date.getDate()).padStart(2, '0');
-  const dateStr = `${y}-${m}-${d}`;
+function getSubsForDate(dateStr: string): { name: string; type: string; isExpiry: boolean }[] {
   return activeSubscriptions.value
-    .filter(s => s.expiryDate === dateStr)
-    .map(s => ({ name: s.name, type: s.customType || '' }));
-}
-
-function getCellStyle(data: { isSelected: boolean; type: string }) {
-  if (data.type === 'current') return {};
-  return {};
+    .filter(s => {
+      if (s.expiryDate === dateStr) return true;
+      // Also show if this date is within reminder window and before expiry
+      const cellTime = new Date(dateStr).getTime();
+      const expiryTime = new Date(s.expiryDate).getTime();
+      const diffDays = Math.ceil((expiryTime - cellTime) / (1000 * 60 * 60 * 24));
+      const reminderDays = s.reminderUnit === 'day' ? (s.reminderValue ?? 7) : 0;
+      return diffDays > 0 && diffDays <= reminderDays;
+    })
+    .map(s => ({
+      name: s.name,
+      type: s.customType || '',
+      isExpiry: s.expiryDate === dateStr,
+    }));
 }
 
 onMounted(() => {
@@ -41,11 +44,11 @@ onMounted(() => {
             <span class="cal-day">{{ data.day.split('-')[2] }}</span>
             <div class="cal-subs">
               <div
-                v-for="sub in getSubsForDate(new Date(data.date))"
+                v-for="sub in getSubsForDate(data.day)"
                 :key="sub.name"
                 class="cal-sub-item"
               >
-                <el-tag size="small" effect="light" type="danger">{{ sub.name }}</el-tag>
+                <el-tag size="small" effect="light" :type="sub.isExpiry ? 'danger' : 'warning'">{{ sub.name }}</el-tag>
               </div>
             </div>
           </div>
