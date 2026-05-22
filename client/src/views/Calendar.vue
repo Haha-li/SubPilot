@@ -110,6 +110,15 @@ watch(() => subStore.subscriptions, () => {
   color: var(--el-text-color-secondary);
   margin-top: 4px;
 }
+</style>
+
+<style>
+.cal-subs-injected {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-top: 4px;
+}
 
 .cal-tag {
   display: block;
@@ -135,14 +144,5 @@ watch(() => subStore.subscriptions, () => {
   background-color: var(--el-color-warning-light-9, #fdf6ec);
   color: var(--el-color-warning, #e6a23c);
   border: 1px solid var(--el-color-warning-light-7, #f5dab1);
-}
-</style>
-
-<style>
-.cal-subs-injected {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  margin-top: 4px;
 }
 </style>
