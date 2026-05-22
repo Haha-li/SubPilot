@@ -48,6 +48,7 @@ function toggleDrawer() {
     />
 
     <el-aside
+      v-show="!isMobile || drawerOpen"
       :width="isMobile ? '220px' : (isCollapsed ? '64px' : '220px')"
       class="app-aside"
       :class="{ 'mobile-drawer': isMobile, 'drawer-open': isMobile && drawerOpen }"
@@ -148,13 +149,7 @@ function toggleDrawer() {
   top: 0;
   bottom: 0;
   z-index: 2001;
-  transform: translateX(-100%);
-  transition: transform 0.3s;
   width: 220px;
-}
-
-.app-aside.mobile-drawer.drawer-open {
-  transform: translateX(0);
 }
 
 .mobile-overlay {
