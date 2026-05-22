@@ -100,7 +100,7 @@ async function testChannel(channel: string) {
 async function testTemplate() {
   const channel = activeChannels.value[0] || 'telegram';
   try {
-    const { data } = await api.post('/config/test-notify', { channel, config: config.value });
+    const { data } = await api.post('/config/test-notify', { channel, config: config.value, mode: 'template' });
     if (data.success) {
       ElMessage.success('测试通知已发送');
     } else {

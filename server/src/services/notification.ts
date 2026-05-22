@@ -151,3 +151,53 @@ export async function testNotificationChannel(channel: string, formConfig?: Reco
     return false;
   }
 }
+
+export async function testTemplateNotification(channel: string, formConfig?: Record<string, string>): Promise<boolean> {
+  const config = formConfig || await getConfigMap();
+
+  const today = new Date();
+  const expiryDate = new Date(today.getTime() + 10 * 24 * 60 * 60 * 1000);
+  const yyyy = expiryDate.getFullYear();
+  const mm = String(expiryDate.getMonth() + 1).padStart(2, '0');
+  const dd = String(expiryDate.getDate()).padStart(2, '0');
+
+  const mockSub: Subscription = {
+    id: 0,
+    name: '示例订阅',
+    customType: '视频会员',
+    category: null,
+    startDate: null,
+    expiryDate: `${yyyy}-${mm}-${dd}`,
+    periodValue: 1,
+    periodUnit: 'month',
+    reminderValue: 7,
+    reminderUnit: 'day',
+    isActive: 1,
+    autoRenew: 1,
+    useLunar: 1,
+    notes: '这是一条示例备注',
+  };
+
+  const message = formatNotifyMessage(mockSub, config);
+
+  try {
+    switch (channel) {
+      case 'telegram':
+        return await sendTelegram(config.telegram_bot_token, config.telegram_chat_id, message);
+      case 'wechat':
+        return await sendWechat(config.wechat_webhook, message);
+      case 'bark':
+        return await sendBark(config.bark_url, config.bark_key, message, mockSub.name);
+      case 'webhook':
+        return await sendWebhook(config, message, mockSub);
+      case 'email':
+        return await sendEmail(config, message, mockSub.name);
+      case 'notifyx':
+        return await sendNotifyX(config.notifyx_api_key, message);
+      default:
+        return false;
+    }
+  } catch {
+    return false;
+  }
+}
