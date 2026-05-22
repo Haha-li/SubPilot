@@ -164,7 +164,7 @@ onMounted(loadConfig);
             />
             <pre v-else class="template-preview">{{ previewText }}</pre>
             <div class="form-tip">
-              变量: <code>{{name}}</code> <code>{{type}}</code> <code>{{expiryDate}}</code> <code>{{status}}</code> <code>{{daysLeft}}</code> <code>{{lunar}}</code> <code>{{notes}}</code>
+              <span v-pre>变量: <code>{{name}}</code> <code>{{type}}</code> <code>{{expiryDate}}</code> <code>{{status}}</code> <code>{{daysLeft}}</code> <code>{{lunar}}</code> <code>{{notes}}</code></span>
             </div>
           </el-form-item>
         </el-form>
