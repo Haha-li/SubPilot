@@ -158,7 +158,7 @@ function toggleDrawer() {
       </div>
     </el-aside>
 
-    <el-container>
+    <el-container direction="vertical">
       <!-- Mobile top bar -->
       <div v-if="isMobile" class="mobile-topbar">
         <el-button text @click="toggleDrawer">
