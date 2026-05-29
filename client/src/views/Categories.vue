@@ -2,7 +2,7 @@
 import { ref, computed, onMounted } from 'vue';
 import { useSubscriptionStore } from '../stores/subscription';
 import { ElMessageBox, ElMessage } from 'element-plus';
-import { Edit, Delete, Plus } from '@element-plus/icons-vue';
+import { Pencil, Trash2, Plus, Check, X, Tag as TagIcon, Palette } from '@lucide/vue';
 import api from '../utils/api';
 
 const subStore = useSubscriptionStore();
@@ -12,7 +12,7 @@ const newCategoryName = ref('');
 const customCategories = ref<string[]>(JSON.parse(localStorage.getItem('customCategories') || '[]'));
 
 function normalizeCategoryTokens(category: string): string[] {
-  return (category || '').split(categorySeparator).map(t => t.trim()).filter(Boolean);
+  return (category || '').split(categorySeparator).map((t) => t.trim()).filter(Boolean);
 }
 
 interface CategoryInfo {
@@ -21,7 +21,7 @@ interface CategoryInfo {
   color: string;
 }
 
-const defaultColors = ['#409EFF', '#67C23A', '#E6A23C', '#F56C6C', '#909399', '#00ACC1', '#8E24AA', '#FF7043'];
+const defaultColors = ['#6366F1', '#10B981', '#F59E0B', '#EF4444', '#06B6D4', '#A855F7', '#EC4899', '#F97316'];
 const categoryColors = ref<Record<string, string>>(JSON.parse(localStorage.getItem('categoryColors') || '{}'));
 const editingCategory = ref<string | null>(null);
 const editName = ref('');
@@ -34,19 +34,20 @@ function getColor(name: string): string {
 
 const categories = computed<CategoryInfo[]>(() => {
   const map: Record<string, number> = {};
-  subStore.subscriptions.forEach(sub => {
-    normalizeCategoryTokens(sub.category).forEach(t => {
+  subStore.subscriptions.forEach((sub) => {
+    normalizeCategoryTokens(sub.category).forEach((t) => {
       map[t] = (map[t] || 0) + 1;
     });
   });
-  // Include custom categories with 0 count
-  customCategories.value.forEach(c => {
+  customCategories.value.forEach((c) => {
     if (!(c in map)) map[c] = 0;
   });
   return Object.entries(map)
     .map(([name, count]) => ({ name, count, color: getColor(name) }))
     .sort((a, b) => b.count - a.count);
 });
+
+const usedCount = computed(() => categories.value.filter((c) => c.count > 0).length);
 
 function startRename(cat: CategoryInfo) {
   editingCategory.value = cat.name;
@@ -64,11 +65,11 @@ function handleAdd() {
     return;
   }
   const sep = /[/,，\s]+/;
-  const tokens = name.split(sep).map(t => t.trim()).filter(Boolean);
+  const tokens = name.split(sep).map((t) => t.trim()).filter(Boolean);
   let added = 0;
   let skipped = 0;
-  tokens.forEach(t => {
-    if (customCategories.value.includes(t) || categories.value.some(c => c.name === t)) {
+  tokens.forEach((t) => {
+    if (customCategories.value.includes(t) || categories.value.some((c) => c.name === t)) {
       skipped++;
     } else {
       customCategories.value.push(t);
@@ -88,14 +89,17 @@ async function confirmRename() {
   if (!editingCategory.value || !editName.value.trim()) return;
   const oldName = editingCategory.value;
   const newName = editName.value.trim();
-  if (oldName === newName) { cancelRename(); return; }
+  if (oldName === newName) {
+    cancelRename();
+    return;
+  }
 
-  const affected = subStore.subscriptions.filter(sub =>
-    normalizeCategoryTokens(sub.category).includes(oldName)
+  const affected = subStore.subscriptions.filter((sub) =>
+    normalizeCategoryTokens(sub.category).includes(oldName),
   );
 
   for (const sub of affected) {
-    const tokens = normalizeCategoryTokens(sub.category).map(t => t === oldName ? newName : t);
+    const tokens = normalizeCategoryTokens(sub.category).map((t) => (t === oldName ? newName : t));
     await api.put(`/subscriptions/${sub.id}`, { category: tokens.join(', ') });
   }
 
@@ -105,28 +109,40 @@ async function confirmRename() {
     localStorage.setItem('categoryColors', JSON.stringify(categoryColors.value));
   }
 
+  const idx = customCategories.value.indexOf(oldName);
+  if (idx >= 0) {
+    customCategories.value[idx] = newName;
+    localStorage.setItem('customCategories', JSON.stringify(customCategories.value));
+  }
+
   await subStore.fetchSubscriptions();
   ElMessage.success(`已重命名为「${newName}」`);
   cancelRename();
 }
 
 async function handleDelete(cat: CategoryInfo) {
-  await ElMessageBox.confirm(`确定删除分类「${cat.name}」？将从 ${cat.count} 个订阅中移除。`, '确认删除', {
-    confirmButtonText: '删除', cancelButtonText: '取消', type: 'warning',
-  });
+  try {
+    await ElMessageBox.confirm(
+      `确定删除分类「${cat.name}」？将从 ${cat.count} 个订阅中移除。`,
+      '确认删除',
+      { confirmButtonText: '删除', cancelButtonText: '取消', type: 'warning' },
+    );
+  } catch {
+    return;
+  }
 
-  const affected = subStore.subscriptions.filter(sub =>
-    normalizeCategoryTokens(sub.category).includes(cat.name)
+  const affected = subStore.subscriptions.filter((sub) =>
+    normalizeCategoryTokens(sub.category).includes(cat.name),
   );
 
   for (const sub of affected) {
-    const tokens = normalizeCategoryTokens(sub.category).filter(t => t !== cat.name);
+    const tokens = normalizeCategoryTokens(sub.category).filter((t) => t !== cat.name);
     await api.put(`/subscriptions/${sub.id}`, { category: tokens.join(', ') });
   }
 
   delete categoryColors.value[cat.name];
   localStorage.setItem('categoryColors', JSON.stringify(categoryColors.value));
-  customCategories.value = customCategories.value.filter(c => c !== cat.name);
+  customCategories.value = customCategories.value.filter((c) => c !== cat.name);
   localStorage.setItem('customCategories', JSON.stringify(customCategories.value));
   await subStore.fetchSubscriptions();
   ElMessage.success('已删除分类');
@@ -144,157 +160,131 @@ onMounted(() => {
 
 <template>
   <div>
-    <div class="page-header">
+    <!-- Header -->
+    <div class="mb-6 flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
       <div>
-        <h2 class="page-title">分类管理</h2>
-        <p class="page-subtitle">管理订阅分类标签，新增、重命名或删除分类</p>
+        <h2 class="font-heading text-3xl font-bold tracking-tight text-ink-900 dark:text-ink-50">分类管理</h2>
+        <p class="mt-1 text-sm text-ink-500 dark:text-ink-400">
+          共 <span class="font-mono-nums font-semibold text-ink-700 dark:text-ink-200">{{ categories.length }}</span> 个分类，其中
+          <span class="font-mono-nums font-semibold text-ink-700 dark:text-ink-200">{{ usedCount }}</span> 个使用中
+        </p>
       </div>
-      <div class="add-row">
-        <el-input v-model="newCategoryName" placeholder="输入分类名称" clearable style="width: 200px" @keyup.enter="handleAdd" />
-        <el-button type="primary" :icon="Plus" @click="handleAdd">新增分类</el-button>
-      </div>
+      <form class="flex items-center gap-2" @submit.prevent="handleAdd">
+        <div class="relative">
+          <TagIcon :size="16" class="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-ink-400" />
+          <input
+            v-model="newCategoryName"
+            type="text"
+            placeholder="新分类名称（支持空格分隔）"
+            class="block w-56 rounded-xl border border-ink-200 bg-white/60 py-2 pl-10 pr-3 text-sm text-ink-900 placeholder:text-ink-400 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/30 dark:border-ink-700/60 dark:bg-ink-900/40 dark:text-ink-50 dark:placeholder:text-ink-500"
+          />
+        </div>
+        <button
+          type="submit"
+          class="inline-flex cursor-pointer items-center gap-1.5 rounded-xl bg-gradient-to-br from-brand-500 to-brand-700 px-4 py-2 text-sm font-semibold text-white shadow-md shadow-brand-500/30 transition-all hover:shadow-lg active:scale-[0.98]"
+        >
+          <Plus :size="16" />
+          新增
+        </button>
+      </form>
     </div>
 
-    <el-empty v-if="categories.length === 0" description="暂无分类标签" />
+    <!-- Empty -->
+    <div
+      v-if="categories.length === 0"
+      class="bento-card flex flex-col items-center justify-center px-6 py-20 text-center"
+    >
+      <div class="flex h-16 w-16 items-center justify-center rounded-2xl bg-brand-50 text-brand-500 dark:bg-brand-500/10 dark:text-brand-300">
+        <TagIcon :size="28" />
+      </div>
+      <p class="mt-4 text-base font-medium text-ink-700 dark:text-ink-200">暂无分类标签</p>
+      <p class="mt-1 text-sm text-ink-500 dark:text-ink-400">在订阅中添加分类，或在上方手动新增</p>
+    </div>
 
-    <div v-else class="category-grid">
-      <el-card v-for="cat in categories" :key="cat.name" shadow="hover" class="category-card">
-        <div class="cat-header">
-          <div class="cat-color-row">
-            <div
-              class="cat-color-dot"
+    <!-- Grid -->
+    <div v-else class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+      <article
+        v-for="cat in categories"
+        :key="cat.name"
+        class="bento-card group relative overflow-hidden p-5"
+      >
+        <!-- color stripe -->
+        <span
+          class="absolute left-0 top-0 h-full w-1"
+          :style="{ background: cat.color }"
+        />
+
+        <!-- Header -->
+        <div class="flex items-start justify-between gap-3">
+          <div class="flex min-w-0 flex-1 items-center gap-3">
+            <label
+              class="relative flex h-9 w-9 flex-shrink-0 cursor-pointer items-center justify-center rounded-xl shadow-sm ring-1 ring-inset ring-white/40 transition-transform hover:scale-105"
               :style="{ background: cat.color }"
+              :title="`点击修改颜色 · ${cat.color}`"
             >
+              <Palette :size="14" class="text-white/90" />
               <input
                 type="color"
                 :value="cat.color"
-                class="color-input"
+                class="absolute inset-0 h-full w-full cursor-pointer opacity-0"
                 @input="(e: any) => updateColor(cat.name, e.target.value)"
               />
+            </label>
+
+            <div v-if="editingCategory === cat.name" class="min-w-0 flex-1">
+              <input
+                v-model="editName"
+                type="text"
+                class="block w-full rounded-lg border border-ink-200 bg-white/80 px-2.5 py-1.5 text-sm font-semibold text-ink-900 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/30 dark:border-ink-700/60 dark:bg-ink-900/60 dark:text-ink-50"
+                @keyup.enter="confirmRename"
+                @keyup.escape="cancelRename"
+              />
             </div>
-            <template v-if="editingCategory === cat.name">
-              <el-input v-model="editName" size="small" class="cat-rename-input" @keyup.enter="confirmRename" />
-            </template>
-            <template v-else>
-              <span class="cat-name">{{ cat.name }}</span>
-            </template>
+            <h3 v-else class="min-w-0 flex-1 truncate text-base font-semibold text-ink-900 dark:text-ink-50">{{ cat.name }}</h3>
           </div>
-          <el-tag size="small" type="info">{{ cat.count }} 项</el-tag>
+
+          <span
+            class="font-mono-nums inline-flex flex-shrink-0 items-center rounded-full px-2.5 py-1 text-xs font-semibold"
+            :class="cat.count > 0
+              ? 'bg-brand-50 text-brand-600 dark:bg-brand-500/15 dark:text-brand-300'
+              : 'bg-ink-100 text-ink-500 dark:bg-ink-800/60 dark:text-ink-400'"
+          >
+            {{ cat.count }} 项
+          </span>
         </div>
 
-        <div class="cat-actions">
+        <!-- Actions -->
+        <div class="mt-4 flex items-center gap-2">
           <template v-if="editingCategory === cat.name">
-            <el-button size="small" type="primary" plain @click="confirmRename">确认</el-button>
-            <el-button size="small" @click="cancelRename">取消</el-button>
+            <button
+              class="inline-flex cursor-pointer items-center gap-1 rounded-lg bg-success/10 px-3 py-1.5 text-xs font-semibold text-success hover:bg-success/15"
+              @click="confirmRename"
+            >
+              <Check :size="14" /> 确认
+            </button>
+            <button
+              class="inline-flex cursor-pointer items-center gap-1 rounded-lg bg-ink-100 px-3 py-1.5 text-xs font-semibold text-ink-600 hover:bg-ink-200 dark:bg-ink-800/60 dark:text-ink-300"
+              @click="cancelRename"
+            >
+              <X :size="14" /> 取消
+            </button>
           </template>
           <template v-else>
-            <el-button size="small" type="primary" plain @click="startRename(cat)">
-              <el-icon><Edit /></el-icon> 重命名
-            </el-button>
-            <el-button size="small" type="danger" plain @click="handleDelete(cat)">
-              <el-icon><Delete /></el-icon> 删除
-            </el-button>
+            <button
+              class="inline-flex cursor-pointer items-center gap-1 rounded-lg px-2.5 py-1.5 text-xs font-medium text-ink-600 transition-colors hover:bg-brand-50 hover:text-brand-600 dark:text-ink-300 dark:hover:bg-brand-500/15 dark:hover:text-brand-300"
+              @click="startRename(cat)"
+            >
+              <Pencil :size="14" /> 重命名
+            </button>
+            <button
+              class="ml-auto inline-flex cursor-pointer items-center gap-1 rounded-lg px-2.5 py-1.5 text-xs font-medium text-ink-600 transition-colors hover:bg-danger/10 hover:text-danger dark:text-ink-300"
+              @click="handleDelete(cat)"
+            >
+              <Trash2 :size="14" /> 删除
+            </button>
           </template>
         </div>
-      </el-card>
+      </article>
     </div>
   </div>
 </template>
-
-<style scoped>
-.page-header {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  margin-bottom: 24px;
-  gap: 16px;
-  flex-wrap: wrap;
-}
-
-.add-row {
-  display: flex;
-  gap: 8px;
-  align-items: center;
-}
-
-.page-title {
-  font-size: 24px;
-  font-weight: 700;
-  color: var(--el-text-color-primary);
-}
-
-.page-subtitle {
-  font-size: 14px;
-  color: var(--el-text-color-secondary);
-  margin-top: 4px;
-}
-
-.category-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
-  gap: 16px;
-}
-
-.category-card :deep(.el-card__body) {
-  padding: 16px;
-}
-
-.cat-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 12px;
-}
-
-.cat-color-row {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  min-width: 0;
-}
-
-.cat-color-dot {
-  width: 20px;
-  height: 20px;
-  border-radius: 50%;
-  flex-shrink: 0;
-  cursor: pointer;
-  position: relative;
-  overflow: hidden;
-}
-
-.color-input {
-  position: absolute;
-  top: -4px;
-  left: -4px;
-  width: 28px;
-  height: 28px;
-  border: none;
-  padding: 0;
-  cursor: pointer;
-  opacity: 0;
-}
-
-.cat-color-dot:hover {
-  box-shadow: 0 0 0 2px var(--el-color-primary-light-3);
-}
-
-.cat-name {
-  font-size: 15px;
-  font-weight: 600;
-  color: var(--el-text-color-primary);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.cat-rename-input {
-  flex: 1;
-  max-width: 160px;
-}
-
-.cat-actions {
-  display: flex;
-  gap: 8px;
-}
-</style>

@@ -1,7 +1,9 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue';
 import { ElMessage } from 'element-plus';
-import { Check } from '@element-plus/icons-vue';
+import {
+  Send, Bell, Globe2, Clock, FileCode2, Check, Sparkles, Save, Loader2,
+} from '@lucide/vue';
 import api from '../utils/api';
 
 const config = ref<Record<string, string>>({});
@@ -48,15 +50,24 @@ function renderPreview(template: string) {
 const previewText = computed(() => renderPreview(config.value.notify_template));
 
 const channels = [
-  { key: 'telegram', name: 'Telegram', desc: '通过 Telegram Bot 推送', visible: true },
-  { key: 'wechat', name: '企业微信', desc: '通过企业微信群机器人推送', visible: false },
-  { key: 'bark', name: 'Bark (iOS)', desc: '通过 Bark App 推送到 iOS', visible: false },
-  { key: 'webhook', name: 'Webhook', desc: '自定义 HTTP 回调', visible: false },
-  { key: 'email', name: '邮件 (Resend)', desc: '通过 Resend API 发送邮件', visible: false },
-  { key: 'notifyx', name: 'NotifyX', desc: '通过 NotifyX 服务推送', visible: false },
+  { key: 'telegram', name: 'Telegram',     desc: '通过 Telegram Bot 推送',      visible: true,  tone: 'sky'    },
+  { key: 'wechat',   name: '企业微信',      desc: '通过企业微信群机器人推送',     visible: false, tone: 'emerald' },
+  { key: 'bark',     name: 'Bark (iOS)',   desc: '通过 Bark App 推送到 iOS',    visible: false, tone: 'rose'   },
+  { key: 'webhook',  name: 'Webhook',      desc: '自定义 HTTP 回调',           visible: false, tone: 'violet' },
+  { key: 'email',    name: '邮件 (Resend)', desc: '通过 Resend API 发送邮件',   visible: false, tone: 'amber'  },
+  { key: 'notifyx',  name: 'NotifyX',      desc: '通过 NotifyX 服务推送',      visible: false, tone: 'cyan'   },
 ];
 
-const visibleChannels = computed(() => channels.filter(c => c.visible));
+const visibleChannels = computed(() => channels.filter((c) => c.visible));
+
+const toneClasses: Record<string, { bg: string; text: string; ring: string }> = {
+  sky:     { bg: 'bg-sky-100 dark:bg-sky-500/15',         text: 'text-sky-600 dark:text-sky-300',         ring: 'ring-sky-500' },
+  emerald: { bg: 'bg-emerald-100 dark:bg-emerald-500/15', text: 'text-emerald-600 dark:text-emerald-300', ring: 'ring-emerald-500' },
+  rose:    { bg: 'bg-rose-100 dark:bg-rose-500/15',       text: 'text-rose-600 dark:text-rose-300',       ring: 'ring-rose-500' },
+  violet:  { bg: 'bg-violet-100 dark:bg-violet-500/15',   text: 'text-violet-600 dark:text-violet-300',   ring: 'ring-violet-500' },
+  amber:   { bg: 'bg-amber-100 dark:bg-amber-500/15',     text: 'text-amber-600 dark:text-amber-300',     ring: 'ring-amber-500' },
+  cyan:    { bg: 'bg-cyan-100 dark:bg-cyan-500/15',       text: 'text-cyan-600 dark:text-cyan-300',       ring: 'ring-cyan-500' },
+};
 
 const activeChannels = ref<string[]>([]);
 
@@ -131,435 +142,320 @@ onMounted(loadConfig);
 
 <template>
   <div>
-    <div class="config-header">
-      <h2 class="config-title">系统配置</h2>
-      <p class="config-subtitle">管理系统参数和通知渠道</p>
+    <!-- Header -->
+    <div class="mb-6 flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+      <div>
+        <h2 class="font-heading text-3xl font-bold tracking-tight text-ink-900 dark:text-ink-50">系统配置</h2>
+        <p class="mt-1 text-sm text-ink-500 dark:text-ink-400">管理时区、通知模板与推送渠道</p>
+      </div>
+      <button
+        class="inline-flex cursor-pointer items-center gap-2 rounded-xl bg-gradient-to-br from-brand-500 to-brand-700 px-5 py-2.5 text-sm font-semibold text-white shadow-md shadow-brand-500/30 transition-all hover:shadow-lg active:scale-[0.98] disabled:opacity-60"
+        :disabled="saving"
+        @click="saveConfig"
+      >
+        <component :is="saving ? Loader2 : Save" :size="16" :class="saving && 'animate-spin'" />
+        {{ saving ? '保存中...' : '保存所有配置' }}
+      </button>
     </div>
 
-    <div v-loading="loading" class="config-sections">
+    <div v-loading="loading" class="space-y-5">
       <!-- Basic Settings -->
-      <el-card shadow="never">
-        <template #header>
-          <span class="section-title">基本设置</span>
-        </template>
-        <el-form label-position="top" :model="config">
-          <el-row :gutter="20">
-            <el-col :xs="24" :md="12">
-              <el-form-item label="系统时区">
-                <el-select v-model="config.timezone" style="width: 100%">
-                  <el-option label="中国标准时间 (UTC+8)" value="Asia/Shanghai" />
-                  <el-option label="香港时间 (UTC+8)" value="Asia/Hong_Kong" />
-                  <el-option label="台北时间 (UTC+8)" value="Asia/Taipei" />
-                  <el-option label="新加坡时间 (UTC+8)" value="Asia/Singapore" />
-                  <el-option label="韩国时间 (UTC+9)" value="Asia/Seoul" />
-                  <el-option label="日本时间 (UTC+9)" value="Asia/Tokyo" />
-                  <el-option label="泰国时间 (UTC+7)" value="Asia/Bangkok" />
-                  <el-option label="印度时间 (UTC+5:30)" value="Asia/Kolkata" />
-                  <el-option label="迪拜时间 (UTC+4)" value="Asia/Dubai" />
-                  <el-option label="澳大利亚东部 (UTC+10)" value="Australia/Sydney" />
-                  <el-option label="莫斯科时间 (UTC+3)" value="Europe/Moscow" />
-                  <el-option label="柏林时间 (UTC+1/2)" value="Europe/Berlin" />
-                  <el-option label="巴黎时间 (UTC+1/2)" value="Europe/Paris" />
-                  <el-option label="伦敦时间 (UTC+0/1)" value="Europe/London" />
-                  <el-option label="美国东部时间 (UTC-5/4)" value="America/New_York" />
-                  <el-option label="美国中部时间 (UTC-6/5)" value="America/Chicago" />
-                  <el-option label="美国太平洋时间 (UTC-8/7)" value="America/Los_Angeles" />
-                  <el-option label="圣保罗时间 (UTC-3)" value="America/Sao_Paulo" />
-                  <el-option label="UTC" value="UTC" />
-                </el-select>
-              </el-form-item>
-            </el-col>
-            <el-col :xs="24" :md="12">
-              <el-form-item label="检查时间 (小时)">
-                <el-input v-model="config.notify_hours" placeholder="留空则每天执行一次" />
-                <div class="form-tip">多个时间用逗号或空格分隔，如: 8,12,18 或 8 12 18；留空则每天执行一次</div>
-              </el-form-item>
-            </el-col>
-          </el-row>
-        </el-form>
-      </el-card>
+      <section class="bento-card p-5">
+        <header class="mb-5 flex items-center gap-2.5">
+          <div class="flex h-9 w-9 items-center justify-center rounded-xl bg-brand-50 text-brand-600 dark:bg-brand-500/15 dark:text-brand-300">
+            <Globe2 :size="18" />
+          </div>
+          <div>
+            <h3 class="text-sm font-semibold text-ink-900 dark:text-ink-50">基本设置</h3>
+            <p class="text-xs text-ink-500 dark:text-ink-400">系统时区与定时检查时间</p>
+          </div>
+        </header>
+
+        <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
+          <div>
+            <label class="mb-1.5 block text-sm font-medium text-ink-700 dark:text-ink-200">系统时区</label>
+            <el-select v-model="config.timezone" class="w-full">
+              <el-option label="中国标准时间 (UTC+8)" value="Asia/Shanghai" />
+              <el-option label="香港时间 (UTC+8)" value="Asia/Hong_Kong" />
+              <el-option label="台北时间 (UTC+8)" value="Asia/Taipei" />
+              <el-option label="新加坡时间 (UTC+8)" value="Asia/Singapore" />
+              <el-option label="韩国时间 (UTC+9)" value="Asia/Seoul" />
+              <el-option label="日本时间 (UTC+9)" value="Asia/Tokyo" />
+              <el-option label="泰国时间 (UTC+7)" value="Asia/Bangkok" />
+              <el-option label="印度时间 (UTC+5:30)" value="Asia/Kolkata" />
+              <el-option label="迪拜时间 (UTC+4)" value="Asia/Dubai" />
+              <el-option label="澳大利亚东部 (UTC+10)" value="Australia/Sydney" />
+              <el-option label="莫斯科时间 (UTC+3)" value="Europe/Moscow" />
+              <el-option label="柏林时间 (UTC+1/2)" value="Europe/Berlin" />
+              <el-option label="巴黎时间 (UTC+1/2)" value="Europe/Paris" />
+              <el-option label="伦敦时间 (UTC+0/1)" value="Europe/London" />
+              <el-option label="美国东部时间 (UTC-5/4)" value="America/New_York" />
+              <el-option label="美国中部时间 (UTC-6/5)" value="America/Chicago" />
+              <el-option label="美国太平洋时间 (UTC-8/7)" value="America/Los_Angeles" />
+              <el-option label="圣保罗时间 (UTC-3)" value="America/Sao_Paulo" />
+              <el-option label="UTC" value="UTC" />
+            </el-select>
+          </div>
+
+          <div>
+            <label class="mb-1.5 block text-sm font-medium text-ink-700 dark:text-ink-200">
+              <span class="inline-flex items-center gap-1.5"><Clock :size="14" />检查时间（小时）</span>
+            </label>
+            <input
+              v-model="config.notify_hours"
+              type="text"
+              placeholder="如：8,12,18，留空则每天一次"
+              class="block w-full rounded-xl border border-ink-200 bg-white/60 px-3 py-2 text-sm text-ink-900 placeholder:text-ink-400 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/30 dark:border-ink-700/60 dark:bg-ink-900/40 dark:text-ink-50 dark:placeholder:text-ink-500"
+            />
+            <p class="mt-1 text-xs text-ink-400 dark:text-ink-500">多个时间用逗号或空格分隔</p>
+          </div>
+        </div>
+      </section>
 
       <!-- Notify Template -->
-      <el-card shadow="never">
-        <template #header>
-          <div style="display: flex; align-items: center; justify-content: space-between;">
-            <span class="section-title">通知模板</span>
-            <el-button size="small" type="primary" plain @click="testTemplate">测试推送</el-button>
+      <section class="bento-card p-5">
+        <header class="mb-5 flex items-center justify-between">
+          <div class="flex items-center gap-2.5">
+            <div class="flex h-9 w-9 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600 dark:bg-emerald-500/15 dark:text-emerald-300">
+              <FileCode2 :size="18" />
+            </div>
+            <div>
+              <h3 class="text-sm font-semibold text-ink-900 dark:text-ink-50">通知模板</h3>
+              <p class="text-xs text-ink-500 dark:text-ink-400">支持变量插值，左编辑右预览</p>
+            </div>
           </div>
-        </template>
-        <el-row :gutter="16">
-          <el-col :xs="24" :md="12">
-            <div class="template-label">编辑</div>
-            <el-input
+          <button
+            class="inline-flex cursor-pointer items-center gap-1.5 rounded-lg bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-600 transition-colors hover:bg-emerald-100 dark:bg-emerald-500/15 dark:text-emerald-300 dark:hover:bg-emerald-500/25"
+            @click="testTemplate"
+          >
+            <Sparkles :size="13" />
+            测试推送
+          </button>
+        </header>
+
+        <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
+          <div>
+            <p class="mb-1.5 text-xs font-medium uppercase tracking-wide text-ink-400">编辑</p>
+            <textarea
               v-model="config.notify_template"
-              type="textarea"
-              class="template-editor"
+              rows="11"
+              class="block w-full resize-none rounded-xl border border-ink-200 bg-white/60 p-3 font-mono text-sm leading-relaxed text-ink-900 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/30 dark:border-ink-700/60 dark:bg-ink-900/40 dark:text-ink-50"
             />
-          </el-col>
-          <el-col :xs="24" :md="12">
-            <div class="template-label">预览</div>
-            <pre class="template-preview">{{ previewText }}</pre>
-          </el-col>
-        </el-row>
-        <div class="form-tip" style="margin-top: 12px;">
-          <span v-pre>变量: <code>{{name}}</code>名称 <code>{{type}}</code>类型 <code>{{expiryDate}}</code>到期日 <code>{{status}}</code>状态 <code>{{daysLeft}}</code>剩余天数 <code>{{price}}</code>费用 <code>{{period}}</code>周期 <code>{{reminder}}</code>提前提醒 <code>{{lunar}}</code>农历 <code>{{notes}}</code>备注 <code>{{time}}</code>当前时间 <code>{{timezone}}</code>时区</span>
+          </div>
+          <div>
+            <p class="mb-1.5 text-xs font-medium uppercase tracking-wide text-ink-400">预览</p>
+            <pre class="h-[268px] overflow-auto rounded-xl border border-ink-200 bg-ink-50 p-3 text-sm leading-relaxed text-ink-800 dark:border-ink-700/60 dark:bg-ink-900/60 dark:text-ink-200">{{ previewText }}</pre>
+          </div>
         </div>
-      </el-card>
+
+        <div class="mt-4 rounded-xl bg-ink-50/70 p-3 text-xs text-ink-500 dark:bg-ink-800/40 dark:text-ink-400">
+          <span v-pre>变量：<code class="rounded bg-white px-1 py-0.5 font-mono dark:bg-ink-900/60">{{name}}</code> 名称 · <code class="rounded bg-white px-1 py-0.5 font-mono dark:bg-ink-900/60">{{type}}</code> 类型 · <code class="rounded bg-white px-1 py-0.5 font-mono dark:bg-ink-900/60">{{expiryDate}}</code> 到期日 · <code class="rounded bg-white px-1 py-0.5 font-mono dark:bg-ink-900/60">{{status}}</code> 状态 · <code class="rounded bg-white px-1 py-0.5 font-mono dark:bg-ink-900/60">{{daysLeft}}</code> 剩余天数 · <code class="rounded bg-white px-1 py-0.5 font-mono dark:bg-ink-900/60">{{price}}</code> 费用 · <code class="rounded bg-white px-1 py-0.5 font-mono dark:bg-ink-900/60">{{period}}</code> 周期 · <code class="rounded bg-white px-1 py-0.5 font-mono dark:bg-ink-900/60">{{reminder}}</code> 提前提醒 · <code class="rounded bg-white px-1 py-0.5 font-mono dark:bg-ink-900/60">{{lunar}}</code> 农历 · <code class="rounded bg-white px-1 py-0.5 font-mono dark:bg-ink-900/60">{{notes}}</code> 备注 · <code class="rounded bg-white px-1 py-0.5 font-mono dark:bg-ink-900/60">{{time}}</code> 当前时间 · <code class="rounded bg-white px-1 py-0.5 font-mono dark:bg-ink-900/60">{{timezone}}</code> 时区</span>
+        </div>
+      </section>
 
       <!-- Notification Channels -->
-      <el-card shadow="never">
-        <template #header>
-          <div>
-            <span class="section-title">通知渠道</span>
-            <span class="section-desc">选择要启用的通知渠道</span>
+      <section class="bento-card p-5">
+        <header class="mb-5 flex items-center gap-2.5">
+          <div class="flex h-9 w-9 items-center justify-center rounded-xl bg-amber-50 text-amber-600 dark:bg-amber-500/15 dark:text-amber-300">
+            <Bell :size="18" />
           </div>
-        </template>
+          <div>
+            <h3 class="text-sm font-semibold text-ink-900 dark:text-ink-50">通知渠道</h3>
+            <p class="text-xs text-ink-500 dark:text-ink-400">点击卡片启用对应渠道</p>
+          </div>
+        </header>
 
-        <div class="channel-grid">
-          <div
+        <!-- Channel cards -->
+        <div class="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          <button
             v-for="ch in visibleChannels"
             :key="ch.key"
-            :class="['channel-card', { active: activeChannels.includes(ch.key) }]"
+            type="button"
+            class="group relative flex cursor-pointer items-center gap-3 rounded-2xl border p-4 text-left transition-all duration-200"
+            :class="activeChannels.includes(ch.key)
+              ? `border-transparent shadow-md ring-2 ring-inset ${toneClasses[ch.tone].ring} bg-white dark:bg-ink-800/60`
+              : 'border-ink-200 bg-white/60 hover:border-ink-300 hover:bg-white dark:border-ink-700/60 dark:bg-ink-900/40 dark:hover:bg-ink-800/40'"
             @click="toggleChannel(ch.key)"
           >
-            <div :class="['channel-icon', { active: activeChannels.includes(ch.key) }]">
-              {{ ch.key[0].toUpperCase() }}
+            <div
+              class="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl text-sm font-bold transition-all"
+              :class="activeChannels.includes(ch.key)
+                ? `${toneClasses[ch.tone].bg} ${toneClasses[ch.tone].text}`
+                : 'bg-ink-100 text-ink-400 dark:bg-ink-800/60 dark:text-ink-500'"
+            >
+              <Send :size="16" />
             </div>
-            <div class="channel-info">
-              <div class="channel-name">{{ ch.name }}</div>
-              <div class="channel-desc">{{ ch.desc }}</div>
+            <div class="min-w-0 flex-1">
+              <p class="text-sm font-semibold text-ink-900 dark:text-ink-50">{{ ch.name }}</p>
+              <p class="truncate text-xs text-ink-500 dark:text-ink-400">{{ ch.desc }}</p>
             </div>
-            <el-icon v-if="activeChannels.includes(ch.key)" class="channel-check" :size="16" color="#f59e0b">
-              <Check />
-            </el-icon>
-          </div>
+            <span
+              v-if="activeChannels.includes(ch.key)"
+              class="flex h-5 w-5 items-center justify-center rounded-full text-white"
+              :class="toneClasses[ch.tone].bg.replace('100', '500').replace('500/15', '500')"
+            >
+              <Check :size="13" :stroke-width="3" />
+            </span>
+          </button>
         </div>
 
         <!-- Telegram Config -->
-        <el-collapse-transition>
-          <div v-if="activeChannels.includes('telegram')" class="channel-config">
-            <div class="config-section-header">
-              <h4>Telegram 配置</h4>
-              <el-button size="small" type="primary" plain @click="testChannel('telegram')">测试</el-button>
-            </div>
-            <el-form label-position="top">
-              <el-row :gutter="16">
-                <el-col :xs="24" :md="12">
-                  <el-form-item label="Bot Token">
-                    <el-input v-model="config.telegram_bot_token" placeholder="从 @BotFather 获取" />
-                  </el-form-item>
-                </el-col>
-                <el-col :xs="24" :md="12">
-                  <el-form-item label="Chat ID">
-                    <el-input v-model="config.telegram_chat_id" placeholder="从 @userinfobot 获取" />
-                  </el-form-item>
-                </el-col>
-              </el-row>
-            </el-form>
+        <div v-if="activeChannels.includes('telegram')" class="mt-5 rounded-2xl border border-sky-200 bg-sky-50/40 p-5 dark:border-sky-500/30 dark:bg-sky-500/5">
+          <div class="mb-4 flex items-center justify-between">
+            <h4 class="flex items-center gap-2 text-sm font-semibold text-ink-900 dark:text-ink-50">
+              <span class="h-2 w-2 rounded-full bg-sky-500" />
+              Telegram 配置
+            </h4>
+            <button
+              class="inline-flex cursor-pointer items-center gap-1.5 rounded-lg bg-sky-100 px-3 py-1.5 text-xs font-semibold text-sky-700 hover:bg-sky-200 dark:bg-sky-500/20 dark:text-sky-300 dark:hover:bg-sky-500/30"
+              @click="testChannel('telegram')"
+            >
+              <Sparkles :size="13" /> 测试
+            </button>
           </div>
-        </el-collapse-transition>
+          <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
+            <div>
+              <label class="mb-1.5 block text-xs font-medium text-ink-600 dark:text-ink-300">Bot Token</label>
+              <el-input v-model="config.telegram_bot_token" placeholder="从 @BotFather 获取" />
+            </div>
+            <div>
+              <label class="mb-1.5 block text-xs font-medium text-ink-600 dark:text-ink-300">Chat ID</label>
+              <el-input v-model="config.telegram_chat_id" placeholder="从 @userinfobot 获取" />
+            </div>
+          </div>
+        </div>
 
         <!-- WeChat Config -->
-        <el-collapse-transition>
-          <div v-if="activeChannels.includes('wechat')" class="channel-config">
-            <div class="config-section-header">
-              <h4>企业微信配置</h4>
-              <el-button size="small" type="primary" plain @click="testChannel('wechat')">测试</el-button>
-            </div>
-            <el-form label-position="top">
-              <el-form-item label="Webhook URL">
-                <el-input v-model="config.wechat_webhook" placeholder="企业微信群机器人 Webhook 地址" />
-              </el-form-item>
-            </el-form>
+        <div v-if="activeChannels.includes('wechat')" class="mt-5 rounded-2xl border border-emerald-200 bg-emerald-50/40 p-5 dark:border-emerald-500/30 dark:bg-emerald-500/5">
+          <div class="mb-4 flex items-center justify-between">
+            <h4 class="flex items-center gap-2 text-sm font-semibold text-ink-900 dark:text-ink-50">
+              <span class="h-2 w-2 rounded-full bg-emerald-500" />
+              企业微信配置
+            </h4>
+            <button class="inline-flex cursor-pointer items-center gap-1.5 rounded-lg bg-emerald-100 px-3 py-1.5 text-xs font-semibold text-emerald-700 hover:bg-emerald-200 dark:bg-emerald-500/20 dark:text-emerald-300 dark:hover:bg-emerald-500/30" @click="testChannel('wechat')">
+              <Sparkles :size="13" /> 测试
+            </button>
           </div>
-        </el-collapse-transition>
+          <label class="mb-1.5 block text-xs font-medium text-ink-600 dark:text-ink-300">Webhook URL</label>
+          <el-input v-model="config.wechat_webhook" placeholder="企业微信群机器人 Webhook 地址" />
+        </div>
 
         <!-- Bark Config -->
-        <el-collapse-transition>
-          <div v-if="activeChannels.includes('bark')" class="channel-config">
-            <div class="config-section-header">
-              <h4>Bark 配置</h4>
-              <el-button size="small" type="primary" plain @click="testChannel('bark')">测试</el-button>
-            </div>
-            <el-form label-position="top">
-              <el-row :gutter="16">
-                <el-col :xs="24" :md="12">
-                  <el-form-item label="服务器地址">
-                    <el-input v-model="config.bark_url" placeholder="https://api.day.app" />
-                  </el-form-item>
-                </el-col>
-                <el-col :xs="24" :md="12">
-                  <el-form-item label="设备 Key">
-                    <el-input v-model="config.bark_key" placeholder="在 Bark App 内复制" />
-                  </el-form-item>
-                </el-col>
-              </el-row>
-            </el-form>
+        <div v-if="activeChannels.includes('bark')" class="mt-5 rounded-2xl border border-rose-200 bg-rose-50/40 p-5 dark:border-rose-500/30 dark:bg-rose-500/5">
+          <div class="mb-4 flex items-center justify-between">
+            <h4 class="flex items-center gap-2 text-sm font-semibold text-ink-900 dark:text-ink-50">
+              <span class="h-2 w-2 rounded-full bg-rose-500" />
+              Bark 配置
+            </h4>
+            <button class="inline-flex cursor-pointer items-center gap-1.5 rounded-lg bg-rose-100 px-3 py-1.5 text-xs font-semibold text-rose-700 hover:bg-rose-200 dark:bg-rose-500/20 dark:text-rose-300 dark:hover:bg-rose-500/30" @click="testChannel('bark')">
+              <Sparkles :size="13" /> 测试
+            </button>
           </div>
-        </el-collapse-transition>
+          <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
+            <div>
+              <label class="mb-1.5 block text-xs font-medium text-ink-600 dark:text-ink-300">服务器地址</label>
+              <el-input v-model="config.bark_url" placeholder="https://api.day.app" />
+            </div>
+            <div>
+              <label class="mb-1.5 block text-xs font-medium text-ink-600 dark:text-ink-300">设备 Key</label>
+              <el-input v-model="config.bark_key" placeholder="在 Bark App 内复制" />
+            </div>
+          </div>
+        </div>
 
         <!-- Webhook Config -->
-        <el-collapse-transition>
-          <div v-if="activeChannels.includes('webhook')" class="channel-config">
-            <div class="config-section-header">
-              <h4>Webhook 配置</h4>
-              <el-button size="small" type="primary" plain @click="testChannel('webhook')">测试</el-button>
-            </div>
-            <el-form label-position="top">
-              <el-row :gutter="16">
-                <el-col :xs="24" :md="12">
-                  <el-form-item label="推送 URL">
-                    <el-input v-model="config.webhook_url" placeholder="https://your-service.com/hooks" />
-                  </el-form-item>
-                </el-col>
-                <el-col :xs="24" :md="12">
-                  <el-form-item label="请求方法">
-                    <el-select v-model="config.webhook_method" style="width: 100%">
-                      <el-option label="POST" value="POST" />
-                      <el-option label="PUT" value="PUT" />
-                    </el-select>
-                  </el-form-item>
-                </el-col>
-              </el-row>
-              <el-form-item label="请求头 (JSON)">
-                <el-input v-model="config.webhook_headers" placeholder='{"Authorization": "Bearer xxx"}' />
-              </el-form-item>
-              <el-form-item label="消息模板">
-                <el-input v-model="config.webhook_template" placeholder="{{formattedMessage}}" />
-                <div class="form-tip">
-                  可用变量: <code v-pre>{{title}}, {{content}}, {{tags}}, {{tagsLine}}, {{timestamp}}, {{formattedMessage}}</code>
-                </div>
-              </el-form-item>
-            </el-form>
+        <div v-if="activeChannels.includes('webhook')" class="mt-5 rounded-2xl border border-violet-200 bg-violet-50/40 p-5 dark:border-violet-500/30 dark:bg-violet-500/5">
+          <div class="mb-4 flex items-center justify-between">
+            <h4 class="flex items-center gap-2 text-sm font-semibold text-ink-900 dark:text-ink-50">
+              <span class="h-2 w-2 rounded-full bg-violet-500" />
+              Webhook 配置
+            </h4>
+            <button class="inline-flex cursor-pointer items-center gap-1.5 rounded-lg bg-violet-100 px-3 py-1.5 text-xs font-semibold text-violet-700 hover:bg-violet-200 dark:bg-violet-500/20 dark:text-violet-300 dark:hover:bg-violet-500/30" @click="testChannel('webhook')">
+              <Sparkles :size="13" /> 测试
+            </button>
           </div>
-        </el-collapse-transition>
+          <div class="space-y-4">
+            <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
+              <div>
+                <label class="mb-1.5 block text-xs font-medium text-ink-600 dark:text-ink-300">推送 URL</label>
+                <el-input v-model="config.webhook_url" placeholder="https://your-service.com/hooks" />
+              </div>
+              <div>
+                <label class="mb-1.5 block text-xs font-medium text-ink-600 dark:text-ink-300">请求方法</label>
+                <el-select v-model="config.webhook_method" class="w-full">
+                  <el-option label="POST" value="POST" />
+                  <el-option label="PUT" value="PUT" />
+                </el-select>
+              </div>
+            </div>
+            <div>
+              <label class="mb-1.5 block text-xs font-medium text-ink-600 dark:text-ink-300">请求头 (JSON)</label>
+              <el-input v-model="config.webhook_headers" placeholder='{"Authorization": "Bearer xxx"}' />
+            </div>
+            <div>
+              <label class="mb-1.5 block text-xs font-medium text-ink-600 dark:text-ink-300">消息模板</label>
+              <el-input v-model="config.webhook_template" placeholder="{{formattedMessage}}" />
+              <p class="mt-1 text-xs text-ink-400 dark:text-ink-500">
+                <span v-pre>可用变量: <code>{{title}}, {{content}}, {{tags}}, {{tagsLine}}, {{timestamp}}, {{formattedMessage}}</code></span>
+              </p>
+            </div>
+          </div>
+        </div>
 
         <!-- Email Config -->
-        <el-collapse-transition>
-          <div v-if="activeChannels.includes('email')" class="channel-config">
-            <div class="config-section-header">
-              <h4>邮件配置 (Resend)</h4>
-              <el-button size="small" type="primary" plain @click="testChannel('email')">测试</el-button>
-            </div>
-            <el-form label-position="top">
-              <el-row :gutter="16">
-                <el-col :xs="24" :md="8">
-                  <el-form-item label="API Key">
-                    <el-input v-model="config.email_api_key" placeholder="Resend API Key" />
-                  </el-form-item>
-                </el-col>
-                <el-col :xs="24" :md="8">
-                  <el-form-item label="发件人邮箱">
-                    <el-input v-model="config.email_from" placeholder="notify@yourdomain.com" />
-                  </el-form-item>
-                </el-col>
-                <el-col :xs="24" :md="8">
-                  <el-form-item label="收件人邮箱">
-                    <el-input v-model="config.email_to" placeholder="you@example.com" />
-                  </el-form-item>
-                </el-col>
-              </el-row>
-            </el-form>
+        <div v-if="activeChannels.includes('email')" class="mt-5 rounded-2xl border border-amber-200 bg-amber-50/40 p-5 dark:border-amber-500/30 dark:bg-amber-500/5">
+          <div class="mb-4 flex items-center justify-between">
+            <h4 class="flex items-center gap-2 text-sm font-semibold text-ink-900 dark:text-ink-50">
+              <span class="h-2 w-2 rounded-full bg-amber-500" />
+              邮件配置 (Resend)
+            </h4>
+            <button class="inline-flex cursor-pointer items-center gap-1.5 rounded-lg bg-amber-100 px-3 py-1.5 text-xs font-semibold text-amber-700 hover:bg-amber-200 dark:bg-amber-500/20 dark:text-amber-300 dark:hover:bg-amber-500/30" @click="testChannel('email')">
+              <Sparkles :size="13" /> 测试
+            </button>
           </div>
-        </el-collapse-transition>
+          <div class="grid grid-cols-1 gap-4 md:grid-cols-3">
+            <div>
+              <label class="mb-1.5 block text-xs font-medium text-ink-600 dark:text-ink-300">API Key</label>
+              <el-input v-model="config.email_api_key" placeholder="Resend API Key" />
+            </div>
+            <div>
+              <label class="mb-1.5 block text-xs font-medium text-ink-600 dark:text-ink-300">发件人邮箱</label>
+              <el-input v-model="config.email_from" placeholder="notify@yourdomain.com" />
+            </div>
+            <div>
+              <label class="mb-1.5 block text-xs font-medium text-ink-600 dark:text-ink-300">收件人邮箱</label>
+              <el-input v-model="config.email_to" placeholder="you@example.com" />
+            </div>
+          </div>
+        </div>
 
         <!-- NotifyX Config -->
-        <el-collapse-transition>
-          <div v-if="activeChannels.includes('notifyx')" class="channel-config">
-            <div class="config-section-header">
-              <h4>NotifyX 配置</h4>
-              <el-button size="small" type="primary" plain @click="testChannel('notifyx')">测试</el-button>
-            </div>
-            <el-form label-position="top">
-              <el-form-item label="API Key">
-                <el-input v-model="config.notifyx_api_key" placeholder="从 NotifyX 官网获取" />
-              </el-form-item>
-            </el-form>
+        <div v-if="activeChannels.includes('notifyx')" class="mt-5 rounded-2xl border border-cyan-200 bg-cyan-50/40 p-5 dark:border-cyan-500/30 dark:bg-cyan-500/5">
+          <div class="mb-4 flex items-center justify-between">
+            <h4 class="flex items-center gap-2 text-sm font-semibold text-ink-900 dark:text-ink-50">
+              <span class="h-2 w-2 rounded-full bg-cyan-500" />
+              NotifyX 配置
+            </h4>
+            <button class="inline-flex cursor-pointer items-center gap-1.5 rounded-lg bg-cyan-100 px-3 py-1.5 text-xs font-semibold text-cyan-700 hover:bg-cyan-200 dark:bg-cyan-500/20 dark:text-cyan-300 dark:hover:bg-cyan-500/30" @click="testChannel('notifyx')">
+              <Sparkles :size="13" /> 测试
+            </button>
           </div>
-        </el-collapse-transition>
+          <label class="mb-1.5 block text-xs font-medium text-ink-600 dark:text-ink-300">API Key</label>
+          <el-input v-model="config.notifyx_api_key" placeholder="从 NotifyX 官网获取" />
+        </div>
+      </section>
 
-      </el-card>
-
-
-      <!-- Save Button -->
-      <div class="save-bar">
-        <el-button type="primary" size="large" :loading="saving" @click="saveConfig">
+      <!-- Bottom save -->
+      <div class="flex justify-end pt-2">
+        <button
+          class="inline-flex cursor-pointer items-center gap-2 rounded-xl bg-gradient-to-br from-brand-500 to-brand-700 px-6 py-3 text-sm font-semibold text-white shadow-md shadow-brand-500/30 transition-all hover:shadow-lg active:scale-[0.98] disabled:opacity-60"
+          :disabled="saving"
+          @click="saveConfig"
+        >
+          <component :is="saving ? Loader2 : Save" :size="16" :class="saving && 'animate-spin'" />
           {{ saving ? '保存中...' : '保存所有配置' }}
-        </el-button>
+        </button>
       </div>
     </div>
   </div>
 </template>
-
-<style scoped>
-.config-header {
-  margin-bottom: 24px;
-}
-
-.config-title {
-  font-size: 24px;
-  font-weight: 700;
-  color: var(--el-text-color-primary);
-}
-
-.config-subtitle {
-  font-size: 14px;
-  color: var(--el-text-color-secondary);
-  margin-top: 4px;
-}
-
-.config-sections {
-  display: flex;
-  flex-direction: column;
-  gap: 20px;
-}
-
-.section-title {
-  font-size: 16px;
-  font-weight: 600;
-  color: var(--el-text-color-primary);
-}
-
-.section-desc {
-  font-size: 13px;
-  color: var(--el-text-color-secondary);
-  margin-left: 8px;
-}
-
-.form-tip {
-  font-size: 12px;
-  color: var(--el-text-color-secondary);
-  margin-top: 4px;
-}
-
-.channel-grid {
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: 12px;
-  margin-bottom: 20px;
-}
-
-@media (min-width: 640px) {
-  .channel-grid {
-    grid-template-columns: repeat(2, 1fr);
-  }
-}
-
-@media (min-width: 1024px) {
-  .channel-grid {
-    grid-template-columns: repeat(3, 1fr);
-  }
-}
-
-.channel-card {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 12px;
-  border: 1px solid var(--el-border-color);
-  border-radius: 8px;
-  cursor: pointer;
-  transition: all 0.2s;
-  position: relative;
-}
-
-.channel-card:hover {
-  border-color: var(--el-border-color-darker);
-}
-
-.channel-card.active {
-  background-color: var(--el-color-primary-light-9);
-  border-color: var(--el-color-primary);
-}
-
-.channel-icon {
-  width: 36px;
-  height: 36px;
-  border-radius: 8px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-weight: 700;
-  font-size: 14px;
-  background-color: var(--el-fill-color);
-  color: var(--el-text-color-secondary);
-  flex-shrink: 0;
-}
-
-.channel-icon.active {
-  background-color: var(--el-color-primary);
-  color: white;
-}
-
-.channel-info {
-  min-width: 0;
-}
-
-.channel-name {
-  font-size: 14px;
-  font-weight: 500;
-  color: var(--el-text-color-primary);
-}
-
-.channel-desc {
-  font-size: 12px;
-  color: var(--el-text-color-secondary);
-}
-
-.channel-check {
-  position: absolute;
-  top: 8px;
-  right: 8px;
-}
-
-.channel-config {
-  border: 1px solid var(--el-border-color);
-  border-radius: 8px;
-  padding: 16px;
-  margin-bottom: 12px;
-}
-
-.config-section-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 16px;
-}
-
-.config-section-header h4 {
-  font-size: 14px;
-  font-weight: 600;
-  color: var(--el-text-color-primary);
-}
-
-.save-bar {
-  display: flex;
-  justify-content: flex-end;
-}
-
-.template-editor :deep(textarea) {
-  height: 240px;
-  resize: none;
-}
-
-.template-preview {
-  background-color: var(--el-fill-color-light);
-  border: 1px solid var(--el-border-color);
-  border-radius: 8px;
-  padding: 16px;
-  font-family: inherit;
-  font-size: 14px;
-  line-height: 1.6;
-  white-space: pre-wrap;
-  word-break: break-word;
-  margin: 0;
-  height: 240px;
-  overflow-y: auto;
-}
-
-.template-label {
-  font-size: 12px;
-  color: var(--el-text-color-secondary);
-  margin-bottom: 6px;
-}
-</style>

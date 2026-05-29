@@ -5,7 +5,10 @@ import { useSubscriptionStore, type Subscription } from '../stores/subscription'
 import { solar2lunar } from '../utils/lunar';
 import { getSymbol } from '../utils/currency';
 import { ElMessageBox, ElMessage } from 'element-plus';
-import { Plus, Search, Delete, CopyDocument, Edit, Bell, VideoPause, VideoPlay, Download, Star } from '@element-plus/icons-vue';
+import {
+  Plus, Search, Trash2, Copy, Pencil, Bell, Pause, Play, Download, Star,
+  Loader2, ArrowDownUp, ArrowDown, ArrowUp, CheckCheck, X,
+} from '@lucide/vue';
 import SubscriptionModal from '../components/SubscriptionModal.vue';
 import ImportExportDrawer from '../components/ImportExportDrawer.vue';
 
@@ -25,7 +28,6 @@ const copyMode = ref(false);
 const currentPage = ref(1);
 const pageSize = ref(12);
 
-// Bulk selection
 const selectMode = ref(false);
 const selectedMap = ref<Record<number, boolean>>({});
 const selectedCount = computed(() => Object.keys(selectedMap.value).length);
@@ -83,7 +85,6 @@ const filteredSubscriptions = computed(() => {
   }
 
   list.sort((a, b) => {
-    // Pinned items first
     const pinDiff = (b.isPinned || 0) - (a.isPinned || 0);
     if (pinDiff !== 0) return pinDiff;
 
@@ -120,9 +121,9 @@ function toggleSelection(id: number) {
 }
 
 function toggleSelectAll() {
-  const allSelected = paginatedSubscriptions.value.every(s => selectedMap.value[s.id]);
+  const allSelected = paginatedSubscriptions.value.every((s) => selectedMap.value[s.id]);
   const next: Record<number, boolean> = {};
-  if (!allSelected) paginatedSubscriptions.value.forEach(s => { next[s.id] = true; });
+  if (!allSelected) paginatedSubscriptions.value.forEach((s) => { next[s.id] = true; });
   selectedMap.value = next;
 }
 
@@ -148,7 +149,9 @@ async function handleBatchDelete() {
   } catch {}
 }
 
-function getDaysLeft(sub: Subscription): { text: string; type: 'danger' | 'warning' | 'info'; percent: number } {
+type DaysInfo = { text: string; tone: 'danger' | 'warning' | 'success' | 'muted'; percent: number };
+
+function getDaysLeft(sub: Subscription): DaysInfo {
   const now = new Date();
   const expiry = new Date(sub.expiryDate);
   const diffMs = expiry.getTime() - now.getTime();
@@ -162,29 +165,15 @@ function getDaysLeft(sub: Subscription): { text: string; type: 'danger' | 'warni
   const elapsed = totalDays - diffDays;
   const percent = Math.min(100, Math.max(0, Math.round((elapsed / totalDays) * 100)));
 
-  if (diffDays < 0) {
-    return { text: `已过期 ${Math.abs(diffDays)} 天`, type: 'danger', percent: 100 };
-  } else if (diffDays === 0) {
-    return { text: '今天到期', type: 'danger', percent: 100 };
-  } else if (diffDays <= 7) {
-    return { text: `还剩 ${diffDays} 天`, type: 'warning', percent };
-  } else {
-    return { text: `还剩 ${diffDays} 天`, type: 'info', percent };
-  }
+  if (!sub.isActive) return { text: '已停用', tone: 'muted', percent: 100 };
+  if (diffDays < 0)  return { text: `已过期 ${Math.abs(diffDays)} 天`, tone: 'danger', percent: 100 };
+  if (diffDays === 0) return { text: '今天到期', tone: 'danger', percent: 100 };
+  if (diffDays <= 7)  return { text: `还剩 ${diffDays} 天`, tone: 'warning', percent };
+  return { text: `还剩 ${diffDays} 天`, tone: 'success', percent };
 }
 
-function getProgressStatus(sub: Subscription): 'exception' | 'warning' | 'success' {
-  const now = new Date();
-  const expiry = new Date(sub.expiryDate);
-  const diffDays = Math.ceil((expiry.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
-
-  if (diffDays < 0) return 'exception';
-  if (diffDays <= 7) return 'warning';
-  return 'success';
-}
-
-function getStatusType(sub: Subscription): 'danger' | 'warning' | 'success' | 'info' {
-  if (!sub.isActive) return 'info';
+function getStatusMeta(sub: Subscription): { label: string; tone: 'danger' | 'warning' | 'success' | 'muted' } {
+  if (!sub.isActive) return { label: '已停用', tone: 'muted' };
 
   const now = new Date();
   const expiry = new Date(sub.expiryDate);
@@ -202,31 +191,9 @@ function getStatusType(sub: Subscription): 'danger' | 'warning' | 'success' | 'i
     isSoon = diffDays >= 0 && diffDays <= reminderValue;
   }
 
-  if (diffDays < 0) return 'danger';
-  if (isSoon) return 'warning';
-  return 'success';
-}
-
-function getStatusText(sub: Subscription): string {
-  if (!sub.isActive) return '已停用';
-  const now = new Date();
-  const expiry = new Date(sub.expiryDate);
-  const diffDays = Math.ceil((expiry.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
-
-  const reminderValue = sub.reminderValue ?? 7;
-  const reminderUnit = sub.reminderUnit || 'day';
-  const diffHours = (expiry.getTime() - now.getTime()) / (1000 * 60 * 60);
-
-  let isSoon = false;
-  if (reminderUnit === 'hour') {
-    isSoon = diffHours >= 0 && diffHours <= reminderValue;
-  } else {
-    isSoon = diffDays >= 0 && diffDays <= reminderValue;
-  }
-
-  if (diffDays < 0) return '已过期';
-  if (isSoon) return '即将到期';
-  return '正常';
+  if (diffDays < 0) return { label: '已过期', tone: 'danger' };
+  if (isSoon) return { label: '即将到期', tone: 'warning' };
+  return { label: '正常', tone: 'success' };
 }
 
 function getLunarText(dateStr: string): string {
@@ -245,7 +212,7 @@ function getPeriodLabel(sub: Subscription): string {
 function getReminderText(sub: Subscription): string {
   const value = sub.reminderValue ?? 7;
   const unit = sub.reminderUnit || 'day';
-  return unit === 'hour' ? `${value}小时前` : `${value}天前`;
+  return unit === 'hour' ? `${value} 小时前` : `${value} 天前`;
 }
 
 function periodLabel(unit: string): string {
@@ -257,6 +224,27 @@ function getPriceText(sub: Subscription): string {
   const sym = getSymbol(sub.currency || 'CNY');
   const unitMap: Record<string, string> = { day: '/天', month: '/月', year: '/年' };
   return `${sym}${sub.price.toFixed(2)}${unitMap[sub.priceUnit] || '/月'}`;
+}
+
+function brandInitial(name: string) {
+  const ch = (name || '?').trim().charAt(0).toUpperCase();
+  return ch || '?';
+}
+
+function brandColor(name: string) {
+  const palette = [
+    'from-indigo-500 to-violet-600',
+    'from-sky-500 to-blue-600',
+    'from-emerald-500 to-teal-600',
+    'from-amber-500 to-orange-600',
+    'from-rose-500 to-pink-600',
+    'from-fuchsia-500 to-purple-600',
+    'from-cyan-500 to-blue-500',
+    'from-lime-500 to-green-600',
+  ];
+  let h = 0;
+  for (let i = 0; i < name.length; i++) h = (h * 31 + name.charCodeAt(i)) >>> 0;
+  return palette[h % palette.length];
 }
 
 function openAdd() {
@@ -314,201 +302,325 @@ onMounted(() => {
 <template>
   <div>
     <!-- Header -->
-    <div class="dashboard-header">
+    <div class="mb-6 flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
       <div>
-        <h2 class="dashboard-title">订阅管理</h2>
-        <p class="dashboard-subtitle">管理您的所有订阅服务</p>
+        <h2 class="font-heading text-3xl font-bold tracking-tight text-ink-900 dark:text-ink-50">订阅管理</h2>
+        <p class="mt-1 text-sm text-ink-500 dark:text-ink-400">所有订阅服务一览，按到期日智能排序</p>
       </div>
-      <div class="header-actions">
-        <el-button :icon="Download" @click="showImportExport = true">导入/导出</el-button>
-        <el-button :type="selectMode ? 'primary' : ''" :plain="!selectMode" @click="toggleSelectMode">
-          {{ selectMode ? '取消' : '选择' }}
-        </el-button>
-        <el-button type="primary" :icon="Plus" @click="openAdd">添加订阅</el-button>
+      <div class="flex flex-wrap items-center gap-2">
+        <button
+          class="inline-flex cursor-pointer items-center gap-2 rounded-xl border border-ink-200 bg-white/70 px-4 py-2 text-sm font-medium text-ink-700 backdrop-blur transition-colors hover:bg-white hover:text-ink-900 dark:border-ink-700/60 dark:bg-ink-800/40 dark:text-ink-200 dark:hover:bg-ink-800/70"
+          @click="showImportExport = true"
+        >
+          <Download :size="16" />
+          导入/导出
+        </button>
+        <button
+          class="inline-flex cursor-pointer items-center gap-2 rounded-xl px-4 py-2 text-sm font-medium transition-colors"
+          :class="selectMode
+            ? 'bg-brand-50 text-brand-600 ring-1 ring-brand-200 dark:bg-brand-500/15 dark:text-brand-300 dark:ring-brand-500/30'
+            : 'border border-ink-200 bg-white/70 text-ink-700 backdrop-blur hover:bg-white hover:text-ink-900 dark:border-ink-700/60 dark:bg-ink-800/40 dark:text-ink-200 dark:hover:bg-ink-800/70'"
+          @click="toggleSelectMode"
+        >
+          <component :is="selectMode ? X : CheckCheck" :size="16" />
+          {{ selectMode ? '取消选择' : '批量选择' }}
+        </button>
+        <button
+          class="inline-flex cursor-pointer items-center gap-2 rounded-xl bg-gradient-to-br from-brand-500 to-brand-700 px-4 py-2 text-sm font-semibold text-white shadow-md shadow-brand-500/30 transition-all hover:shadow-lg hover:shadow-brand-500/40 active:scale-[0.98]"
+          @click="openAdd"
+        >
+          <Plus :size="16" />
+          添加订阅
+        </button>
       </div>
     </div>
 
     <!-- Filters -->
-    <el-row :gutter="12" align="middle" class="filter-bar">
-      <el-col :xs="24" :sm="8">
-        <el-input
+    <div class="bento-card mb-6 grid grid-cols-1 gap-3 p-4 md:grid-cols-12 md:items-center">
+      <div class="relative md:col-span-5">
+        <Search :size="16" class="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-ink-400" />
+        <input
           v-model="searchKeyword"
+          type="search"
           placeholder="搜索名称、类型或备注..."
-          :prefix-icon="Search"
-          clearable
+          class="block w-full rounded-xl border border-ink-200 bg-white/60 py-2.5 pl-10 pr-3 text-sm text-ink-900 placeholder:text-ink-400 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/30 dark:border-ink-700/60 dark:bg-ink-900/40 dark:text-ink-50 dark:placeholder:text-ink-500"
         />
-      </el-col>
-      <el-col :xs="12" :sm="4">
-        <el-select v-model="categoryFilter" placeholder="全部分类" clearable style="width: 100%">
+      </div>
+      <div class="md:col-span-2">
+        <el-select v-model="categoryFilter" placeholder="全部分类" clearable size="default" class="w-full">
           <el-option v-for="cat in allCategories" :key="cat" :label="cat" :value="cat" />
         </el-select>
-      </el-col>
-      <el-col :xs="12" :sm="4">
-        <el-select v-model="statusFilter" placeholder="全部状态" clearable style="width: 100%">
+      </div>
+      <div class="md:col-span-2">
+        <el-select v-model="statusFilter" placeholder="全部状态" clearable size="default" class="w-full">
           <el-option label="正常" value="active" />
           <el-option label="已停用" value="inactive" />
           <el-option label="已过期" value="expired" />
           <el-option label="即将到期" value="soon" />
         </el-select>
-      </el-col>
-      <el-col :xs="24" :sm="4">
-        <el-select v-model="sortBy" style="width: 100%">
+      </div>
+      <div class="md:col-span-2">
+        <el-select v-model="sortBy" size="default" class="w-full">
           <el-option label="按到期日" value="expiry" />
           <el-option label="按名称" value="name" />
           <el-option label="按创建时间" value="created" />
           <el-option label="按费用" value="price" />
         </el-select>
-      </el-col>
-      <el-col :xs="24" :sm="4">
-        <div class="filter-right">
-          <el-button-group>
-            <el-button :type="sortOrder === 'asc' ? 'primary' : ''" size="default" plain @click="sortOrder = 'asc'">升序</el-button>
-            <el-button :type="sortOrder === 'desc' ? 'primary' : ''" size="default" plain @click="sortOrder = 'desc'">降序</el-button>
-          </el-button-group>
-          <el-switch
-            v-model="showLunar"
-            active-text="农历"
-            @change="toggleLunar"
-          />
-        </div>
-      </el-col>
-    </el-row>
+      </div>
+      <div class="flex items-center justify-between gap-2 md:col-span-1 md:justify-end">
+        <button
+          :title="sortOrder === 'asc' ? '升序' : '降序'"
+          class="inline-flex h-9 w-9 cursor-pointer items-center justify-center rounded-lg border border-ink-200 bg-white/60 text-ink-600 transition-colors hover:bg-white hover:text-brand-600 dark:border-ink-700/60 dark:bg-ink-900/40 dark:text-ink-300"
+          @click="sortOrder = sortOrder === 'asc' ? 'desc' : 'asc'"
+        >
+          <component :is="sortOrder === 'asc' ? ArrowUp : ArrowDown" :size="16" />
+        </button>
+        <label class="inline-flex cursor-pointer select-none items-center gap-2 text-xs font-medium text-ink-600 dark:text-ink-300">
+          <input v-model="showLunar" type="checkbox" class="peer sr-only" @change="toggleLunar" />
+          <span class="relative h-5 w-9 rounded-full bg-ink-200 transition-colors peer-checked:bg-brand-500 dark:bg-ink-700">
+            <span class="absolute left-0.5 top-0.5 h-4 w-4 rounded-full bg-white shadow transition-transform peer-checked:translate-x-4" />
+          </span>
+          农历
+        </label>
+      </div>
+    </div>
 
     <!-- Loading -->
-    <div v-if="subStore.loading" class="empty-state">
-      <el-icon :size="24" class="is-loading"><Loading /></el-icon>
-      <p>加载中...</p>
+    <div v-if="subStore.loading" class="flex flex-col items-center justify-center py-24 text-ink-500 dark:text-ink-400">
+      <Loader2 :size="32" class="animate-spin text-brand-500" />
+      <p class="mt-3 text-sm">加载中...</p>
     </div>
 
     <!-- Empty -->
-    <el-empty v-else-if="filteredSubscriptions.length === 0" description="暂无订阅">
-      <el-button type="primary" @click="openAdd">添加订阅</el-button>
-    </el-empty>
-
-    <!-- Card Grid -->
-    <div v-else>
-      <div class="card-grid">
-        <el-card
-          v-for="sub in paginatedSubscriptions"
-        :key="sub.id"
-        shadow="hover"
-        :class="{ 'inactive-card': !sub.isActive }"
+    <div
+      v-else-if="filteredSubscriptions.length === 0"
+      class="bento-card flex flex-col items-center justify-center px-6 py-20 text-center"
+    >
+      <div class="flex h-16 w-16 items-center justify-center rounded-2xl bg-brand-50 text-brand-500 dark:bg-brand-500/10 dark:text-brand-300">
+        <ArrowDownUp :size="28" />
+      </div>
+      <p class="mt-4 text-base font-medium text-ink-700 dark:text-ink-200">暂无订阅</p>
+      <p class="mt-1 text-sm text-ink-500 dark:text-ink-400">添加第一条订阅，开始追踪到期日</p>
+      <button
+        class="mt-6 inline-flex cursor-pointer items-center gap-2 rounded-xl bg-gradient-to-br from-brand-500 to-brand-700 px-5 py-2.5 text-sm font-semibold text-white shadow-md shadow-brand-500/30 hover:shadow-lg"
+        @click="openAdd"
       >
-        <!-- Card Header -->
-        <div class="card-header">
-          <el-checkbox
+        <Plus :size="16" />
+        添加订阅
+      </button>
+    </div>
+
+    <!-- Card grid -->
+    <div v-else>
+      <div class="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
+        <article
+          v-for="sub in paginatedSubscriptions"
+          :key="sub.id"
+          class="bento-card group relative flex flex-col p-5"
+          :class="!sub.isActive ? 'opacity-60' : ''"
+        >
+          <!-- Selection checkbox -->
+          <label
             v-if="selectMode"
-            :model-value="!!selectedMap[sub.id]"
-            @change="toggleSelection(sub.id)"
-            class="card-checkbox"
-          />
-          <div class="card-header-left">
-            <h3 class="card-title">
-              <el-icon v-if="sub.isPinned" class="pin-icon" @click="handlePin(sub)"><Star /></el-icon>
-              {{ sub.name }}
-            </h3>
-            <span v-if="sub.customType" class="card-type">{{ sub.customType }}</span>
-          </div>
-          <el-tag :type="getStatusType(sub)" size="small" effect="light">
-            {{ getStatusText(sub) }}
-          </el-tag>
-        </div>
-
-        <!-- Expiry Progress -->
-        <div class="card-expiry">
-          <div class="expiry-row">
-            <span class="expiry-date">{{ sub.expiryDate }}</span>
-            <el-tag :type="getDaysLeft(sub).type" size="small" effect="plain">
-              {{ getDaysLeft(sub).text }}
-            </el-tag>
-          </div>
-          <el-progress
-            :percentage="getDaysLeft(sub).percent"
-            :status="getProgressStatus(sub)"
-            :stroke-width="6"
-            :show-text="false"
-          />
-          <div v-if="showLunar && getLunarText(sub.expiryDate)" class="lunar-text">
-            {{ getLunarText(sub.expiryDate) }}
-          </div>
-        </div>
-
-        <!-- Tags -->
-        <div class="card-tags" v-if="sub.category || sub.periodValue">
-          <el-tag v-if="sub.periodValue" size="small" type="info" effect="plain">
-            {{ getPeriodLabel(sub) }}
-            <span v-if="sub.autoRenew"> 自动续</span>
-          </el-tag>
-          <el-tag
-            v-for="cat in normalizeCategoryTokens(sub.category || '')"
-            :key="cat"
-            size="small"
-            effect="light"
+            class="absolute left-3 top-3 flex h-6 w-6 cursor-pointer items-center justify-center rounded-md border border-ink-300 bg-white/80 transition-colors dark:border-ink-600 dark:bg-ink-800/80"
+            :class="selectedMap[sub.id] ? 'border-brand-500 bg-brand-500 text-white dark:border-brand-400 dark:bg-brand-500' : ''"
           >
-            {{ cat }}
-          </el-tag>
-        </div>
+            <input type="checkbox" class="sr-only" :checked="!!selectedMap[sub.id]" @change="toggleSelection(sub.id)" />
+            <CheckCheck v-if="selectedMap[sub.id]" :size="14" />
+          </label>
 
-        <!-- Notes -->
-        <p v-if="sub.notes" class="card-notes">{{ sub.notes }}</p>
-
-        <!-- Price -->
-        <div v-if="getPriceText(sub)" class="card-price">{{ getPriceText(sub) }}</div>
-
-        <!-- Trial Badge -->
-        <div v-if="sub.trialValue && sub.trialUnit" class="card-trial">
-          <el-tag size="small" type="success" effect="light">试用 {{ sub.trialValue }}{{ periodLabel(sub.trialUnit) }}</el-tag>
-        </div>
-
-        <!-- Reminder -->
-        <div class="card-reminder">提前 {{ getReminderText(sub) }} 提醒</div>
-
-        <!-- Actions -->
-        <div class="card-actions">
-          <el-button size="small" :type="sub.isPinned ? 'warning' : ''" plain @click="handlePin(sub)">
-            <el-icon><Star /></el-icon> {{ sub.isPinned ? '取消置顶' : '置顶' }}
-          </el-button>
-          <el-button size="small" type="primary" plain @click="openEdit(sub)">
-            <el-icon><Edit /></el-icon> 编辑
-          </el-button>
-          <el-button size="small" type="warning" plain @click="handleCopy(sub)">
-            <el-icon><CopyDocument /></el-icon> 复制
-          </el-button>
-          <el-button size="small" type="info" plain @click="handleTestNotify(sub)">
-            <el-icon><Bell /></el-icon> 测试
-          </el-button>
-          <el-button
-            size="small"
-            :type="sub.isActive ? 'info' : 'success'"
-            plain
-            @click="handleToggle(sub)"
+          <!-- Pin -->
+          <button
+            class="absolute right-4 top-4 cursor-pointer text-ink-300 transition-colors hover:text-warning dark:text-ink-600"
+            :class="sub.isPinned ? 'text-warning dark:text-warning' : ''"
+            :aria-label="sub.isPinned ? '取消置顶' : '置顶'"
+            @click="handlePin(sub)"
           >
-            <el-icon v-if="sub.isActive"><VideoPause /></el-icon>
-            <el-icon v-else><VideoPlay /></el-icon>
-            {{ sub.isActive ? '停用' : '启用' }}
-          </el-button>
-          <el-button size="small" type="danger" plain @click="handleDelete(sub)">
-            <el-icon><Delete /></el-icon> 删除
-          </el-button>
-        </div>
-      </el-card>
+            <Star :size="18" :fill="sub.isPinned ? 'currentColor' : 'none'" :stroke-width="sub.isPinned ? 1.5 : 2" />
+          </button>
+
+          <!-- Header -->
+          <div class="flex items-start gap-3 pr-8" :class="selectMode ? 'pl-8' : ''">
+            <div
+              class="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-xl bg-gradient-to-br text-lg font-bold text-white shadow-sm"
+              :class="brandColor(sub.name)"
+            >
+              {{ brandInitial(sub.name) }}
+            </div>
+            <div class="min-w-0 flex-1">
+              <h3 class="truncate text-base font-semibold text-ink-900 dark:text-ink-50">{{ sub.name }}</h3>
+              <p v-if="sub.customType" class="mt-0.5 truncate text-xs text-ink-500 dark:text-ink-400">{{ sub.customType }}</p>
+            </div>
+          </div>
+
+          <!-- Status pill -->
+          <div class="mt-4 flex items-center gap-2">
+            <span
+              class="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium"
+              :class="{
+                'bg-success/10 text-success': getStatusMeta(sub).tone === 'success',
+                'bg-warning/15 text-warning': getStatusMeta(sub).tone === 'warning',
+                'bg-danger/10 text-danger':   getStatusMeta(sub).tone === 'danger',
+                'bg-ink-100 text-ink-500 dark:bg-ink-800/60 dark:text-ink-400': getStatusMeta(sub).tone === 'muted',
+              }"
+            >
+              <span class="h-1.5 w-1.5 rounded-full"
+                :class="{
+                  'bg-success': getStatusMeta(sub).tone === 'success',
+                  'bg-warning': getStatusMeta(sub).tone === 'warning',
+                  'bg-danger':  getStatusMeta(sub).tone === 'danger',
+                  'bg-ink-400': getStatusMeta(sub).tone === 'muted',
+                }"
+              />
+              {{ getStatusMeta(sub).label }}
+            </span>
+            <span v-if="sub.trialValue && sub.trialUnit" class="rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-medium text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-300">
+              试用 {{ sub.trialValue }}{{ periodLabel(sub.trialUnit) }}
+            </span>
+          </div>
+
+          <!-- Expiry / progress -->
+          <div class="mt-4">
+            <div class="flex items-end justify-between">
+              <div>
+                <p class="font-mono-nums text-sm text-ink-500 dark:text-ink-400">{{ sub.expiryDate }}</p>
+                <p
+                  class="font-mono-nums mt-0.5 text-xl font-bold tabular"
+                  :class="{
+                    'text-success': getDaysLeft(sub).tone === 'success',
+                    'text-warning': getDaysLeft(sub).tone === 'warning',
+                    'text-danger':  getDaysLeft(sub).tone === 'danger',
+                    'text-ink-400': getDaysLeft(sub).tone === 'muted',
+                  }"
+                >
+                  {{ getDaysLeft(sub).text }}
+                </p>
+                <p v-if="showLunar && getLunarText(sub.expiryDate)" class="mt-0.5 text-xs text-brand-500 dark:text-brand-300">
+                  {{ getLunarText(sub.expiryDate) }}
+                </p>
+              </div>
+              <div v-if="getPriceText(sub)" class="text-right">
+                <p class="text-xs uppercase tracking-wide text-ink-400 dark:text-ink-500">费用</p>
+                <p class="font-mono-nums text-base font-bold text-ink-900 dark:text-ink-50">{{ getPriceText(sub) }}</p>
+              </div>
+            </div>
+            <div class="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-ink-100 dark:bg-ink-800/60">
+              <div
+                class="h-full rounded-full transition-all duration-500"
+                :class="{
+                  'bg-success': getDaysLeft(sub).tone === 'success',
+                  'bg-warning': getDaysLeft(sub).tone === 'warning',
+                  'bg-danger':  getDaysLeft(sub).tone === 'danger',
+                  'bg-ink-300 dark:bg-ink-700': getDaysLeft(sub).tone === 'muted',
+                }"
+                :style="{ width: getDaysLeft(sub).percent + '%' }"
+              />
+            </div>
+          </div>
+
+          <!-- Tags -->
+          <div v-if="sub.category || sub.periodValue" class="mt-3 flex flex-wrap gap-1.5">
+            <span v-if="sub.periodValue" class="rounded-md bg-ink-100 px-2 py-0.5 text-xs text-ink-600 dark:bg-ink-800/60 dark:text-ink-300">
+              周期 {{ getPeriodLabel(sub) }}<span v-if="sub.autoRenew"> · 自动续</span>
+            </span>
+            <span
+              v-for="cat in normalizeCategoryTokens(sub.category || '')"
+              :key="cat"
+              class="rounded-md bg-brand-50 px-2 py-0.5 text-xs font-medium text-brand-600 dark:bg-brand-500/15 dark:text-brand-300"
+            >
+              # {{ cat }}
+            </span>
+          </div>
+
+          <!-- Notes -->
+          <p v-if="sub.notes" class="mt-3 line-clamp-2 text-xs text-ink-500 dark:text-ink-400">
+            {{ sub.notes }}
+          </p>
+
+          <!-- Footer reminder -->
+          <p class="mt-3 flex items-center gap-1.5 text-xs text-ink-400 dark:text-ink-500">
+            <Bell :size="12" />
+            提前 {{ getReminderText(sub) }} 提醒
+          </p>
+
+          <!-- Actions -->
+          <div class="mt-4 flex flex-wrap items-center gap-1.5 border-t border-ink-100 pt-3 dark:border-ink-800/50">
+            <button
+              class="inline-flex h-8 cursor-pointer items-center gap-1 rounded-lg px-2.5 text-xs font-medium text-ink-600 transition-colors hover:bg-brand-50 hover:text-brand-600 dark:text-ink-300 dark:hover:bg-brand-500/15 dark:hover:text-brand-300"
+              @click="openEdit(sub)"
+            >
+              <Pencil :size="14" /> 编辑
+            </button>
+            <button
+              class="inline-flex h-8 cursor-pointer items-center gap-1 rounded-lg px-2.5 text-xs font-medium text-ink-600 transition-colors hover:bg-amber-50 hover:text-amber-600 dark:text-ink-300 dark:hover:bg-amber-500/15 dark:hover:text-amber-300"
+              @click="handleCopy(sub)"
+            >
+              <Copy :size="14" /> 复制
+            </button>
+            <button
+              class="inline-flex h-8 cursor-pointer items-center gap-1 rounded-lg px-2.5 text-xs font-medium text-ink-600 transition-colors hover:bg-sky-50 hover:text-sky-600 dark:text-ink-300 dark:hover:bg-sky-500/15 dark:hover:text-sky-300"
+              @click="handleTestNotify(sub)"
+            >
+              <Bell :size="14" /> 测试
+            </button>
+            <button
+              class="inline-flex h-8 cursor-pointer items-center gap-1 rounded-lg px-2.5 text-xs font-medium transition-colors"
+              :class="sub.isActive
+                ? 'text-ink-600 hover:bg-ink-100 dark:text-ink-300 dark:hover:bg-ink-800/60'
+                : 'text-success hover:bg-success/10'"
+              @click="handleToggle(sub)"
+            >
+              <component :is="sub.isActive ? Pause : Play" :size="14" />
+              {{ sub.isActive ? '停用' : '启用' }}
+            </button>
+            <button
+              class="ml-auto inline-flex h-8 cursor-pointer items-center gap-1 rounded-lg px-2.5 text-xs font-medium text-ink-600 transition-colors hover:bg-danger/10 hover:text-danger dark:text-ink-300"
+              @click="handleDelete(sub)"
+            >
+              <Trash2 :size="14" /> 删除
+            </button>
+          </div>
+        </article>
       </div>
 
-      <!-- Batch Action Bar -->
-      <transition name="el-fade-in">
-        <div v-if="selectMode && selectedCount > 0" class="batch-action-bar">
-          <div class="batch-info">
-            <el-checkbox
-              :model-value="paginatedSubscriptions.length > 0 && paginatedSubscriptions.every(s => selectedMap[s.id])"
-              :indeterminate="selectedCount > 0 && !paginatedSubscriptions.every(s => selectedMap[s.id])"
+      <!-- Batch action bar -->
+      <transition
+        enter-active-class="transition-all duration-200"
+        leave-active-class="transition-all duration-200"
+        enter-from-class="opacity-0 translate-y-2" leave-to-class="opacity-0 translate-y-2"
+      >
+        <div
+          v-if="selectMode && selectedCount > 0"
+          class="glass-panel sticky bottom-4 z-20 mt-6 flex flex-wrap items-center justify-between gap-3 rounded-2xl px-5 py-3"
+        >
+          <label class="flex cursor-pointer items-center gap-2.5 text-sm font-medium text-ink-700 dark:text-ink-200">
+            <input
+              type="checkbox"
+              class="h-4 w-4 cursor-pointer rounded border-ink-300 text-brand-500 focus:ring-brand-500/30"
+              :checked="paginatedSubscriptions.length > 0 && paginatedSubscriptions.every(s => selectedMap[s.id])"
               @change="toggleSelectAll"
             />
-            <span>已选择 {{ selectedCount }} 项</span>
-          </div>
-          <div class="batch-buttons">
-            <el-button size="small" type="success" plain @click="handleBatchToggle(true)">批量启用</el-button>
-            <el-button size="small" type="info" plain @click="handleBatchToggle(false)">批量停用</el-button>
-            <el-button size="small" type="danger" plain @click="handleBatchDelete">批量删除</el-button>
+            已选择 <span class="font-mono-nums font-bold text-brand-600 dark:text-brand-300">{{ selectedCount }}</span> 项
+          </label>
+          <div class="flex flex-wrap gap-2">
+            <button
+              class="inline-flex cursor-pointer items-center gap-1.5 rounded-lg bg-success/10 px-3 py-1.5 text-xs font-semibold text-success hover:bg-success/15"
+              @click="handleBatchToggle(true)"
+            >
+              <Play :size="13" /> 批量启用
+            </button>
+            <button
+              class="inline-flex cursor-pointer items-center gap-1.5 rounded-lg bg-ink-100 px-3 py-1.5 text-xs font-semibold text-ink-600 hover:bg-ink-200 dark:bg-ink-800/60 dark:text-ink-300 dark:hover:bg-ink-800"
+              @click="handleBatchToggle(false)"
+            >
+              <Pause :size="13" /> 批量停用
+            </button>
+            <button
+              class="inline-flex cursor-pointer items-center gap-1.5 rounded-lg bg-danger/10 px-3 py-1.5 text-xs font-semibold text-danger hover:bg-danger/15"
+              @click="handleBatchDelete"
+            >
+              <Trash2 :size="13" /> 批量删除
+            </button>
           </div>
         </div>
       </transition>
@@ -522,9 +634,10 @@ onMounted(() => {
         :layout="isMobile ? 'total, prev, next' : 'total, sizes, prev, pager, next'"
         :small="isMobile"
         background
-        class="pagination"
+        class="mt-6 justify-end"
       />
     </div>
+
     <SubscriptionModal
       v-if="showModal"
       :subscription="editingSub"
@@ -538,226 +651,3 @@ onMounted(() => {
     />
   </div>
 </template>
-
-<style scoped>
-.dashboard-header {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-  margin-bottom: 24px;
-}
-
-@media (min-width: 768px) {
-  .dashboard-header {
-    flex-direction: row;
-    align-items: center;
-    justify-content: space-between;
-  }
-}
-
-.header-actions {
-  display: flex;
-  gap: 12px;
-}
-
-.dashboard-title {
-  font-size: 24px;
-  font-weight: 700;
-  color: var(--el-text-color-primary);
-}
-
-.dashboard-subtitle {
-  font-size: 14px;
-  color: var(--el-text-color-secondary);
-  margin-top: 4px;
-}
-
-.filter-bar {
-  margin-bottom: 24px;
-}
-
-.filter-right {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  justify-content: flex-end;
-}
-
-.empty-state {
-  text-align: center;
-  padding: 64px 0;
-  color: var(--el-text-color-secondary);
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 12px;
-}
-
-.card-grid {
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: 16px;
-}
-
-@media (min-width: 768px) {
-  .card-grid {
-    grid-template-columns: repeat(2, 1fr);
-  }
-}
-
-@media (min-width: 1280px) {
-  .card-grid {
-    grid-template-columns: repeat(3, 1fr);
-  }
-}
-
-.card-grid :deep(.el-card) {
-  border-color: #e8ddd0;
-  border-radius: 12px;
-}
-
-html.dark .card-grid :deep(.el-card) {
-  border-color: #3d3830;
-}
-
-.inactive-card {
-  opacity: 0.7;
-}
-
-.card-header {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  margin-bottom: 12px;
-}
-
-.card-header-left {
-  min-width: 0;
-  flex: 1;
-}
-
-.card-title {
-  font-size: 16px;
-  font-weight: 600;
-  color: var(--el-text-color-primary);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.card-type {
-  font-size: 12px;
-  color: var(--el-text-color-secondary);
-  margin-top: 2px;
-  display: block;
-}
-
-.card-expiry {
-  margin-bottom: 12px;
-}
-
-.expiry-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 8px;
-}
-
-.expiry-date {
-  font-size: 14px;
-  color: var(--el-text-color-regular);
-}
-
-.lunar-text {
-  font-size: 12px;
-  color: var(--el-color-primary);
-  margin-top: 4px;
-}
-
-.card-tags {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  margin-bottom: 12px;
-}
-
-.card-notes {
-  font-size: 12px;
-  color: var(--el-text-color-secondary);
-  margin-bottom: 12px;
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-}
-
-.card-trial {
-  margin-bottom: 8px;
-}
-
-.card-reminder {
-  font-size: 12px;
-  color: var(--el-text-color-secondary);
-  margin-bottom: 16px;
-}
-
-.card-price {
-  font-size: 14px;
-  font-weight: 600;
-  color: var(--el-color-primary);
-  margin-bottom: 12px;
-}
-
-.card-actions {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 8px;
-  padding-top: 12px;
-  border-top: 1px solid var(--el-border-color-lighter);
-}
-
-.pagination {
-  margin-top: 24px;
-  display: flex;
-  justify-content: flex-end;
-}
-
-.card-checkbox {
-  margin-right: 8px;
-  flex-shrink: 0;
-}
-
-.batch-action-bar {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  justify-content: space-between;
-  gap: 8px;
-  padding: 12px 20px;
-  background: var(--el-bg-color);
-  border: 1px solid var(--el-border-color-light);
-  border-radius: 12px;
-  margin-top: 16px;
-}
-
-.batch-info {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 14px;
-  color: var(--el-text-color-primary);
-}
-
-.batch-buttons {
-  display: flex;
-  gap: 8px;
-}
-
-.pin-icon {
-  color: var(--el-color-warning);
-  cursor: pointer;
-  margin-right: 4px;
-  vertical-align: middle;
-}
-</style>
