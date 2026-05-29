@@ -24,10 +24,11 @@
 
 **桌面端**
 
-| | |
-|---|---|
-| ![订阅管理](screenshots/dashboard-dark.jpg) | ![日历视图](screenshots/calendar.jpg) |
-| ![通知日志](screenshots/logs-desktop.jpg) | ![系统设置](screenshots/settings.jpg) |
+|                                             |                                        |
+| ------------------------------------------- | -------------------------------------- |
+| ![订阅管理](screenshots/dashboard-dark.jpg) | ![订阅管理](screenshots/dashboard.jpg) |
+| ![日历视图](screenshots/calendar.jpg)       |
+| ![通知日志](screenshots/logs-desktop.jpg)   | ![系统设置](screenshots/settings.jpg)  |
 
 **移动端**
 
@@ -35,11 +36,11 @@
 
 ## 技术栈
 
-| 层 | Node.js 版 | Workers 版 |
-|---|---|---|
-| 前端 | Vue 3、TypeScript、Tailwind CSS、Element Plus、Lucide Icons、Pinia、Vue Router | 同左 |
-| 后端 | Express、Drizzle ORM、SQLite | Hono、Drizzle ORM、Cloudflare D1 |
-| 部署 | Docker、Docker Compose | Cloudflare Workers + Pages, GitHub Actions |
+| 层   | Node.js 版                                                                     | Workers 版                                 |
+| ---- | ------------------------------------------------------------------------------ | ------------------------------------------ |
+| 前端 | Vue 3、TypeScript、Tailwind CSS、Element Plus、Lucide Icons、Pinia、Vue Router | 同左                                       |
+| 后端 | Express、Drizzle ORM、SQLite                                                   | Hono、Drizzle ORM、Cloudflare D1           |
+| 部署 | Docker、Docker Compose                                                         | Cloudflare Workers + Pages, GitHub Actions |
 
 ## 快速开始
 
@@ -67,19 +68,19 @@ Fork 本仓库后，通过 GitHub Actions 自动部署到 Cloudflare Workers + P
 4. 创建 API Token：点击右上角头像 → **My Profile** → **API Tokens** → **Create Token** → **Get started**，填写 Token 名称，在 **Permissions** 区域添加两条：
    - **Account** → **Cloudflare Workers Scripts** → **Edit**
    - **Account** → **D1** → **Edit**
-   点 **Continue to summary** → **Create Token**，**立即复制保存**（只显示一次）
+     点 **Continue to summary** → **Create Token**，**立即复制保存**（只显示一次）
 
 **第二步：配置 GitHub Secrets**
 
 在你的 GitHub 仓库 → **Settings** → **Secrets and variables** → **Actions** 中添加：
 
-| Secret 名称 | 说明 |
-|---|---|
-| `CLOUDFLARE_API_TOKEN` | 上一步创建的 API Token |
+| Secret 名称             | 说明                                     |
+| ----------------------- | ---------------------------------------- |
+| `CLOUDFLARE_API_TOKEN`  | 上一步创建的 API Token                   |
 | `CLOUDFLARE_ACCOUNT_ID` | Cloudflare Dashboard 右侧栏的 Account ID |
-| `D1_DATABASE_ID` | 第一步创建的 D1 Database ID |
-| `JWT_SECRET` | 随机字符串，用于签发登录令牌 |
-| `ADMIN_PASSWORD` | 管理密码（可选，默认 `password`） |
+| `D1_DATABASE_ID`        | 第一步创建的 D1 Database ID              |
+| `JWT_SECRET`            | 随机字符串，用于签发登录令牌             |
+| `ADMIN_PASSWORD`        | 管理密码（可选，默认 `password`）        |
 
 **第三步：推送到 GitHub**
 
@@ -88,6 +89,7 @@ git push origin main
 ```
 
 GitHub Actions 会自动：
+
 - 初始化 D1 数据库表结构
 - 部署后端到 Cloudflare Workers
 - 自动获取 Workers 地址，构建前端并部署到 Cloudflare Pages
