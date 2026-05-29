@@ -16,6 +16,7 @@
 - **深色模式** — 侧边栏一键切换深色/浅色主题
 - **响应式布局** — 移动端自适应，侧边栏抽屉模式，日历卡片适配
 - **复制订阅** — 快速复制已有订阅，预设 14 种订阅类型
+- **现代 UI** — Bento Grid 卡片布局 + Glassmorphism 毛玻璃效果，Lucide 图标，Inter / Poppins / Fira Code 字体
 - **双环境部署** — 支持 Docker (Express + SQLite) 和 Cloudflare Workers (Hono + D1)
 - **一键部署** — Fork 后 GitHub Actions 自动部署到 Cloudflare Workers + Pages
 
@@ -36,7 +37,7 @@
 
 | 层 | Node.js 版 | Workers 版 |
 |---|---|---|
-| 前端 | Vue 3、TypeScript、Element Plus、Pinia、Vue Router | 同左 |
+| 前端 | Vue 3、TypeScript、Tailwind CSS、Element Plus、Lucide Icons、Pinia、Vue Router | 同左 |
 | 后端 | Express、Drizzle ORM、SQLite | Hono、Drizzle ORM、Cloudflare D1 |
 | 部署 | Docker、Docker Compose | Cloudflare Workers + Pages, GitHub Actions |
 
@@ -165,6 +166,16 @@ npm run dev
 支持 47 种货币，涵盖亚洲、欧洲、北美、南美、大洋洲、中东及非洲主要货币。汇率通过 [ExchangeRate-API](https://www.exchangerate-api.com/) 每日自动获取，缓存在本地。API 不可用时自动回退到内置默认汇率。
 
 费用统计页右上角可切换统计目标币种，所有金额按实时汇率折算显示。
+
+## 设计系统
+
+UI 遵循 Bento Grid + Glassmorphism 设计语言，规范文档位于 `client/design-system/MASTER.md`：
+
+- **主色** Indigo `#6366F1`，状态色 Emerald / Amber / Red
+- **字体** Heading: Poppins · Body: Inter / Noto Sans SC · 数字: Fira Code (tabular-nums)
+- **圆角** 卡片 20px / Bento 24px / 输入框 10px
+- **效果** 毛玻璃 `backdrop-blur-xl`、卡片 hover 抬升、渐变背景光晕
+- **图标** 全站使用 [Lucide](https://lucide.dev)，不用 emoji
 
 ## License
 
