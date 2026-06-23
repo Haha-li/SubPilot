@@ -9,3 +9,4 @@ data/
 .claude
 .gitignore
 .ace-tool/
+.agents/
