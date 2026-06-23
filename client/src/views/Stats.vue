@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue';
 import { useSubscriptionStore, type Subscription } from '../stores/subscription';
-import { currencies, convert, getSymbol, fetchRates } from '../utils/currency';
+import { convert, getSymbol, fetchRates } from '../utils/currency';
+import CurrencySelect from '../components/CurrencySelect.vue';
 import {
   Wallet, TrendingUp, CalendarRange, Coins, BarChart3, Layers, LineChart, ListTree,
 } from '@lucide/vue';
@@ -17,10 +18,15 @@ function getMonthlyCostInCurrency(sub: Subscription, target: string): number {
   return convert(monthly, sub.currency || 'CNY', target);
 }
 
+function getMonthlyCostOrZero(sub: Subscription, target: string): number {
+  const value = getMonthlyCostInCurrency(sub, target);
+  return Number.isFinite(value) ? value : 0;
+}
+
 const activeSubscriptions = computed(() => subStore.subscriptions.filter((s) => s.isActive));
 
 const totalMonthly = computed(() =>
-  activeSubscriptions.value.reduce((sum, s) => sum + getMonthlyCostInCurrency(s, displayCurrency.value), 0),
+  activeSubscriptions.value.reduce((sum, s) => sum + getMonthlyCostOrZero(s, displayCurrency.value), 0),
 );
 
 const totalYearly = computed(() => totalMonthly.value * 12);
@@ -31,8 +37,10 @@ const paidSubscriptions = computed(() => activeSubscriptions.value.filter((s) =>
 const byType = computed(() => {
   const map: Record<string, number> = {};
   paidSubscriptions.value.forEach((s) => {
+    const cost = getMonthlyCostInCurrency(s, displayCurrency.value);
+    if (!Number.isFinite(cost)) return;
     const type = s.customType || '未分类';
-    map[type] = (map[type] || 0) + getMonthlyCostInCurrency(s, displayCurrency.value);
+    map[type] = (map[type] || 0) + cost;
   });
   return Object.entries(map)
     .map(([label, value]) => ({ label, value }))
@@ -45,8 +53,10 @@ const byCategory = computed(() => {
   paidSubscriptions.value.forEach((s) => {
     const cat = (s.category || '').trim();
     const tokens = cat ? cat.split(/[/,，\s]+/).filter(Boolean) : ['未分类'];
+    const cost = getMonthlyCostInCurrency(s, displayCurrency.value);
+    if (!Number.isFinite(cost)) return;
     tokens.forEach((t) => {
-      map[t] = (map[t] || 0) + getMonthlyCostInCurrency(s, displayCurrency.value);
+      map[t] = (map[t] || 0) + cost;
     });
   });
   return Object.entries(map)
@@ -70,7 +80,7 @@ const monthlyTrend = computed(() => {
       const expiryTime = new Date(sub.expiryDate).getTime();
       const startTime = sub.startDate ? new Date(sub.startDate).getTime() : 0;
       if (expiryTime >= monthStart && startTime <= monthEnd) {
-        total += getMonthlyCostInCurrency(sub, displayCurrency.value);
+        total += getMonthlyCostOrZero(sub, displayCurrency.value);
       }
     });
     months.push({ label: `${month + 1}月`, value: Math.round(total * 100) / 100 });
@@ -81,14 +91,15 @@ const maxTrendValue = computed(() => Math.max(1, ...monthlyTrend.value.map((i) =
 
 const sortedSubs = computed(() =>
   [...subStore.subscriptions].sort((a, b) => {
-    const ca = getMonthlyCostInCurrency(a, displayCurrency.value);
-    const cb = getMonthlyCostInCurrency(b, displayCurrency.value);
+    const ca = getMonthlyCostOrZero(a, displayCurrency.value);
+    const cb = getMonthlyCostOrZero(b, displayCurrency.value);
     if (cb !== ca) return cb - ca;
     return a.name.localeCompare(b.name, 'zh-CN');
   }),
 );
 
 function formatMoney(val: number): string {
+  if (!Number.isFinite(val)) return '汇率缺失';
   return getSymbol(displayCurrency.value) + val.toFixed(2);
 }
 
@@ -156,9 +167,7 @@ onMounted(async () => {
       </div>
       <div class="flex items-center gap-3">
         <span class="text-xs font-medium uppercase tracking-wide text-ink-400">币种</span>
-        <el-select v-model="displayCurrency" style="width: 110px" size="default">
-          <el-option v-for="c in currencies" :key="c.code" :label="c.code" :value="c.code" />
-        </el-select>
+        <CurrencySelect v-model="displayCurrency" width="132px" aria-label="统计币种" />
       </div>
     </div>
 

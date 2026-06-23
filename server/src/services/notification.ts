@@ -7,6 +7,7 @@ import { sendBark } from './notifiers/bark';
 import { sendWebhook } from './notifiers/webhook';
 import { sendEmail } from './notifiers/email';
 import { sendNotifyX } from './notifiers/notifyx';
+import { getCurrencySymbol } from '../utils/currency';
 
 interface Subscription {
   id: number;
@@ -57,18 +58,7 @@ function formatNotifyMessage(subscription: Subscription, config: Record<string, 
 
   const unitMap: Record<string, string> = { day: '/天', month: '/月', year: '/年' };
   const periodUnitMap: Record<string, string> = { day: '天', month: '月', year: '年' };
-  const symbolMap: Record<string, string> = {
-    CNY: '¥', JPY: '¥', KRW: '₩', HKD: 'HK$', TWD: 'NT$', SGD: 'S$',
-    THB: '฿', MYR: 'RM', IDR: 'Rp', PHP: '₱', VND: '₫', INR: '₹',
-    PKR: '₨', BDT: '৳', LKR: 'Rs', EUR: '€', GBP: '£', CHF: 'CHF',
-    SEK: 'kr', NOK: 'kr', DKK: 'kr', PLN: 'zł', CZK: 'Kč', HUF: 'Ft',
-    RUB: '₽', TRY: '₺', UAH: '₴', RON: 'lei', BGN: 'лв', USD: '$',
-    CAD: 'C$', MXN: 'MX$', BRL: 'R$', ARS: 'ARS', CLP: 'CLP',
-    COP: 'COL$', PEN: 'S/', AUD: 'A$', NZD: 'NZ$', AED: 'د.إ',
-    SAR: '﷼', ILS: '₪', ZAR: 'R', EGP: 'E£', NGN: '₦', KES: 'KSh',
-    MAD: 'MAD',
-  };
-  const sym = symbolMap[subscription.currency || 'CNY'] || subscription.currency || '¥';
+  const sym = getCurrencySymbol(subscription.currency);
   const price = subscription.price && subscription.price > 0
     ? `${sym}${subscription.price.toFixed(2)}${unitMap[subscription.priceUnit || 'month'] || '/月'}`
     : '免费';

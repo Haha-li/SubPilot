@@ -3,8 +3,8 @@ import { ref, computed, onMounted } from 'vue';
 import { useMediaQuery } from '@vueuse/core';
 import { useSubscriptionStore, type Subscription } from '../stores/subscription';
 import { solar2lunar } from '../utils/lunar';
-import { currencies } from '../utils/currency';
 import { ElMessage } from 'element-plus';
+import CurrencySelect from './CurrencySelect.vue';
 import {
   Tag as TagIcon, Calendar as CalendarIcon, Repeat, Wallet, Bell, Sparkles,
   StickyNote, Calculator, Loader2, Save, X, Moon as MoonIcon,
@@ -341,9 +341,7 @@ onMounted(() => {
             </label>
             <el-input v-model.number="form.price" type="number" :min="0" placeholder="0">
               <template #prepend>
-                <el-select v-model="form.currency" style="width: 96px">
-                  <el-option v-for="c in currencies" :key="c.code" :label="c.code" :value="c.code" />
-                </el-select>
+                <CurrencySelect v-model="form.currency" width="112px" aria-label="费用币种" />
               </template>
               <template #append>
                 <el-select v-model="form.priceUnit" style="width: 80px">
