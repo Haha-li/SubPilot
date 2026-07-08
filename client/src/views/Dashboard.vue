@@ -364,6 +364,7 @@ onMounted(() => {
           <el-option label="已停用" value="inactive" />
           <el-option label="已过期" value="expired" />
           <el-option label="即将到期" value="soon" />
+          <el-option label="收藏" value="pinned" />
         </el-select>
       </div>
       <div class="md:col-span-2">
@@ -398,7 +399,7 @@ onMounted(() => {
         v-for="opt in quickFilters"
         :key="opt.key"
         class="inline-flex cursor-pointer items-center gap-1.5 rounded-xl px-4 py-2 text-sm font-medium transition-colors"
-        :class="statusFilter === opt.value
+        :class="(statusFilter || '') === opt.value
           ? 'bg-brand-50 text-brand-600 ring-1 ring-brand-200 dark:bg-brand-500/15 dark:text-brand-300 dark:ring-brand-500/30'
           : 'border border-ink-200 bg-white/70 text-ink-700 backdrop-blur hover:bg-white hover:text-ink-900 dark:border-ink-700/60 dark:bg-ink-800/40 dark:text-ink-200 dark:hover:bg-ink-800/70'"
         @click="statusFilter = opt.value"
