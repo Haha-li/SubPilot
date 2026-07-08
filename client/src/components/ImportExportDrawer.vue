@@ -4,9 +4,10 @@ import { useMediaQuery } from '@vueuse/core';
 import { useSubscriptionStore } from '../stores/subscription';
 import { ElMessage } from 'element-plus';
 import {
-  Download, Upload, FileText, FileJson, FileSpreadsheet, CheckCircle2, AlertCircle, Loader2, X,
+  Download, Upload, FileText, FileJson, FileSpreadsheet, CalendarDays, CheckCircle2, AlertCircle, Loader2, X,
 } from '@lucide/vue';
 import api from '../utils/api';
+import { generateICS } from '../utils/ics';
 
 const emit = defineEmits<{ close: [] }>();
 const subStore = useSubscriptionStore();
@@ -31,6 +32,25 @@ async function handleExport(format: string) {
     a.click();
     URL.revokeObjectURL(url);
     ElMessage.success(`已导出为 ${format.toUpperCase()} 文件`);
+  } catch (e: any) {
+    ElMessage.error('导出失败: ' + (e.message || '未知错误'));
+  } finally {
+    exporting.value = false;
+  }
+}
+
+function handleExportICS() {
+  exporting.value = true;
+  try {
+    const ics = generateICS(subStore.subscriptions);
+    const blob = new Blob([ics], { type: 'text/calendar;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `subscriptions_${new Date().toISOString().slice(0, 10)}.ics`;
+    a.click();
+    URL.revokeObjectURL(url);
+    ElMessage.success('已导出为 ICS 日历文件');
   } catch (e: any) {
     ElMessage.error('导出失败: ' + (e.message || '未知错误'));
   } finally {
@@ -136,7 +156,7 @@ function pickFile() {
             <p class="text-xs text-ink-500 dark:text-ink-400">将所有订阅数据保存到本地</p>
           </div>
         </header>
-        <div class="grid grid-cols-2 gap-2">
+        <div class="grid grid-cols-3 gap-2">
           <button
             class="flex cursor-pointer flex-col items-center gap-2 rounded-xl border border-ink-200 bg-white/70 p-4 transition-all hover:border-brand-300 hover:bg-brand-50/50 hover:text-brand-600 dark:border-ink-700/60 dark:bg-ink-900/40 dark:hover:border-brand-500/40 dark:hover:bg-brand-500/10 dark:hover:text-brand-300 disabled:opacity-60"
             :disabled="exporting"
@@ -154,6 +174,15 @@ function pickFile() {
             <FileSpreadsheet :size="22" :stroke-width="1.75" />
             <span class="text-sm font-semibold">CSV</span>
             <span class="text-[10px] uppercase tracking-wide text-ink-400">表格兼容</span>
+          </button>
+          <button
+            class="flex cursor-pointer flex-col items-center gap-2 rounded-xl border border-ink-200 bg-white/70 p-4 transition-all hover:border-brand-300 hover:bg-brand-50/50 hover:text-brand-600 dark:border-ink-700/60 dark:bg-ink-900/40 dark:hover:border-brand-500/40 dark:hover:bg-brand-500/10 dark:hover:text-brand-300 disabled:opacity-60"
+            :disabled="exporting"
+            @click="handleExportICS"
+          >
+            <CalendarDays :size="22" :stroke-width="1.75" />
+            <span class="text-sm font-semibold">ICS</span>
+            <span class="text-[10px] uppercase tracking-wide text-ink-400">日历</span>
           </button>
         </div>
       </section>

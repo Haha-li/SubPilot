@@ -7,7 +7,7 @@ import { getSymbol } from '../utils/currency';
 import { ElMessageBox, ElMessage } from 'element-plus';
 import {
   Plus, Search, Trash2, Copy, Pencil, Bell, Pause, Play, Download, Star, LayoutGrid,
-  Loader2, ArrowDownUp, ArrowDown, ArrowUp, CheckCheck, X,
+  DollarSign, AlertCircle, Loader2, ArrowDownUp, ArrowDown, ArrowUp, CheckCheck, X,
 } from '@lucide/vue';
 import SubscriptionModal from '../components/SubscriptionModal.vue';
 import ImportExportDrawer from '../components/ImportExportDrawer.vue';
@@ -44,6 +44,28 @@ const selectedCount = computed(() => Object.keys(selectedMap).length);
 function clearSelection() {
   for (const k of Object.keys(selectedMap)) delete selectedMap[Number(k)];
 }
+
+// 顶部概览 KPI
+const totalCount = computed(() => subStore.subscriptions.length);
+const monthlyCost = computed(() => {
+  // 月费估算：按 priceUnit 折算到月，多币种按数值汇总（概数，精确统计见费用统计页）
+  let total = 0;
+  for (const s of subStore.subscriptions) {
+    if (!s.isActive || !s.price) continue;
+    if (s.priceUnit === 'day') total += s.price * 30;
+    else if (s.priceUnit === 'year') total += s.price / 12;
+    else total += s.price;
+  }
+  return total;
+});
+const expiringSoonCount = computed(() => subStore.subscriptions.filter((s) => {
+  if (!s.isActive) return false;
+  const diff = Math.ceil((new Date(s.expiryDate).getTime() - Date.now()) / 86400000);
+  return diff >= 0 && diff <= 7;
+}).length);
+const expiredCount = computed(() => subStore.subscriptions.filter((s) =>
+  s.isActive && new Date(s.expiryDate).getTime() < Date.now()
+).length);
 
 watch([sortBy, sortOrder], () => {
   localStorage.setItem('sortBy', sortBy.value);
@@ -416,6 +438,46 @@ onMounted(() => {
           </span>
           农历
         </label>
+      </div>
+    </div>
+
+    <!-- KPI overview -->
+    <div class="mb-6 grid grid-cols-2 gap-4 md:grid-cols-4">
+      <div class="bento-card flex items-center gap-3 p-4">
+        <div class="flex h-10 w-10 items-center justify-center rounded-xl bg-brand-50 text-brand-600 dark:bg-brand-500/15 dark:text-brand-300">
+          <LayoutGrid :size="18" />
+        </div>
+        <div class="min-w-0">
+          <p class="font-mono-nums text-2xl font-bold text-ink-900 dark:text-ink-50">{{ totalCount }}</p>
+          <p class="text-xs text-ink-500 dark:text-ink-400">订阅总数</p>
+        </div>
+      </div>
+      <div class="bento-card flex items-center gap-3 p-4">
+        <div class="flex h-10 w-10 items-center justify-center rounded-xl bg-success/10 text-success">
+          <DollarSign :size="18" />
+        </div>
+        <div class="min-w-0">
+          <p class="font-mono-nums text-2xl font-bold text-ink-900 dark:text-ink-50">¥{{ monthlyCost.toFixed(0) }}</p>
+          <p class="text-xs text-ink-500 dark:text-ink-400">月费估算</p>
+        </div>
+      </div>
+      <div class="bento-card flex items-center gap-3 p-4">
+        <div class="flex h-10 w-10 items-center justify-center rounded-xl bg-warning/15 text-warning">
+          <Bell :size="18" />
+        </div>
+        <div class="min-w-0">
+          <p class="font-mono-nums text-2xl font-bold text-ink-900 dark:text-ink-50">{{ expiringSoonCount }}</p>
+          <p class="text-xs text-ink-500 dark:text-ink-400">7 天内到期</p>
+        </div>
+      </div>
+      <div class="bento-card flex items-center gap-3 p-4">
+        <div class="flex h-10 w-10 items-center justify-center rounded-xl bg-danger/10 text-danger">
+          <AlertCircle :size="18" />
+        </div>
+        <div class="min-w-0">
+          <p class="font-mono-nums text-2xl font-bold text-ink-900 dark:text-ink-50">{{ expiredCount }}</p>
+          <p class="text-xs text-ink-500 dark:text-ink-400">已过期</p>
+        </div>
       </div>
     </div>
 
