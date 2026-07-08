@@ -96,6 +96,7 @@ const defaultConfig: Record<string, string> = {
   email_from: '',
   email_to: '',
   notifyx_api_key: '',
+  pushplus_token: '',
 };
 
 const insertConfig = sqlite.prepare('INSERT OR IGNORE INTO config (key, value) VALUES (?, ?)');

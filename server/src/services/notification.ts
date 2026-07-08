@@ -7,6 +7,7 @@ import { sendBark } from './notifiers/bark';
 import { sendWebhook } from './notifiers/webhook';
 import { sendEmail } from './notifiers/email';
 import { sendNotifyX } from './notifiers/notifyx';
+import { sendPushPlus } from './notifiers/pushplus';
 import { getCurrencySymbol } from '../utils/currency';
 
 interface Subscription {
@@ -122,6 +123,9 @@ export async function sendNotification(subscription: Subscription, isTest = fals
         case 'notifyx':
           result = await sendNotifyX(config.notifyx_api_key, message);
           break;
+        case 'pushplus':
+          result = await sendPushPlus(config.pushplus_token, message, subscription.name);
+          break;
       }
 
       // Log notification
@@ -168,6 +172,8 @@ export async function testNotificationChannel(channel: string, formConfig?: Reco
         return await sendEmail(config, testMessage, 'SubPilot 测试');
       case 'notifyx':
         return await sendNotifyX(config.notifyx_api_key, testMessage);
+      case 'pushplus':
+        return await sendPushPlus(config.pushplus_token, testMessage, 'SubPilot 测试');
       default:
         return false;
     }
@@ -221,6 +227,8 @@ export async function testTemplateNotification(channel: string, formConfig?: Rec
         return await sendEmail(config, message, mockSub.name);
       case 'notifyx':
         return await sendNotifyX(config.notifyx_api_key, message);
+      case 'pushplus':
+        return await sendPushPlus(config.pushplus_token, message, mockSub.name);
       default:
         return false;
     }

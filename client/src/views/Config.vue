@@ -55,6 +55,7 @@ const channels = [
   { key: 'telegram', name: 'Telegram',     desc: '通过 Telegram Bot 推送',      visible: true,  tone: 'sky'    },
   { key: 'wechat',   name: '企业微信',      desc: '通过企业微信群机器人推送',     visible: false, tone: 'emerald' },
   { key: 'bark',     name: 'Bark (iOS)',   desc: '通过 Bark App 推送到 iOS',    visible: true,  tone: 'rose'   },
+  { key: 'pushplus', name: 'PushPlus',      desc: '通过推送加发送跨平台通知',     visible: true,  tone: 'emerald' },
   { key: 'webhook',  name: 'Webhook',      desc: '自定义 HTTP 回调',           visible: false, tone: 'violet' },
   { key: 'email',    name: '邮件 (Resend)', desc: '通过 Resend API 发送邮件',   visible: false, tone: 'amber'  },
   { key: 'notifyx',  name: 'NotifyX',      desc: '通过 NotifyX 服务推送',      visible: false, tone: 'cyan'   },
@@ -363,6 +364,21 @@ onMounted(loadConfig);
               <el-input v-model="config.bark_key" placeholder="在 Bark App 内复制" />
             </div>
           </div>
+        </div>
+
+        <!-- PushPlus Config -->
+        <div v-if="activeChannels.includes('pushplus')" class="mt-5 rounded-2xl border border-emerald-200 bg-emerald-50/40 p-5 dark:border-emerald-500/30 dark:bg-emerald-500/5">
+          <div class="mb-4 flex items-center justify-between">
+            <h4 class="flex items-center gap-2 text-sm font-semibold text-ink-900 dark:text-ink-50">
+              <span class="h-2 w-2 rounded-full bg-emerald-500" />
+              PushPlus 配置
+            </h4>
+            <button class="inline-flex cursor-pointer items-center gap-1.5 rounded-lg bg-emerald-100 px-3 py-1.5 text-xs font-semibold text-emerald-700 hover:bg-emerald-200 dark:bg-emerald-500/20 dark:text-emerald-300 dark:hover:bg-emerald-500/30" @click="testChannel('pushplus')">
+              <Sparkles :size="13" /> 测试
+            </button>
+          </div>
+          <label class="mb-1.5 block text-xs font-medium text-ink-600 dark:text-ink-300">Token</label>
+          <el-input v-model="config.pushplus_token" placeholder="从 PushPlus 推送加后台获取" />
         </div>
 
         <!-- Webhook Config -->

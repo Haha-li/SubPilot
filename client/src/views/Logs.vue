@@ -30,6 +30,7 @@ const channelMap: Record<string, string> = {
   webhook: 'Webhook',
   email: '邮件',
   notifyx: 'NotifyX',
+  pushplus: 'PushPlus',
 };
 
 const channelTone: Record<string, string> = {
@@ -39,6 +40,7 @@ const channelTone: Record<string, string> = {
   webhook:  'bg-violet-50 text-violet-600 dark:bg-violet-500/15 dark:text-violet-300',
   email:    'bg-amber-50 text-amber-600 dark:bg-amber-500/15 dark:text-amber-300',
   notifyx:  'bg-cyan-50 text-cyan-600 dark:bg-cyan-500/15 dark:text-cyan-300',
+  pushplus: 'bg-emerald-50 text-emerald-600 dark:bg-emerald-500/15 dark:text-emerald-300',
 };
 
 async function fetchLogs() {
@@ -138,6 +140,7 @@ onMounted(() => {
             <el-option label="Webhook" value="webhook" />
             <el-option label="邮件" value="email" />
             <el-option label="NotifyX" value="notifyx" />
+            <el-option label="PushPlus" value="pushplus" />
           </el-select>
         </div>
         <div class="md:col-span-2">

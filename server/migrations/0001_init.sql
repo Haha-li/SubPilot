@@ -59,4 +59,5 @@ INSERT OR IGNORE INTO config (key, value) VALUES ('email_api_key', '');
 INSERT OR IGNORE INTO config (key, value) VALUES ('email_from', '');
 INSERT OR IGNORE INTO config (key, value) VALUES ('email_to', '');
 INSERT OR IGNORE INTO config (key, value) VALUES ('notifyx_api_key', '');
+INSERT OR IGNORE INTO config (key, value) VALUES ('pushplus_token', '');
 INSERT OR IGNORE INTO config (key, value) VALUES ('notify_template', '');
