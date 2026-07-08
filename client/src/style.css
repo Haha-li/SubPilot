@@ -23,8 +23,8 @@
   --text-muted:     #64748B;
   --border-subtle:  #E2E8F0;
   --card-bg:        #FFFFFF;
-  --brand:          #6366F1;
-  --brand-soft:     #EEF2FF;
+  --brand:          #409eff;
+  --brand-soft:     #ecf5ff;
 }
 
 html.dark {
@@ -41,8 +41,8 @@ html.dark {
   --text-muted:     #94A3B8;
   --border-subtle:  rgba(148, 163, 184, 0.18);
   --card-bg:        rgba(30, 41, 59, 0.55);
-  --brand:          #A5B4FC;
-  --brand-soft:     rgba(99, 102, 241, 0.12);
+  --brand:          #66b1ff;
+  --brand-soft:     rgba(64, 158, 255, 0.15);
 }
 
 html, body {
@@ -91,13 +91,13 @@ body {
 
 /* === Element Plus theme bridge === */
 :root {
-  --el-color-primary: #6366F1;
-  --el-color-primary-light-3: #818CF8;
-  --el-color-primary-light-5: #A5B4FC;
-  --el-color-primary-light-7: #C7D2FE;
-  --el-color-primary-light-8: #E0E7FF;
-  --el-color-primary-light-9: #EEF2FF;
-  --el-color-primary-dark-2: #4F46E5;
+  --el-color-primary: #409eff;
+  --el-color-primary-light-3: #79bbff;
+  --el-color-primary-light-5: #a0cfff;
+  --el-color-primary-light-7: #c6e2ff;
+  --el-color-primary-light-8: #d9ecff;
+  --el-color-primary-light-9: #ecf5ff;
+  --el-color-primary-dark-2: #337ecc;
   --el-color-success: #10B981;
   --el-color-warning: #F59E0B;
   --el-color-danger:  #EF4444;
@@ -120,6 +120,14 @@ html.dark {
   --el-bg-color-page: transparent;
   --el-bg-color: var(--card-bg);
   --el-bg-color-overlay: rgba(15, 23, 42, 0.96);
+  /* 深色模式主色用更亮的蓝，保证暗底文字/图标可读 */
+  --el-color-primary: #66b1ff;
+  --el-color-primary-light-3: #79bbff;
+  --el-color-primary-light-5: #409eff;
+  --el-color-primary-light-7: #c6e2ff;
+  --el-color-primary-light-8: #d9ecff;
+  --el-color-primary-light-9: #ecf5ff;
+  --el-color-primary-dark-2: #337ecc;
 }
 
 /* Soften Element Plus surfaces to match the Bento aesthetic */
@@ -136,7 +144,7 @@ html.dark {
 }
 
 .el-button--primary {
-  box-shadow: 0 1px 2px rgba(99, 102, 241, 0.12), 0 4px 12px rgba(99, 102, 241, 0.18);
+  box-shadow: 0 1px 2px rgba(64, 158, 255, 0.20), 0 4px 12px rgba(64, 158, 255, 0.28);
 }
 
 .el-input__wrapper,

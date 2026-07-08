@@ -181,7 +181,7 @@ onMounted(() => {
         </div>
         <button
           type="submit"
-          class="inline-flex cursor-pointer items-center gap-1.5 rounded-xl bg-gradient-to-br from-brand-500 to-brand-700 px-4 py-2 text-sm font-semibold text-white shadow-md shadow-brand-500/30 transition-all hover:shadow-lg active:scale-[0.98]"
+          class="inline-flex cursor-pointer items-center gap-1.5 rounded-xl bg-brand-500 hover:bg-brand-600 px-4 py-2 text-sm font-semibold text-white shadow-md shadow-brand-500/30 transition-all hover:shadow-lg active:scale-[0.98]"
         >
           <Plus :size="16" />
           新增

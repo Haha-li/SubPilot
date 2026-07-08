@@ -149,7 +149,7 @@ onMounted(loadConfig);
         <p class="mt-1 text-sm text-ink-500 dark:text-ink-400">管理时区、通知模板与推送渠道</p>
       </div>
       <button
-        class="inline-flex cursor-pointer items-center gap-2 rounded-xl bg-gradient-to-br from-brand-500 to-brand-700 px-5 py-2.5 text-sm font-semibold text-white shadow-md shadow-brand-500/30 transition-all hover:shadow-lg active:scale-[0.98] disabled:opacity-60"
+        class="inline-flex cursor-pointer items-center gap-2 rounded-xl bg-brand-500 hover:bg-brand-600 px-5 py-2.5 text-sm font-semibold text-white shadow-md shadow-brand-500/30 transition-all hover:shadow-lg active:scale-[0.98] disabled:opacity-60"
         :disabled="saving"
         @click="saveConfig"
       >
@@ -448,7 +448,7 @@ onMounted(loadConfig);
       <!-- Bottom save -->
       <div class="flex justify-end pt-2">
         <button
-          class="inline-flex cursor-pointer items-center gap-2 rounded-xl bg-gradient-to-br from-brand-500 to-brand-700 px-6 py-3 text-sm font-semibold text-white shadow-md shadow-brand-500/30 transition-all hover:shadow-lg active:scale-[0.98] disabled:opacity-60"
+          class="inline-flex cursor-pointer items-center gap-2 rounded-xl bg-brand-500 hover:bg-brand-600 px-6 py-3 text-sm font-semibold text-white shadow-md shadow-brand-500/30 transition-all hover:shadow-lg active:scale-[0.98] disabled:opacity-60"
           :disabled="saving"
           @click="saveConfig"
         >

@@ -326,7 +326,7 @@ onMounted(() => {
           {{ selectMode ? '取消选择' : '批量选择' }}
         </button>
         <button
-          class="inline-flex cursor-pointer items-center gap-2 rounded-xl bg-gradient-to-br from-brand-500 to-brand-700 px-4 py-2 text-sm font-semibold text-white shadow-md shadow-brand-500/30 transition-all hover:shadow-lg hover:shadow-brand-500/40 active:scale-[0.98]"
+          class="inline-flex cursor-pointer items-center gap-2 rounded-xl bg-brand-500 hover:bg-brand-600 px-4 py-2 text-sm font-semibold text-white shadow-md shadow-brand-500/30 transition-all hover:shadow-lg hover:shadow-brand-500/40 active:scale-[0.98]"
           @click="openAdd"
         >
           <Plus :size="16" />
@@ -402,7 +402,7 @@ onMounted(() => {
       <p class="mt-4 text-base font-medium text-ink-700 dark:text-ink-200">暂无订阅</p>
       <p class="mt-1 text-sm text-ink-500 dark:text-ink-400">添加第一条订阅，开始追踪到期日</p>
       <button
-        class="mt-6 inline-flex cursor-pointer items-center gap-2 rounded-xl bg-gradient-to-br from-brand-500 to-brand-700 px-5 py-2.5 text-sm font-semibold text-white shadow-md shadow-brand-500/30 hover:shadow-lg"
+        class="mt-6 inline-flex cursor-pointer items-center gap-2 rounded-xl bg-brand-500 hover:bg-brand-600 px-5 py-2.5 text-sm font-semibold text-white shadow-md shadow-brand-500/30 hover:shadow-lg"
         @click="openAdd"
       >
         <Plus :size="16" />

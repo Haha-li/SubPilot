@@ -445,7 +445,7 @@ onMounted(() => {
           取消
         </button>
         <button
-          class="inline-flex h-10 cursor-pointer items-center gap-1.5 rounded-xl bg-gradient-to-br from-brand-500 to-brand-700 px-5 text-sm font-semibold text-white shadow-md shadow-brand-500/30 transition-all hover:shadow-lg active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60"
+          class="inline-flex h-10 cursor-pointer items-center gap-1.5 rounded-xl bg-brand-500 hover:bg-brand-600 px-5 text-sm font-semibold text-white shadow-md shadow-brand-500/30 transition-all hover:shadow-lg active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60"
           :disabled="loading"
           @click="handleSubmit"
         >
