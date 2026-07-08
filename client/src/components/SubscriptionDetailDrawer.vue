@@ -5,7 +5,7 @@ import type { Subscription } from '../stores/subscription';
 import { solar2lunar } from '../utils/lunar';
 import { getSymbol } from '../utils/currency';
 import {
-  Pencil, Copy, Bell, Pause, Play, Trash2, Star, CalendarDays,
+  Pencil, Bell, Pause, Play, Trash2, Star, CalendarDays,
   Repeat, Tag, DollarSign, Clock, FileText, X,
 } from '@lucide/vue';
 
@@ -13,7 +13,6 @@ const props = defineProps<{ subscription: Subscription }>();
 const emit = defineEmits<{
   close: [];
   edit: [sub: Subscription];
-  copy: [sub: Subscription];
   toggle: [sub: Subscription];
   delete: [sub: Subscription];
   test: [sub: Subscription];
@@ -244,28 +243,22 @@ function handleClose() {
       </div>
 
       <!-- 底部操作 -->
-      <div class="glass-panel border-t border-ink-200/60 px-5 py-3 dark:border-ink-700/40">
-        <div class="flex flex-wrap items-center gap-2">
+      <div class="border-t border-ink-200/60 px-5 py-3 dark:border-ink-700/40">
+        <div class="flex flex-wrap items-center gap-1.5">
           <button
-            class="inline-flex h-9 cursor-pointer items-center gap-1.5 rounded-lg bg-brand-500 px-3 text-sm font-medium text-white transition-colors hover:bg-brand-600"
+            class="inline-flex h-8 cursor-pointer items-center gap-1 rounded-lg px-2.5 text-xs font-medium text-ink-600 transition-colors hover:bg-brand-50 hover:text-brand-600 dark:text-ink-300 dark:hover:bg-brand-500/15 dark:hover:text-brand-300"
             @click="emit('edit', subscription)"
           >
             <Pencil :size="14" /> 编辑
           </button>
           <button
-            class="inline-flex h-9 cursor-pointer items-center gap-1.5 rounded-lg border border-ink-200 bg-white/70 px-3 text-sm font-medium text-ink-700 transition-colors hover:bg-white dark:border-ink-700/60 dark:bg-ink-800/40 dark:text-ink-200 dark:hover:bg-ink-800/70"
-            @click="emit('copy', subscription)"
-          >
-            <Copy :size="14" /> 复制
-          </button>
-          <button
-            class="inline-flex h-9 cursor-pointer items-center gap-1.5 rounded-lg border border-ink-200 bg-white/70 px-3 text-sm font-medium text-ink-700 transition-colors hover:bg-white dark:border-ink-700/60 dark:bg-ink-800/40 dark:text-ink-200 dark:hover:bg-ink-800/70"
+            class="inline-flex h-8 cursor-pointer items-center gap-1 rounded-lg px-2.5 text-xs font-medium text-ink-600 transition-colors hover:bg-sky-50 hover:text-sky-600 dark:text-ink-300 dark:hover:bg-sky-500/15 dark:hover:text-sky-300"
             @click="emit('test', subscription)"
           >
             <Bell :size="14" /> 测试通知
           </button>
           <button
-            class="inline-flex h-9 cursor-pointer items-center gap-1.5 rounded-lg px-3 text-sm font-medium transition-colors"
+            class="inline-flex h-8 cursor-pointer items-center gap-1 rounded-lg px-2.5 text-xs font-medium transition-colors"
             :class="subscription.isActive
               ? 'text-ink-600 hover:bg-ink-100 dark:text-ink-300 dark:hover:bg-ink-800/60'
               : 'text-success hover:bg-success/10'"
@@ -275,7 +268,7 @@ function handleClose() {
             {{ subscription.isActive ? '停用' : '启用' }}
           </button>
           <button
-            class="ml-auto inline-flex h-9 cursor-pointer items-center gap-1.5 rounded-lg px-3 text-sm font-medium text-ink-600 transition-colors hover:bg-danger/10 hover:text-danger dark:text-ink-300"
+            class="ml-auto inline-flex h-8 cursor-pointer items-center gap-1 rounded-lg px-2.5 text-xs font-medium text-ink-600 transition-colors hover:bg-danger/10 hover:text-danger dark:text-ink-300"
             @click="emit('delete', subscription)"
           >
             <Trash2 :size="14" /> 删除

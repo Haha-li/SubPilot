@@ -281,10 +281,6 @@ function onDetailEdit(sub: Subscription) {
   showDetail.value = false;
   openEdit(sub);
 }
-function onDetailCopy(sub: Subscription) {
-  showDetail.value = false;
-  handleCopy(sub);
-}
 function onDetailToggle(sub: Subscription) {
   handleToggle(sub);
 }
@@ -711,7 +707,6 @@ onMounted(() => {
       :subscription="detailSub"
       @close="showDetail = false"
       @edit="onDetailEdit"
-      @copy="onDetailCopy"
       @toggle="onDetailToggle"
       @delete="onDetailDelete"
       @test="onDetailTest"
