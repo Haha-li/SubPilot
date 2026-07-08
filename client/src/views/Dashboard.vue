@@ -156,6 +156,14 @@ function toggleSelection(id: number) {
   else selectedMap[id] = true;
 }
 
+function handleCardClick(sub: Subscription) {
+  if (selectMode.value) {
+    toggleSelection(sub.id);
+    return;
+  }
+  openDetail(sub);
+}
+
 function toggleSelectAll() {
   const allSelected = paginatedSubscriptions.value.every((s) => selectedMap[s.id]);
   clearSelection();
@@ -546,16 +554,23 @@ onMounted(() => {
           v-for="sub in paginatedSubscriptions"
           :key="sub.id"
           class="bento-card group relative flex cursor-pointer flex-col p-5"
-          :class="!sub.isActive ? 'opacity-60' : ''"
-          @click="openDetail(sub)"
+          :class="[
+            !sub.isActive ? 'opacity-60' : '',
+            selectMode ? 'select-none' : '',
+            selectedMap[sub.id] ? 'border-brand-300 bg-brand-50/60 ring-2 ring-brand-500/70 dark:border-brand-500/50 dark:bg-brand-500/10 dark:ring-brand-400/60' : '',
+          ]"
+          @click="handleCardClick(sub)"
         >
           <!-- Selection checkbox -->
           <button
             v-if="selectMode"
             type="button"
             :aria-label="selectedMap[sub.id] ? '取消选择' : '选择'"
-            class="absolute left-3 top-3 flex h-6 w-6 cursor-pointer items-center justify-center rounded-md border border-ink-300 bg-white/80 transition-colors dark:border-ink-600 dark:bg-ink-800/80"
-            :class="selectedMap[sub.id] ? 'border-brand-500 bg-brand-500 text-white dark:border-brand-400 dark:bg-brand-500' : ''"
+            :aria-pressed="!!selectedMap[sub.id]"
+            class="absolute left-3 top-3 z-10 flex h-7 w-7 cursor-pointer items-center justify-center rounded-md border transition-colors"
+            :class="selectedMap[sub.id]
+              ? 'border-brand-500 bg-brand-500 text-white shadow-sm shadow-brand-500/30 dark:border-brand-400 dark:bg-brand-500'
+              : 'border-ink-300 bg-white/90 text-transparent hover:border-brand-300 hover:bg-brand-50 dark:border-ink-600 dark:bg-ink-800/90'"
             @click.stop="toggleSelection(sub.id)"
           >
             <CheckCheck v-if="selectedMap[sub.id]" :size="14" />
