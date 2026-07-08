@@ -1,5 +1,5 @@
 import { db, schema } from '../db';
-import { eq } from 'drizzle-orm';
+import { eq, and, gte } from 'drizzle-orm';
 import { sendNotification } from './notification';
 
 let scheduledTask: any = null;
@@ -56,15 +56,33 @@ export async function checkAndNotify() {
       const diffDays = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
       const diffHours = diffMs / (1000 * 60 * 60);
 
-      const reminderValue = sub.reminderValue ?? 7;
-      const reminderUnit = sub.reminderUnit || 'day';
+      // 当日去重：本地今天已成功发送过则跳过，避免 cron 多次跑重复推送
+      const todayStart = new Date();
+      todayStart.setHours(0, 0, 0, 0);
+      const todayLogs = await db.select().from(schema.notifyLogs).where(and(
+        eq(schema.notifyLogs.subscriptionId, sub.id),
+        eq(schema.notifyLogs.status, 'success'),
+        gte(schema.notifyLogs.createdAt, todayStart.toISOString()),
+      ));
+      if (todayLogs.length > 0) continue;
+
+      // 多提醒规则：到期前第 N 天精确匹配；为空则回退旧的单提醒逻辑（兼容老数据）
+      let rules: number[] = [];
+      try {
+        if (sub.reminderRules) rules = JSON.parse(sub.reminderRules);
+      } catch {}
 
       let shouldNotify = false;
-
-      if (reminderUnit === 'hour') {
-        shouldNotify = diffHours >= 0 && diffHours <= reminderValue;
+      if (rules.length > 0) {
+        shouldNotify = rules.includes(diffDays);
       } else {
-        shouldNotify = diffDays >= 0 && diffDays <= reminderValue;
+        const reminderValue = sub.reminderValue ?? 7;
+        const reminderUnit = sub.reminderUnit || 'day';
+        if (reminderUnit === 'hour') {
+          shouldNotify = diffHours >= 0 && diffHours <= reminderValue;
+        } else {
+          shouldNotify = diffDays >= 0 && diffDays <= reminderValue;
+        }
       }
 
       if (shouldNotify) {

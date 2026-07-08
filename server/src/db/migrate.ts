@@ -127,6 +127,11 @@ try {
 } catch (e: any) {
   if (!e.message.includes('duplicate column name')) throw e;
 }
+try {
+  sqlite.exec('ALTER TABLE subscriptions ADD COLUMN reminder_rules TEXT');
+} catch (e: any) {
+  if (!e.message.includes('duplicate column name')) throw e;
+}
 
 console.log('Database migration completed successfully');
 sqlite.close();
