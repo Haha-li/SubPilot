@@ -11,6 +11,7 @@ import {
 } from '@lucide/vue';
 import SubscriptionModal from '../components/SubscriptionModal.vue';
 import ImportExportDrawer from '../components/ImportExportDrawer.vue';
+import SubscriptionDetailDrawer from '../components/SubscriptionDetailDrawer.vue';
 
 const subStore = useSubscriptionStore();
 const isMobile = useMediaQuery('(max-width: 768px)');
@@ -31,6 +32,8 @@ const showImportExport = ref(false);
 const showModal = ref(false);
 const editingSub = ref<Subscription | null>(null);
 const copyMode = ref(false);
+const showDetail = ref(false);
+const detailSub = ref<Subscription | null>(null);
 const currentPage = ref(1);
 const pageSize = ref(12);
 
@@ -266,6 +269,31 @@ function openEdit(sub: Subscription) {
   showModal.value = true;
 }
 
+function openDetail(sub: Subscription) {
+  // 批量选择模式下点卡片不开详情，避免误触
+  if (selectMode.value) return;
+  detailSub.value = sub;
+  showDetail.value = true;
+}
+function onDetailEdit(sub: Subscription) {
+  showDetail.value = false;
+  openEdit(sub);
+}
+function onDetailCopy(sub: Subscription) {
+  showDetail.value = false;
+  handleCopy(sub);
+}
+function onDetailToggle(sub: Subscription) {
+  handleToggle(sub);
+}
+function onDetailDelete(sub: Subscription) {
+  showDetail.value = false;
+  handleDelete(sub);
+}
+function onDetailTest(sub: Subscription) {
+  handleTestNotify(sub);
+}
+
 function handleCopy(sub: Subscription) {
   editingSub.value = { ...sub };
   copyMode.value = true;
@@ -440,14 +468,16 @@ onMounted(() => {
         <article
           v-for="sub in paginatedSubscriptions"
           :key="sub.id"
-          class="bento-card group relative flex flex-col p-5"
+          class="bento-card group relative flex cursor-pointer flex-col p-5"
           :class="!sub.isActive ? 'opacity-60' : ''"
+          @click="openDetail(sub)"
         >
           <!-- Selection checkbox -->
           <label
             v-if="selectMode"
             class="absolute left-3 top-3 flex h-6 w-6 cursor-pointer items-center justify-center rounded-md border border-ink-300 bg-white/80 transition-colors dark:border-ink-600 dark:bg-ink-800/80"
             :class="selectedMap[sub.id] ? 'border-brand-500 bg-brand-500 text-white dark:border-brand-400 dark:bg-brand-500' : ''"
+            @click.stop
           >
             <input type="checkbox" class="sr-only" :checked="!!selectedMap[sub.id]" @change="toggleSelection(sub.id)" />
             <CheckCheck v-if="selectedMap[sub.id]" :size="14" />
@@ -458,7 +488,7 @@ onMounted(() => {
             class="absolute right-4 top-4 cursor-pointer text-ink-300 transition-colors hover:text-warning dark:text-ink-600"
             :class="sub.isPinned ? 'text-warning dark:text-warning' : ''"
             :aria-label="sub.isPinned ? '取消置顶' : '置顶'"
-            @click="handlePin(sub)"
+            @click.stop="handlePin(sub)"
           >
             <Star :size="18" :fill="sub.isPinned ? 'currentColor' : 'none'" :stroke-width="sub.isPinned ? 1.5 : 2" />
           </button>
@@ -568,7 +598,7 @@ onMounted(() => {
           </p>
 
           <!-- Actions -->
-          <div class="mt-4 flex flex-wrap items-center gap-1.5 border-t border-ink-100 pt-3 dark:border-ink-800/50">
+          <div class="mt-4 flex flex-wrap items-center gap-1.5 border-t border-ink-100 pt-3 dark:border-ink-800/50" @click.stop>
             <button
               class="inline-flex h-8 cursor-pointer items-center gap-1 rounded-lg px-2.5 text-xs font-medium text-ink-600 transition-colors hover:bg-brand-50 hover:text-brand-600 dark:text-ink-300 dark:hover:bg-brand-500/15 dark:hover:text-brand-300"
               @click="openEdit(sub)"
@@ -672,6 +702,16 @@ onMounted(() => {
     <ImportExportDrawer
       v-if="showImportExport"
       @close="showImportExport = false"
+    />
+    <SubscriptionDetailDrawer
+      v-if="showDetail && detailSub"
+      :subscription="detailSub"
+      @close="showDetail = false"
+      @edit="onDetailEdit"
+      @copy="onDetailCopy"
+      @toggle="onDetailToggle"
+      @delete="onDetailDelete"
+      @test="onDetailTest"
     />
   </div>
 </template>
