@@ -43,7 +43,6 @@ export async function checkAndNotify() {
 
         const newDateStr = newExpiry.toISOString().split('T')[0];
         await db.update(schema.subscriptions).set({
-          startDate: oldExpiry.toISOString().split('T')[0],
           expiryDate: newDateStr,
           updatedAt: now.toISOString(),
         }).where(eq(schema.subscriptions.id, sub.id));
