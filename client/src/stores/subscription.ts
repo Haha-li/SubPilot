@@ -21,7 +21,6 @@ export interface Subscription {
   priceUnit: string;
   currency: string;
   isPinned: number;
-  reminderRules: string | null;
   trialValue: number | null;
   trialUnit: string | null;
   createdAt: string;

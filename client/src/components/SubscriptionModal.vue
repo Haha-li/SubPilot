@@ -44,8 +44,6 @@ const form = ref({
   periodUnit: 'month',
   reminderValue: 7,
   reminderUnit: 'day',
-  reminderRules: [] as number[],
-  useMultiReminder: false,
   isActive: true,
   autoRenew: true,
   useLunar: false,
@@ -131,7 +129,7 @@ async function handleSubmit() {
 
   loading.value = true;
   try {
-    const { showLunar, category, hasTrial, useMultiReminder, ...rest } = form.value;
+    const { showLunar, category, hasTrial, ...rest } = form.value;
     const payload = {
       ...rest,
       category: category.join(', '),
@@ -140,7 +138,6 @@ async function handleSubmit() {
       useLunar: Number(rest.useLunar),
       trialValue: hasTrial ? rest.trialValue : null,
       trialUnit: hasTrial ? rest.trialUnit : null,
-      reminderRules: useMultiReminder ? rest.reminderRules : null,
     };
     if (isEditing.value) {
       await subStore.updateSubscription(props.subscription!.id, payload as any);
@@ -180,14 +177,6 @@ onMounted(() => {
       hasTrial: !!(sub.trialValue && sub.trialUnit),
       trialValue: sub.trialValue || 7,
       trialUnit: sub.trialUnit || 'day',
-      reminderRules: (() => {
-        try {
-          return sub.reminderRules ? JSON.parse(sub.reminderRules) : [];
-        } catch {
-          return [];
-        }
-      })(),
-      useMultiReminder: !!(sub.reminderRules && sub.reminderRules.trim()),
     };
   }
 });
@@ -368,20 +357,11 @@ onMounted(() => {
 
       <!-- Section: 提醒与状态 -->
       <section class="rounded-2xl border border-ink-200 bg-white/40 p-4 dark:border-ink-700/50 dark:bg-ink-800/20">
-        <header class="mb-3 flex items-center justify-between">
-          <h4 class="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-ink-500 dark:text-ink-400">
-            <Bell :size="13" />
-            提醒与状态
-          </h4>
-          <label class="flex cursor-pointer items-center gap-2 text-xs text-ink-600 dark:text-ink-300">
-            <input v-model="form.useMultiReminder" type="checkbox" class="peer sr-only" />
-            <span class="relative h-4 w-7 rounded-full bg-ink-200 transition-colors peer-checked:bg-brand-500 dark:bg-ink-700">
-              <span class="absolute left-0.5 top-0.5 h-3 w-3 rounded-full bg-white shadow transition-transform peer-checked:translate-x-3" />
-            </span>
-            多次提醒
-          </label>
-        </header>
-        <div v-if="!form.useMultiReminder" class="grid grid-cols-1 gap-3 md:grid-cols-2">
+        <h4 class="mb-3 flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-ink-500 dark:text-ink-400">
+          <Bell :size="13" />
+          提醒与状态
+        </h4>
+        <div class="grid grid-cols-1 gap-3 md:grid-cols-2">
           <div>
             <label class="mb-1 block text-xs font-medium text-ink-700 dark:text-ink-200">提前提醒</label>
             <el-input v-model.number="form.reminderValue" type="number" :min="0">
@@ -394,40 +374,6 @@ onMounted(() => {
             <p class="mt-1 text-xs text-ink-400 dark:text-ink-500">0 = 仅到期时提醒</p>
           </div>
           <div class="flex flex-col justify-center gap-3 rounded-xl bg-ink-50/60 px-4 py-3 dark:bg-ink-800/40">
-            <label class="flex cursor-pointer items-center justify-between text-sm text-ink-700 dark:text-ink-200">
-              <span class="font-medium">启用订阅</span>
-              <input v-model="form.isActive" type="checkbox" class="peer sr-only" />
-              <span class="relative h-5 w-9 rounded-full bg-ink-200 transition-colors peer-checked:bg-success dark:bg-ink-700">
-                <span class="absolute left-0.5 top-0.5 h-4 w-4 rounded-full bg-white shadow transition-transform peer-checked:translate-x-4" />
-              </span>
-            </label>
-            <label class="flex cursor-pointer items-center justify-between text-sm text-ink-700 dark:text-ink-200">
-              <span class="font-medium">自动续订</span>
-              <input v-model="form.autoRenew" type="checkbox" class="peer sr-only" />
-              <span class="relative h-5 w-9 rounded-full bg-ink-200 transition-colors peer-checked:bg-brand-500 dark:bg-ink-700">
-                <span class="absolute left-0.5 top-0.5 h-4 w-4 rounded-full bg-white shadow transition-transform peer-checked:translate-x-4" />
-              </span>
-            </label>
-          </div>
-        </div>
-        <div v-else>
-          <label class="mb-1.5 block text-xs font-medium text-ink-700 dark:text-ink-200">提前几天提醒（可选多个）</label>
-          <el-select
-            v-model="form.reminderRules"
-            multiple
-            filterable
-            allow-create
-            default-first-option
-            placeholder="如：7,3,1,0（到期当天）"
-            class="w-full"
-          >
-            <el-option label="提前 7 天" :value="7" />
-            <el-option label="提前 3 天" :value="3" />
-            <el-option label="提前 1 天" :value="1" />
-            <el-option label="到期当天" :value="0" />
-          </el-select>
-          <p class="mt-1 text-xs text-ink-400 dark:text-ink-500">scheduler 每天精确匹配天数，当日已推送则去重</p>
-          <div class="mt-3 grid grid-cols-2 gap-3 rounded-xl bg-ink-50/60 px-4 py-3 dark:bg-ink-800/40">
             <label class="flex cursor-pointer items-center justify-between text-sm text-ink-700 dark:text-ink-200">
               <span class="font-medium">启用订阅</span>
               <input v-model="form.isActive" type="checkbox" class="peer sr-only" />
