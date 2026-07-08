@@ -47,3 +47,14 @@ export const notifyLogs = sqliteTable('notify_logs', {
   content: text('content'),
   createdAt: text('created_at').default(new Date().toISOString()),
 });
+
+export const renewalLogs = sqliteTable('renewal_logs', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  subscriptionId: integer('subscription_id').notNull(),
+  renewedAt: text('renewed_at').notNull(),
+  price: real('price').default(0),
+  currency: text('currency').default('CNY'),
+  periodValue: integer('period_value').default(1),
+  periodUnit: text('period_unit').default('month'),
+  notes: text('notes').default(''),
+});
