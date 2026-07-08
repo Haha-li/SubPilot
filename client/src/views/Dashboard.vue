@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, watch, onMounted } from 'vue';
+import { ref, reactive, computed, watch, onMounted } from 'vue';
 import { useMediaQuery } from '@vueuse/core';
 import { useSubscriptionStore, type Subscription } from '../stores/subscription';
 import { solar2lunar } from '../utils/lunar';
@@ -38,8 +38,12 @@ const currentPage = ref(1);
 const pageSize = ref(12);
 
 const selectMode = ref(false);
-const selectedMap = ref<Record<number, boolean>>({});
-const selectedCount = computed(() => Object.keys(selectedMap.value).length);
+// 用 reactive 而非 ref：template 的 selectedMap[sub.id] 直接访问 reactive 属性，避免 ref 索引解包的响应式边界
+const selectedMap = reactive<Record<number, boolean>>({});
+const selectedCount = computed(() => Object.keys(selectedMap).length);
+function clearSelection() {
+  for (const k of Object.keys(selectedMap)) delete selectedMap[Number(k)];
+}
 
 watch([sortBy, sortOrder], () => {
   localStorage.setItem('sortBy', sortBy.value);
@@ -116,32 +120,30 @@ const paginatedSubscriptions = computed(() => {
 
 watch([searchKeyword, categoryFilter, statusFilter], () => {
   currentPage.value = 1;
-  selectedMap.value = {};
+  clearSelection();
 });
 
 function toggleSelectMode() {
   selectMode.value = !selectMode.value;
-  selectedMap.value = {};
+  clearSelection();
 }
 
 function toggleSelection(id: number) {
-  const next = { ...selectedMap.value };
-  if (next[id]) delete next[id]; else next[id] = true;
-  selectedMap.value = next;
+  if (selectedMap[id]) delete selectedMap[id];
+  else selectedMap[id] = true;
 }
 
 function toggleSelectAll() {
-  const allSelected = paginatedSubscriptions.value.every((s) => selectedMap.value[s.id]);
-  const next: Record<number, boolean> = {};
-  if (!allSelected) paginatedSubscriptions.value.forEach((s) => { next[s.id] = true; });
-  selectedMap.value = next;
+  const allSelected = paginatedSubscriptions.value.every((s) => selectedMap[s.id]);
+  clearSelection();
+  if (!allSelected) paginatedSubscriptions.value.forEach((s) => { selectedMap[s.id] = true; });
 }
 
 async function handleBatchToggle(enable: boolean) {
-  const ids = Object.keys(selectedMap.value).map(Number);
+  const ids = Object.keys(selectedMap).map(Number);
   for (const id of ids) await subStore.toggleSubscription(id, enable);
   ElMessage.success(enable ? '已批量启用' : '已批量停用');
-  selectedMap.value = {};
+  clearSelection();
   selectMode.value = false;
 }
 
@@ -151,10 +153,10 @@ async function handleBatchDelete() {
     await ElMessageBox.confirm(`确定删除 ${count} 项订阅？`, '批量删除', {
       confirmButtonText: '删除', cancelButtonText: '取消', type: 'warning',
     });
-    const ids = Object.keys(selectedMap.value).map(Number);
+    const ids = Object.keys(selectedMap).map(Number);
     for (const id of ids) await subStore.deleteSubscription(id);
     ElMessage.success(`已删除 ${count} 项`);
-    selectedMap.value = {};
+    clearSelection();
     selectMode.value = false;
   } catch {}
 }
@@ -473,15 +475,16 @@ onMounted(() => {
           @click="openDetail(sub)"
         >
           <!-- Selection checkbox -->
-          <label
+          <button
             v-if="selectMode"
+            type="button"
+            :aria-label="selectedMap[sub.id] ? '取消选择' : '选择'"
             class="absolute left-3 top-3 flex h-6 w-6 cursor-pointer items-center justify-center rounded-md border border-ink-300 bg-white/80 transition-colors dark:border-ink-600 dark:bg-ink-800/80"
             :class="selectedMap[sub.id] ? 'border-brand-500 bg-brand-500 text-white dark:border-brand-400 dark:bg-brand-500' : ''"
-            @click.stop
+            @click.stop="toggleSelection(sub.id)"
           >
-            <input type="checkbox" class="sr-only" :checked="!!selectedMap[sub.id]" @change="toggleSelection(sub.id)" />
             <CheckCheck v-if="selectedMap[sub.id]" :size="14" />
-          </label>
+          </button>
 
           <!-- Pin -->
           <button
