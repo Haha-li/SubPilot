@@ -6,7 +6,7 @@ import { solar2lunar } from '../utils/lunar';
 import { getSymbol } from '../utils/currency';
 import { ElMessageBox, ElMessage } from 'element-plus';
 import {
-  Plus, Search, Trash2, Copy, Pencil, Bell, Pause, Play, Download, Star,
+  Plus, Search, Trash2, Copy, Pencil, Bell, Pause, Play, Download, Star, LayoutGrid,
   Loader2, ArrowDownUp, ArrowDown, ArrowUp, CheckCheck, X,
 } from '@lucide/vue';
 import SubscriptionModal from '../components/SubscriptionModal.vue';
@@ -19,6 +19,12 @@ const searchKeyword = ref('');
 const categoryFilter = ref('');
 const showLunar = ref(localStorage.getItem('showLunar') === 'true');
 const statusFilter = ref('');
+// 快捷 tab 与状态下拉共用 statusFilter：tab 是常用入口，下拉是完整列表，两者永远同步
+const quickFilters = [
+  { key: 'all',      value: '',         label: '全部', icon: LayoutGrid },
+  { key: 'inactive', value: 'inactive', label: '停用', icon: Pause },
+  { key: 'pinned',   value: 'pinned',   label: '收藏', icon: Star },
+];
 const sortBy = ref(localStorage.getItem('sortBy') || 'expiry');
 const sortOrder = ref(localStorage.getItem('sortOrder') || 'asc');
 const showImportExport = ref(false);
@@ -72,6 +78,7 @@ const filteredSubscriptions = computed(() => {
     list = list.filter((sub) => {
       if (statusFilter.value === 'active') return sub.isActive;
       if (statusFilter.value === 'inactive') return !sub.isActive;
+      if (statusFilter.value === 'pinned') return sub.isPinned;
       if (statusFilter.value === 'expired') {
         return sub.isActive && new Date(sub.expiryDate).getTime() < Date.now();
       }
@@ -385,6 +392,22 @@ onMounted(() => {
       </div>
     </div>
 
+    <!-- Quick filter tabs -->
+    <div class="mb-4 flex flex-wrap items-center gap-2">
+      <button
+        v-for="opt in quickFilters"
+        :key="opt.key"
+        class="inline-flex cursor-pointer items-center gap-1.5 rounded-xl px-4 py-2 text-sm font-medium transition-colors"
+        :class="statusFilter === opt.value
+          ? 'bg-brand-50 text-brand-600 ring-1 ring-brand-200 dark:bg-brand-500/15 dark:text-brand-300 dark:ring-brand-500/30'
+          : 'border border-ink-200 bg-white/70 text-ink-700 backdrop-blur hover:bg-white hover:text-ink-900 dark:border-ink-700/60 dark:bg-ink-800/40 dark:text-ink-200 dark:hover:bg-ink-800/70'"
+        @click="statusFilter = opt.value"
+      >
+        <component :is="opt.icon" :size="16" />
+        {{ opt.label }}
+      </button>
+    </div>
+
     <!-- Loading -->
     <div v-if="subStore.loading" class="flex flex-col items-center justify-center py-24 text-ink-500 dark:text-ink-400">
       <Loader2 :size="32" class="animate-spin text-brand-500" />
@@ -626,7 +649,7 @@ onMounted(() => {
       </transition>
 
       <el-pagination
-        v-if="filteredSubscriptions.length > pageSize"
+        v-if="filteredSubscriptions.length > 0"
         v-model:current-page="currentPage"
         v-model:page-size="pageSize"
         :total="filteredSubscriptions.length"
