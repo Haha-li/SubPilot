@@ -19,6 +19,7 @@ const defaultTemplate = `📋 订阅提醒
 剩余: {{daysLeft}} 天
 费用: {{price}}
 周期: {{period}}
+续费: {{autoRenew}}
 提醒: {{reminder}}
 农历: {{lunar}}
 备注: {{notes}}
@@ -42,6 +43,7 @@ function renderPreview(template: string) {
     .replace(/\{\{notes\}\}/g, '这是一条示例备注')
     .replace(/\{\{price\}\}/g, '¥25.00/月')
     .replace(/\{\{period\}\}/g, '1月')
+    .replace(/\{\{autoRenew\}\}/g, '自动续费')
     .replace(/\{\{reminder\}\}/g, '7天前')
     .replace(/\{\{time\}\}/g, new Date().toLocaleString('zh-CN', { timeZone: config.value.timezone || 'Asia/Shanghai' }))
     .replace(/\{\{timezone\}\}/g, config.value.timezone || 'Asia/Shanghai');
@@ -238,18 +240,18 @@ onMounted(loadConfig);
             <p class="mb-1.5 text-xs font-medium uppercase tracking-wide text-ink-400">编辑</p>
             <textarea
               v-model="config.notify_template"
-              rows="11"
+              rows="12"
               class="block w-full resize-none rounded-xl border border-ink-200 bg-white/60 p-3 font-mono text-sm leading-relaxed text-ink-900 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/30 dark:border-ink-700/60 dark:bg-ink-900/40 dark:text-ink-50"
             />
           </div>
           <div>
             <p class="mb-1.5 text-xs font-medium uppercase tracking-wide text-ink-400">预览</p>
-            <pre class="h-[268px] overflow-auto rounded-xl border border-ink-200 bg-ink-50 p-3 text-sm leading-relaxed text-ink-800 dark:border-ink-700/60 dark:bg-ink-900/60 dark:text-ink-200">{{ previewText }}</pre>
+            <pre class="h-[292px] overflow-auto rounded-xl border border-ink-200 bg-ink-50 p-3 text-sm leading-relaxed text-ink-800 dark:border-ink-700/60 dark:bg-ink-900/60 dark:text-ink-200">{{ previewText }}</pre>
           </div>
         </div>
 
         <div class="mt-4 rounded-xl bg-ink-50/70 p-3 text-xs text-ink-500 dark:bg-ink-800/40 dark:text-ink-400">
-          <span v-pre>变量：<code class="rounded bg-white px-1 py-0.5 font-mono dark:bg-ink-900/60">{{name}}</code> 名称 · <code class="rounded bg-white px-1 py-0.5 font-mono dark:bg-ink-900/60">{{type}}</code> 类型 · <code class="rounded bg-white px-1 py-0.5 font-mono dark:bg-ink-900/60">{{expiryDate}}</code> 到期日 · <code class="rounded bg-white px-1 py-0.5 font-mono dark:bg-ink-900/60">{{status}}</code> 状态 · <code class="rounded bg-white px-1 py-0.5 font-mono dark:bg-ink-900/60">{{daysLeft}}</code> 剩余天数 · <code class="rounded bg-white px-1 py-0.5 font-mono dark:bg-ink-900/60">{{price}}</code> 费用 · <code class="rounded bg-white px-1 py-0.5 font-mono dark:bg-ink-900/60">{{period}}</code> 周期 · <code class="rounded bg-white px-1 py-0.5 font-mono dark:bg-ink-900/60">{{reminder}}</code> 提前提醒 · <code class="rounded bg-white px-1 py-0.5 font-mono dark:bg-ink-900/60">{{lunar}}</code> 农历 · <code class="rounded bg-white px-1 py-0.5 font-mono dark:bg-ink-900/60">{{notes}}</code> 备注 · <code class="rounded bg-white px-1 py-0.5 font-mono dark:bg-ink-900/60">{{time}}</code> 当前时间 · <code class="rounded bg-white px-1 py-0.5 font-mono dark:bg-ink-900/60">{{timezone}}</code> 时区</span>
+          <span v-pre>变量：<code class="rounded bg-white px-1 py-0.5 font-mono dark:bg-ink-900/60">{{name}}</code> 名称 · <code class="rounded bg-white px-1 py-0.5 font-mono dark:bg-ink-900/60">{{type}}</code> 类型 · <code class="rounded bg-white px-1 py-0.5 font-mono dark:bg-ink-900/60">{{expiryDate}}</code> 到期日 · <code class="rounded bg-white px-1 py-0.5 font-mono dark:bg-ink-900/60">{{status}}</code> 状态 · <code class="rounded bg-white px-1 py-0.5 font-mono dark:bg-ink-900/60">{{daysLeft}}</code> 剩余天数 · <code class="rounded bg-white px-1 py-0.5 font-mono dark:bg-ink-900/60">{{price}}</code> 费用 · <code class="rounded bg-white px-1 py-0.5 font-mono dark:bg-ink-900/60">{{period}}</code> 周期 · <code class="rounded bg-white px-1 py-0.5 font-mono dark:bg-ink-900/60">{{autoRenew}}</code> 续费方式 · <code class="rounded bg-white px-1 py-0.5 font-mono dark:bg-ink-900/60">{{reminder}}</code> 提前提醒 · <code class="rounded bg-white px-1 py-0.5 font-mono dark:bg-ink-900/60">{{lunar}}</code> 农历 · <code class="rounded bg-white px-1 py-0.5 font-mono dark:bg-ink-900/60">{{notes}}</code> 备注 · <code class="rounded bg-white px-1 py-0.5 font-mono dark:bg-ink-900/60">{{time}}</code> 当前时间 · <code class="rounded bg-white px-1 py-0.5 font-mono dark:bg-ink-900/60">{{timezone}}</code> 时区</span>
         </div>
       </section>
 

@@ -54,7 +54,7 @@ function formatNotifyMessage(subscription: Subscription, config: Record<string, 
                  diffDays === 0 ? '今天到期' :
                  `还有 ${diffDays} 天到期`;
 
-  const template = config.notify_template || '📋 订阅提醒\n━━━━━━━━━━━━━━\n名称: {{name}}\n类型: {{type}}\n到期: {{expiryDate}}\n状态: {{status}}\n剩余: {{daysLeft}} 天\n农历: {{lunar}}\n备注: {{notes}}';
+  const template = config.notify_template || '📋 订阅提醒\n━━━━━━━━━━━━━━\n名称: {{name}}\n类型: {{type}}\n到期: {{expiryDate}}\n状态: {{status}}\n剩余: {{daysLeft}} 天\n费用: {{price}}\n周期: {{period}}\n续费: {{autoRenew}}\n提醒: {{reminder}}\n农历: {{lunar}}\n备注: {{notes}}\n时间: {{time}}\n时区: {{timezone}}';
 
   const unitMap: Record<string, string> = { day: '/天', month: '/月', year: '/年' };
   const periodUnitMap: Record<string, string> = { day: '天', month: '月', year: '年' };
@@ -66,6 +66,7 @@ function formatNotifyMessage(subscription: Subscription, config: Record<string, 
   const reminderValue = subscription.reminderValue ?? 7;
   const reminderUnit = subscription.reminderUnit || 'day';
   const reminder = reminderUnit === 'hour' ? `${reminderValue}小时前` : `${reminderValue}天前`;
+  const autoRenew = subscription.autoRenew ? '自动续费' : '不续费';
 
   return template
     .replace(/\{\{name\}\}/g, subscription.name)
@@ -77,6 +78,7 @@ function formatNotifyMessage(subscription: Subscription, config: Record<string, 
     .replace(/\{\{notes\}\}/g, subscription.notes || '')
     .replace(/\{\{price\}\}/g, price)
     .replace(/\{\{period\}\}/g, period)
+    .replace(/\{\{autoRenew\}\}/g, autoRenew)
     .replace(/\{\{reminder\}\}/g, reminder)
     .replace(/\{\{time\}\}/g, new Date().toLocaleString('zh-CN', { timeZone: config.timezone || 'Asia/Shanghai' }))
     .replace(/\{\{timezone\}\}/g, config.timezone || 'Asia/Shanghai');
