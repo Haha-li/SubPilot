@@ -83,6 +83,25 @@ export async function updateSubscriptionHandler(id: number, body: any) {
     }
 
     const now = new Date().toISOString();
+
+    // 续费历史记录：价格变动 或 expiryDate 延后视为续费，记一笔
+    const oldPrice = existing.price || 0;
+    const newPrice = price !== undefined ? price : oldPrice;
+    const priceChanged = Math.abs(newPrice - oldPrice) > 0.01;
+    const expiryChanged = expiryDate && expiryDate !== existing.expiryDate && new Date(expiryDate).getTime() > new Date(existing.expiryDate).getTime();
+
+    if (priceChanged || expiryChanged) {
+      await db.insert(schema.renewalLogs).values({
+        subscriptionId: id,
+        renewedAt: now,
+        price: newPrice,
+        currency: currency ?? existing.currency,
+        periodValue: periodValue ?? existing.periodValue,
+        periodUnit: periodUnit ?? existing.periodUnit,
+        notes: notes ?? existing.notes,
+      });
+    }
+
     await db.update(schema.subscriptions).set({
       name: name ?? existing.name,
       customType: customType ?? existing.customType,
