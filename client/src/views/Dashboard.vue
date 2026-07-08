@@ -3,7 +3,7 @@ import { ref, reactive, computed, watch, onMounted } from 'vue';
 import { useMediaQuery } from '@vueuse/core';
 import { useSubscriptionStore, type Subscription } from '../stores/subscription';
 import { solar2lunar } from '../utils/lunar';
-import { getSymbol } from '../utils/currency';
+import { convert, fetchRates, getSymbol } from '../utils/currency';
 import { ElMessageBox, ElMessage } from 'element-plus';
 import {
   Plus, Search, Trash2, Copy, Pencil, Bell, Pause, Play, Download, Star, LayoutGrid,
@@ -36,6 +36,7 @@ const showDetail = ref(false);
 const detailSub = ref<Subscription | null>(null);
 const currentPage = ref(1);
 const pageSize = ref(12);
+const ratesRefreshKey = ref(0);
 
 const selectMode = ref(false);
 // 用 reactive 而非 ref：template 的 selectedMap[sub.id] 直接访问 reactive 属性，避免 ref 索引解包的响应式边界
@@ -48,16 +49,16 @@ function clearSelection() {
 // 顶部概览 KPI
 const totalCount = computed(() => subStore.subscriptions.length);
 const monthlyCost = computed(() => {
-  // 月费估算：按 priceUnit 折算到月，多币种按数值汇总（概数，精确统计见费用统计页）
+  ratesRefreshKey.value;
   let total = 0;
   for (const s of subStore.subscriptions) {
     if (!s.isActive || !s.price) continue;
-    if (s.priceUnit === 'day') total += s.price * 30;
-    else if (s.priceUnit === 'year') total += s.price / 12;
-    else total += s.price;
+    const cost = getMonthlyCostInCurrency(s, 'CNY');
+    if (Number.isFinite(cost)) total += cost;
   }
   return total;
 });
+const monthlyCostLabel = computed(() => formatCnyMoney(monthlyCost.value));
 const expiringSoonCount = computed(() => subStore.subscriptions.filter((s) => {
   if (!s.isActive) return false;
   const diff = Math.ceil((new Date(s.expiryDate).getTime() - Date.now()) / 86400000);
@@ -260,6 +261,19 @@ function getPriceText(sub: Subscription): string {
   return `${sym}${sub.price.toFixed(2)}${unitMap[sub.priceUnit] || '/月'}`;
 }
 
+function getMonthlyCostInCurrency(sub: Subscription, target: string): number {
+  const price = sub.price || 0;
+  if (price <= 0) return 0;
+  const unit = sub.priceUnit || 'month';
+  const monthly = unit === 'day' ? price * 30 : unit === 'year' ? price / 12 : price;
+  return convert(monthly, sub.currency || 'CNY', target);
+}
+
+function formatCnyMoney(value: number): string {
+  if (!Number.isFinite(value)) return '汇率缺失';
+  return `${getSymbol('CNY')}${Math.round(value).toLocaleString('zh-CN')}`;
+}
+
 function brandInitial(name: string) {
   const ch = (name || '?').trim().charAt(0).toUpperCase();
   return ch || '?';
@@ -350,6 +364,9 @@ function toggleLunar() {
 }
 
 onMounted(() => {
+  fetchRates().finally(() => {
+    ratesRefreshKey.value += 1;
+  });
   subStore.fetchSubscriptions();
 });
 </script>
@@ -457,8 +474,8 @@ onMounted(() => {
           <DollarSign :size="18" />
         </div>
         <div class="min-w-0">
-          <p class="font-mono-nums text-2xl font-bold text-ink-900 dark:text-ink-50">¥{{ monthlyCost.toFixed(0) }}</p>
-          <p class="text-xs text-ink-500 dark:text-ink-400">月费估算</p>
+          <p class="font-mono-nums text-2xl font-bold text-ink-900 dark:text-ink-50">{{ monthlyCostLabel }}</p>
+          <p class="text-xs text-ink-500 dark:text-ink-400">折合月费（CNY）</p>
         </div>
       </div>
       <div class="bento-card flex items-center gap-3 p-4">
