@@ -59,11 +59,19 @@ const monthlyCost = computed(() => {
   return total;
 });
 const monthlyCostLabel = computed(() => formatCnyMoney(monthlyCost.value));
-const expiringSoonCount = computed(() => subStore.subscriptions.filter((s) => {
-  if (!s.isActive) return false;
-  const diff = Math.ceil((new Date(s.expiryDate).getTime() - Date.now()) / 86400000);
-  return diff >= 0 && diff <= 7;
-}).length);
+const expiringSoonSubscriptions = computed(() =>
+  subStore.subscriptions
+    .filter((s) => {
+      if (!s.isActive) return false;
+      const diff = Math.ceil((new Date(s.expiryDate).getTime() - Date.now()) / 86400000);
+      return diff >= 0 && diff <= 7;
+    })
+    .sort((a, b) => {
+      const dateDiff = new Date(a.expiryDate).getTime() - new Date(b.expiryDate).getTime();
+      return dateDiff || a.name.localeCompare(b.name, 'zh-CN');
+    }),
+);
+const expiringSoonCount = computed(() => expiringSoonSubscriptions.value.length);
 const expiredCount = computed(() => subStore.subscriptions.filter((s) =>
   s.isActive && new Date(s.expiryDate).getTime() < Date.now()
 ).length);
@@ -491,7 +499,32 @@ onMounted(() => {
           <Bell :size="18" />
         </div>
         <div class="min-w-0">
-          <p class="font-mono-nums text-2xl font-bold text-ink-900 dark:text-ink-50">{{ expiringSoonCount }}</p>
+          <el-popover
+            v-if="expiringSoonCount > 0"
+            trigger="hover"
+            placement="top"
+            :width="280"
+          >
+            <template #reference>
+              <p class="font-mono-nums cursor-help text-2xl font-bold text-ink-900 underline decoration-warning/40 underline-offset-4 dark:text-ink-50">
+                {{ expiringSoonCount }}
+              </p>
+            </template>
+            <div>
+              <p class="mb-2 text-xs font-semibold text-ink-500 dark:text-ink-400">7 天内到期</p>
+              <ul class="max-h-64 space-y-1.5 overflow-y-auto">
+                <li
+                  v-for="sub in expiringSoonSubscriptions"
+                  :key="sub.id"
+                  class="flex items-center justify-between gap-3 rounded-lg bg-ink-50 px-2.5 py-2 dark:bg-ink-800/50"
+                >
+                  <span class="truncate text-sm font-medium text-ink-800 dark:text-ink-100" :title="sub.name">{{ sub.name }}</span>
+                  <span class="font-mono-nums flex-shrink-0 text-xs text-ink-500 dark:text-ink-400">{{ sub.expiryDate }}</span>
+                </li>
+              </ul>
+            </div>
+          </el-popover>
+          <p v-else class="font-mono-nums text-2xl font-bold text-ink-900 dark:text-ink-50">{{ expiringSoonCount }}</p>
           <p class="text-xs text-ink-500 dark:text-ink-400">7 天内到期</p>
         </div>
       </div>
