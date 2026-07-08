@@ -18,7 +18,7 @@ const status = ref('');
 const startDate = ref('');
 const endDate = ref('');
 const currentPage = ref(1);
-const pageSize = ref(20);
+const pageSize = ref(10);
 
 const detailVisible = ref(false);
 const detailLog = ref<NotifyLog | null>(null);
@@ -55,6 +55,11 @@ async function fetchLogs() {
 }
 
 function handlePageChange() {
+  fetchLogs();
+}
+
+function handlePageSizeChange() {
+  currentPage.value = 1;
   fetchLogs();
 }
 
@@ -282,12 +287,12 @@ onMounted(() => {
           v-model:current-page="currentPage"
           v-model:page-size="pageSize"
           :total="logsStore.total"
-          :page-sizes="[20, 50, 100]"
+          :page-sizes="[10, 20, 50, 100]"
           :layout="isMobile ? 'total, prev, next' : 'total, sizes, prev, pager, next'"
           :small="isMobile"
           background
           @current-change="handlePageChange"
-          @size-change="handlePageChange"
+          @size-change="handlePageSizeChange"
         />
       </div>
     </section>

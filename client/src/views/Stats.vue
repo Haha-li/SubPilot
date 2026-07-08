@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue';
+import { computed, onMounted, ref, watch } from 'vue';
+import { useMediaQuery } from '@vueuse/core';
 import { useSubscriptionStore, type Subscription } from '../stores/subscription';
 import { convert, getSymbol, fetchRates } from '../utils/currency';
 import CurrencySelect from '../components/CurrencySelect.vue';
@@ -9,6 +10,9 @@ import {
 
 const subStore = useSubscriptionStore();
 const displayCurrency = ref('CNY');
+const isMobile = useMediaQuery('(max-width: 768px)');
+const subscriptionPage = ref(1);
+const subscriptionPageSize = 10;
 
 function getMonthlyCostInCurrency(sub: Subscription, target: string): number {
   const price = sub.price || 0;
@@ -98,6 +102,11 @@ const sortedSubs = computed(() =>
   }),
 );
 
+const paginatedSubs = computed(() => {
+  const start = (subscriptionPage.value - 1) * subscriptionPageSize;
+  return sortedSubs.value.slice(start, start + subscriptionPageSize);
+});
+
 function formatMoney(val: number): string {
   if (!Number.isFinite(val)) return '汇率缺失';
   return getSymbol(displayCurrency.value) + val.toFixed(2);
@@ -148,6 +157,17 @@ const toneClasses = {
   warning: { bg: 'bg-amber-50 dark:bg-amber-500/10',     text: 'text-amber-600 dark:text-amber-300' },
   danger:  { bg: 'bg-rose-50 dark:bg-rose-500/10',       text: 'text-rose-600 dark:text-rose-300' },
 };
+
+watch(displayCurrency, () => {
+  subscriptionPage.value = 1;
+});
+
+watch(() => sortedSubs.value.length, (total) => {
+  const maxPage = Math.max(1, Math.ceil(total / subscriptionPageSize));
+  if (subscriptionPage.value > maxPage) {
+    subscriptionPage.value = maxPage;
+  }
+});
 
 onMounted(async () => {
   fetchRates();
@@ -303,7 +323,7 @@ onMounted(async () => {
         </span>
       </header>
       <div class="-mx-5 overflow-x-auto">
-        <el-table :data="sortedSubs" stripe style="width: 100%">
+        <el-table :data="paginatedSubs" stripe style="width: 100%">
           <el-table-column label="订阅名称" prop="name" min-width="140">
             <template #default="{ row }">
               <div class="flex items-center gap-2">
@@ -335,6 +355,16 @@ onMounted(async () => {
             </template>
           </el-table-column>
         </el-table>
+      </div>
+      <div v-if="sortedSubs.length > subscriptionPageSize" class="flex justify-end pt-4">
+        <el-pagination
+          v-model:current-page="subscriptionPage"
+          :page-size="subscriptionPageSize"
+          :total="sortedSubs.length"
+          :layout="isMobile ? 'total, prev, next' : 'total, prev, pager, next'"
+          :small="isMobile"
+          background
+        />
       </div>
     </section>
   </div>
