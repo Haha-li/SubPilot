@@ -5,6 +5,7 @@ import { authRoutes } from './routes/auth';
 import { subscriptionRoutes } from './routes/subscription';
 import { configRoutes } from './routes/config';
 import { notifyLogsRoutes } from './routes/notifyLogs';
+import { renewalRoutes } from './routes/renewals';
 import { checkAndNotify } from '../services/scheduler';
 
 interface Env {
@@ -30,6 +31,7 @@ app.route('/api/auth', authRoutes);
 app.route('/api/subscriptions', subscriptionRoutes);
 app.route('/api/config', configRoutes);
 app.route('/api/notify-logs', notifyLogsRoutes);
+app.route('/api/renewals', renewalRoutes);
 
 export default {
   fetch: app.fetch,

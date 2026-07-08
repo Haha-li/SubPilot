@@ -1,12 +1,13 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue';
+import { ref, computed, onMounted } from 'vue';
 import { useMediaQuery } from '@vueuse/core';
 import type { Subscription } from '../stores/subscription';
 import { solar2lunar } from '../utils/lunar';
 import { getSymbol } from '../utils/currency';
+import api from '../utils/api';
 import {
   Pencil, Bell, Pause, Play, Trash2, Star, CalendarDays,
-  Repeat, Tag, DollarSign, Clock, FileText, X,
+  Repeat, Tag, DollarSign, Clock, FileText, X, History,
 } from '@lucide/vue';
 
 const props = defineProps<{ subscription: Subscription }>();
@@ -20,6 +21,24 @@ const emit = defineEmits<{
 
 const isMobile = useMediaQuery('(max-width: 768px)');
 const drawerVisible = ref(true);
+const renewalLogs = ref<any[]>([]);
+const loadingRenewals = ref(false);
+
+async function loadRenewalHistory() {
+  loadingRenewals.value = true;
+  try {
+    const { data } = await api.get(`/renewals/${props.subscription.id}`);
+    renewalLogs.value = data || [];
+  } catch (e) {
+    console.error('加载续费历史失败', e);
+  } finally {
+    loadingRenewals.value = false;
+  }
+}
+
+onMounted(() => {
+  loadRenewalHistory();
+});
 
 // 格式化函数与 Dashboard 同源，详情视图自带一份避免循环依赖
 const unitMap: Record<string, string> = { day: '天', month: '月', year: '年' };
@@ -239,6 +258,30 @@ function handleClose() {
           <p v-if="subscription.updatedAt" class="flex items-center gap-1.5">
             <Clock :size="12" /> 更新于 {{ subscription.updatedAt }}
           </p>
+        </div>
+
+        <!-- 续费历史 -->
+        <div v-if="renewalLogs.length > 0" class="mt-5">
+          <div class="mb-2 flex items-center gap-1.5 text-xs font-medium text-ink-500 dark:text-ink-400">
+            <History :size="13" /> 续费历史
+          </div>
+          <div class="space-y-2">
+            <div
+              v-for="log in renewalLogs"
+              :key="log.id"
+              class="flex items-center justify-between rounded-lg border border-ink-200 bg-white/60 px-3 py-2 text-xs dark:border-ink-700/60 dark:bg-ink-900/40"
+            >
+              <div class="flex items-center gap-2">
+                <span class="font-mono-nums text-ink-600 dark:text-ink-300">{{ log.renewedAt.split('T')[0] }}</span>
+                <span v-if="log.price > 0" class="font-mono-nums font-semibold text-ink-900 dark:text-ink-50">
+                  {{ getSymbol(log.currency) }}{{ log.price.toFixed(2) }}
+                </span>
+              </div>
+              <span class="text-ink-400 dark:text-ink-500">
+                {{ log.periodValue }}{{ ({ day: '天', month: '月', year: '年' } as Record<string, string>)[log.periodUnit] || log.periodUnit }}
+              </span>
+            </div>
+          </div>
         </div>
       </div>
 
