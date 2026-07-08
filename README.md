@@ -161,7 +161,7 @@ npm run dev
 
 ## 通知渠道
 
-支持通过 Telegram、Bark、PushPlus 等渠道推送到期提醒。在设置页面启用对应渠道并填写 Token、Chat ID 或设备 Key 后即可使用。
+支持通过 Telegram、Bark、PushPlus 等渠道推送到期提醒。在设置页面启用对应渠道并填写 Token、Chat ID 或设备 Key 后即可使用。PushPlus 可选填写群组编码，不填时只推送给自己。
 
 ## 多币种
 

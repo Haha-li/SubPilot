@@ -124,7 +124,7 @@ export async function sendNotification(subscription: Subscription, isTest = fals
           result = await sendNotifyX(config.notifyx_api_key, message);
           break;
         case 'pushplus':
-          result = await sendPushPlus(config.pushplus_token, message, subscription.name);
+          result = await sendPushPlus(config.pushplus_token, message, subscription.name, config.pushplus_topic);
           break;
       }
 
@@ -173,7 +173,7 @@ export async function testNotificationChannel(channel: string, formConfig?: Reco
       case 'notifyx':
         return await sendNotifyX(config.notifyx_api_key, testMessage);
       case 'pushplus':
-        return await sendPushPlus(config.pushplus_token, testMessage, 'SubPilot 测试');
+        return await sendPushPlus(config.pushplus_token, testMessage, 'SubPilot 测试', config.pushplus_topic);
       default:
         return false;
     }
@@ -228,7 +228,7 @@ export async function testTemplateNotification(channel: string, formConfig?: Rec
       case 'notifyx':
         return await sendNotifyX(config.notifyx_api_key, message);
       case 'pushplus':
-        return await sendPushPlus(config.pushplus_token, message, mockSub.name);
+        return await sendPushPlus(config.pushplus_token, message, mockSub.name, config.pushplus_topic);
       default:
         return false;
     }

@@ -377,8 +377,16 @@ onMounted(loadConfig);
               <Sparkles :size="13" /> 测试
             </button>
           </div>
-          <label class="mb-1.5 block text-xs font-medium text-ink-600 dark:text-ink-300">Token</label>
-          <el-input v-model="config.pushplus_token" placeholder="从 PushPlus 推送加后台获取" />
+          <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
+            <div>
+              <label class="mb-1.5 block text-xs font-medium text-ink-600 dark:text-ink-300">Token</label>
+              <el-input v-model="config.pushplus_token" placeholder="从 PushPlus 推送加后台获取" />
+            </div>
+            <div>
+              <label class="mb-1.5 block text-xs font-medium text-ink-600 dark:text-ink-300">群组编码（可选）</label>
+              <el-input v-model="config.pushplus_topic" placeholder="不填则只推送给自己" />
+            </div>
+          </div>
         </div>
 
         <!-- Webhook Config -->
