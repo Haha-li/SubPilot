@@ -52,7 +52,7 @@ const previewText = computed(() => renderPreview(config.value.notify_template));
 const channels = [
   { key: 'telegram', name: 'Telegram',     desc: '通过 Telegram Bot 推送',      visible: true,  tone: 'sky'    },
   { key: 'wechat',   name: '企业微信',      desc: '通过企业微信群机器人推送',     visible: false, tone: 'emerald' },
-  { key: 'bark',     name: 'Bark (iOS)',   desc: '通过 Bark App 推送到 iOS',    visible: false, tone: 'rose'   },
+  { key: 'bark',     name: 'Bark (iOS)',   desc: '通过 Bark App 推送到 iOS',    visible: true,  tone: 'rose'   },
   { key: 'webhook',  name: 'Webhook',      desc: '自定义 HTTP 回调',           visible: false, tone: 'violet' },
   { key: 'email',    name: '邮件 (Resend)', desc: '通过 Resend API 发送邮件',   visible: false, tone: 'amber'  },
   { key: 'notifyx',  name: 'NotifyX',      desc: '通过 NotifyX 服务推送',      visible: false, tone: 'cyan'   },
