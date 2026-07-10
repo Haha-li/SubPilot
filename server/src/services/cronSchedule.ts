@@ -1,5 +1,8 @@
 const DEFAULT_NOTIFY_CRON = '0 8 * * *';
 const LEGACY_UNUSED_CRON = '0 0 * * *';
+const MINUTE_MS = 60 * 1000;
+const HOUR_MS = 60 * MINUTE_MS;
+const MAX_SEARCH_HOURS = 24 * 370;
 
 interface CronFieldRule {
   name: string;
@@ -84,8 +87,8 @@ function parseCronExpression(expression: string): ParsedCron {
   };
 }
 
-function getZonedDateParts(timezone: string, now: Date): ZonedDateParts {
-  const parts = new Intl.DateTimeFormat('en-US', {
+function createZonedFormatter(timezone: string): Intl.DateTimeFormat {
+  return new Intl.DateTimeFormat('en-US', {
     timeZone: timezone,
     year: 'numeric',
     month: '2-digit',
@@ -93,7 +96,11 @@ function getZonedDateParts(timezone: string, now: Date): ZonedDateParts {
     hour: '2-digit',
     minute: '2-digit',
     hourCycle: 'h23',
-  }).formatToParts(now);
+  });
+}
+
+function getZonedDateParts(formatter: Intl.DateTimeFormat, now: Date): ZonedDateParts {
+  const parts = formatter.formatToParts(now);
   const map = Object.fromEntries(parts.map((part) => [part.type, part.value]));
   const year = Number(map.year);
   const month = Number(map.month);
@@ -105,6 +112,13 @@ function getZonedDateParts(timezone: string, now: Date): ZonedDateParts {
     month,
     weekday: new Date(Date.UTC(year, month - 1, day)).getUTCDay(),
   };
+}
+
+function matchesParsedCron(parsed: ParsedCron, parts: ZonedDateParts): boolean {
+  return parsed.values[0].has(parts.minute)
+    && parsed.values[1].has(parts.hour)
+    && parsed.values[3].has(parts.month)
+    && matchesDay(parsed, parts);
 }
 
 function matchesDay(parsed: ParsedCron, parts: ZonedDateParts): boolean {
@@ -127,14 +141,33 @@ export function validateCronExpression(expression: string): string | null {
 export function matchesCronExpression(expression: string, timezone: string, now = new Date()): boolean {
   try {
     const parsed = parseCronExpression(expression);
-    const parts = getZonedDateParts(timezone, now);
-    return parsed.values[0].has(parts.minute)
-      && parsed.values[1].has(parts.hour)
-      && parsed.values[3].has(parts.month)
-      && matchesDay(parsed, parts);
+    const parts = getZonedDateParts(createZonedFormatter(timezone), now);
+    return matchesParsedCron(parsed, parts);
   } catch {
     return false;
   }
+}
+
+export function getNextCronRun(expression: string, timezone: string, from = new Date()): Date | null {
+  try {
+    const parsed = parseCronExpression(expression);
+    const formatter = createZonedFormatter(timezone);
+    const minutes = [...parsed.values[0]].sort((a, b) => a - b);
+    const start = Math.floor(from.getTime() / MINUTE_MS) * MINUTE_MS + MINUTE_MS;
+    let hourStart = Math.floor(start / HOUR_MS) * HOUR_MS;
+    for (let index = 0; index < MAX_SEARCH_HOURS; index += 1) {
+      for (const minute of minutes) {
+        const timestamp = hourStart + minute * MINUTE_MS;
+        if (timestamp < start) continue;
+        const candidate = new Date(timestamp);
+        if (matchesParsedCron(parsed, getZonedDateParts(formatter, candidate))) return candidate;
+      }
+      hourStart += HOUR_MS;
+    }
+  } catch {
+    return null;
+  }
+  return null;
 }
 
 function legacyHoursToCron(rawHours: string): string {

@@ -1,14 +1,20 @@
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue';
-import { ElMessage } from 'element-plus';
+import { ref, computed, onMounted, onUnmounted } from 'vue';
+import { ElMessage, ElMessageBox } from 'element-plus';
 import {
   Send, Bell, Globe2, Clock, FileCode2, Check, Sparkles, Save, Loader2,
 } from '@lucide/vue';
 import api from '../utils/api';
+import SchedulerStatusCard from '../components/SchedulerStatusCard.vue';
+import type { RunSchedulerResponse, SchedulerStatusSnapshot } from '../types/scheduler';
 
 const config = ref<Record<string, string>>({});
 const loading = ref(false);
 const saving = ref(false);
+const schedulerLoading = ref(false);
+const schedulerRunning = ref(false);
+const schedulerStatus = ref<SchedulerStatusSnapshot | null>(null);
+let schedulerRefreshTimer: number | undefined;
 
 const defaultTemplate = `📋 订阅提醒
 ━━━━━━━━━━━━━━
@@ -91,18 +97,59 @@ async function loadConfig() {
   }
 }
 
-async function saveConfig() {
+async function loadSchedulerStatus(showError = false) {
+  schedulerLoading.value = true;
+  try {
+    const { data } = await api.get<SchedulerStatusSnapshot>('/config/scheduler-status');
+    schedulerStatus.value = data;
+  } catch (error: any) {
+    if (showError) ElMessage.error(error.response?.data?.message || '运行状态加载失败');
+  } finally {
+    schedulerLoading.value = false;
+  }
+}
+
+async function persistConfig(showMessage: boolean): Promise<boolean> {
   saving.value = true;
   try {
     config.value.notify_channels = activeChannels.value.join(',');
     const { data } = await api.put('/config', config.value);
     if (data.success) {
-      ElMessage.success('配置已保存');
+      if (showMessage) ElMessage.success('配置已保存');
+      await loadSchedulerStatus();
+      return true;
     }
   } catch (e: any) {
     ElMessage.error(e.response?.data?.message || '保存失败');
   } finally {
     saving.value = false;
+  }
+  return false;
+}
+
+async function saveConfig() {
+  await persistConfig(true);
+}
+
+async function runSchedulerNow() {
+  const confirmed = await ElMessageBox.confirm(
+    '将立即检查所有启用中的订阅，并向进入提醒范围的订阅发送真实通知。',
+    '确认立即执行检查',
+    { confirmButtonText: '立即执行', cancelButtonText: '取消', type: 'warning' },
+  ).then(() => true).catch(() => false);
+  if (!confirmed) return;
+  if (!await persistConfig(false)) return;
+  schedulerRunning.value = true;
+  try {
+    const { data } = await api.post<RunSchedulerResponse>('/config/run-scheduler', {}, { timeout: 60000 });
+    schedulerStatus.value = data.status;
+    if (data.result.outcome === 'success') ElMessage.success(data.message);
+    else if (data.result.outcome === 'failed') ElMessage.error(data.message);
+    else ElMessage.warning(data.message);
+  } catch (error: any) {
+    ElMessage.error(error.response?.data?.message || '立即检查执行失败');
+  } finally {
+    schedulerRunning.value = false;
   }
 }
 
@@ -143,7 +190,14 @@ function toggleChannel(channel: string) {
   }
 }
 
-onMounted(loadConfig);
+onMounted(() => {
+  void Promise.all([loadConfig(), loadSchedulerStatus()]);
+  schedulerRefreshTimer = window.setInterval(() => { void loadSchedulerStatus(); }, 60000);
+});
+
+onUnmounted(() => {
+  if (schedulerRefreshTimer) window.clearInterval(schedulerRefreshTimer);
+});
 </script>
 
 <template>
@@ -223,6 +277,14 @@ onMounted(loadConfig);
           </div>
         </div>
       </section>
+
+      <SchedulerStatusCard
+        :status="schedulerStatus"
+        :loading="schedulerLoading"
+        :running="schedulerRunning"
+        @refresh="loadSchedulerStatus(true)"
+        @run="runSchedulerNow"
+      />
 
       <!-- Notify Template -->
       <section class="bento-card p-5">

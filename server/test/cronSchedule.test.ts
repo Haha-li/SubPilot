@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import {
+  getNextCronRun,
   matchesCronExpression,
   resolveNotifyCron,
   validateCronExpression,
@@ -56,4 +57,17 @@ test('拒绝非法 Cron 表达式', () => {
   expectEqual('Cron 表达式必须包含 5 段', validateCronExpression('0 8 * *'));
   expectEqual('小时必须在 0-23 之间', validateCronExpression('0 24 * * *'));
   expectEqual('分钟的步进值必须大于 0', validateCronExpression('*/0 8 * * *'));
+});
+
+test('计算所选时区的下一次推送时间', () => {
+  const from = new Date('2026-07-10T03:10:00.000Z');
+
+  expectEqual(
+    '2026-07-10T03:30:00.000Z',
+    getNextCronRun('30 11 * * *', 'Asia/Shanghai', from)?.toISOString(),
+  );
+  expectEqual(
+    '2026-07-10T10:00:00.000Z',
+    getNextCronRun('0 8,18 * * *', 'Asia/Shanghai', from)?.toISOString(),
+  );
 });
