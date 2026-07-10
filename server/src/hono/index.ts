@@ -37,6 +37,6 @@ export default {
   fetch: app.fetch,
   async scheduled(event: any, env: any) {
     initD1Db(env.DB);
-    await checkAndNotify();
+    await checkAndNotify(new Date(event.scheduledTime));
   },
 };

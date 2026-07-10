@@ -1,11 +1,12 @@
 import { db, schema } from '../db';
 import { eq } from 'drizzle-orm';
 import { sendNotification } from './notification';
+import { matchesCronExpression, resolveNotifyCron } from './cronSchedule';
 
 let scheduledTask: any = null;
 
-export async function checkAndNotify() {
-  console.log(`[${new Date().toISOString()}] Running scheduled notification check...`);
+export async function checkAndNotify(now = new Date()) {
+  console.log(`[${now.toISOString()}] Running scheduled notification check...`);
 
   try {
     const configs = await db.select().from(schema.config);
@@ -13,19 +14,14 @@ export async function checkAndNotify() {
     configs.forEach((c: any) => { configMap[c.key] = c.value; });
 
     const timezone = configMap.timezone || 'Asia/Shanghai';
-    const rawHours = configMap.notify_hours || '';
-    const notifyHours = rawHours.trim()
-      ? rawHours.split(/[,\s]+/).map(Number).filter(n => !isNaN(n) && n >= 0 && n <= 23)
-      : []; // empty = run every check
-    const currentHour = new Date().toLocaleString('en-US', { timeZone: timezone, hour12: false, hour: '2-digit' });
+    const cronExpression = resolveNotifyCron(configMap);
 
-    if (notifyHours.length > 0 && !notifyHours.includes(Number(currentHour))) {
-      console.log(`Current hour ${currentHour} not in notify hours [${notifyHours}], skipping`);
+    if (!matchesCronExpression(cronExpression, timezone, now)) {
+      console.log(`Current time does not match notify cron ${cronExpression} (${timezone}), skipping`);
       return;
     }
 
     const subscriptions = await db.select().from(schema.subscriptions).where(eq(schema.subscriptions.isActive, 1));
-    const now = new Date();
 
     for (const sub of subscriptions) {
       let expiryDate = new Date(sub.expiryDate);
@@ -82,7 +78,7 @@ export function startScheduler() {
   // node-cron is not available on Cloudflare Workers (uses Cron Triggers instead)
   try {
     const cron = require('node-cron');
-    const cronExpression = '0 0 * * *';
+    const cronExpression = '* * * * *';
 
     if (scheduledTask) {
       scheduledTask.stop();

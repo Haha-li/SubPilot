@@ -80,8 +80,8 @@ if (!existingUser) {
 // Insert default config if not exists
 const defaultConfig: Record<string, string> = {
   timezone: 'Asia/Shanghai',
-  cron_expression: '0 0 * * *',
-  notify_hours: '8',
+  cron_expression: '0 8 * * *',
+  notify_hours: '',
   notify_channels: '',
   telegram_bot_token: '',
   telegram_chat_id: '',

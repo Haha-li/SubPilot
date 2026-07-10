@@ -81,6 +81,9 @@ async function loadConfig() {
     if (!data.notify_template) {
       data.notify_template = defaultTemplate;
     }
+    if (!data.cron_expression) {
+      data.cron_expression = '0 8 * * *';
+    }
     config.value = data;
     activeChannels.value = (data.notify_channels || '').split(',').filter(Boolean);
   } finally {
@@ -170,7 +173,7 @@ onMounted(loadConfig);
           </div>
           <div>
             <h3 class="text-sm font-semibold text-ink-900 dark:text-ink-50">基本设置</h3>
-            <p class="text-xs text-ink-500 dark:text-ink-400">系统时区与定时检查时间</p>
+            <p class="text-xs text-ink-500 dark:text-ink-400">系统时区与定时推送计划</p>
           </div>
         </header>
 
@@ -201,16 +204,22 @@ onMounted(loadConfig);
           </div>
 
           <div>
-            <label class="mb-1.5 block text-sm font-medium text-ink-700 dark:text-ink-200">
-              <span class="inline-flex items-center gap-1.5"><Clock :size="14" />检查时间（小时）</span>
+            <label for="notify-cron" class="mb-1.5 block text-sm font-medium text-ink-700 dark:text-ink-200">
+              <span class="inline-flex items-center gap-1.5"><Clock :size="14" />推送时间（Cron）</span>
             </label>
             <input
-              v-model="config.notify_hours"
+              id="notify-cron"
+              v-model="config.cron_expression"
               type="text"
-              placeholder="如：8,12,18，留空则每天一次"
-              class="block w-full rounded-xl border border-ink-200 bg-white/60 px-3 py-2 text-sm text-ink-900 placeholder:text-ink-400 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/30 dark:border-ink-700/60 dark:bg-ink-900/40 dark:text-ink-50 dark:placeholder:text-ink-500"
+              autocomplete="off"
+              spellcheck="false"
+              aria-describedby="notify-cron-help"
+              placeholder="0 8 * * *"
+              class="block w-full rounded-xl border border-ink-200 bg-white/60 px-3 py-2 font-mono text-sm text-ink-900 placeholder:text-ink-400 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/30 dark:border-ink-700/60 dark:bg-ink-900/40 dark:text-ink-50 dark:placeholder:text-ink-500"
             />
-            <p class="mt-1 text-xs text-ink-400 dark:text-ink-500">多个时间用逗号或空格分隔</p>
+            <p id="notify-cron-help" class="mt-1 text-xs leading-relaxed text-ink-500 dark:text-ink-400">
+              按所选时区执行，格式为“分 时 日 月 周”，支持 <code class="font-mono">* , - /</code>，星期 1 表示周日。例如：<code class="font-mono">0 8 * * *</code> 每天 08:00，<code class="font-mono">0 8,18 * * *</code> 每天 08:00 和 18:00。
+            </p>
           </div>
         </div>
       </section>
