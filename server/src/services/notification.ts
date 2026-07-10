@@ -37,19 +37,14 @@ async function getConfigMap(): Promise<Record<string, string>> {
   return map;
 }
 
-function formatNotifyMessage(subscription: Subscription, config: Record<string, string>): string {
+export function formatNotifyMessage(subscription: Subscription, config: Record<string, string>): string {
   const expiryDate = new Date(subscription.expiryDate);
   const now = new Date();
   const diffMs = expiryDate.getTime() - now.getTime();
   const diffDays = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
 
-  let lunar = '';
-  if (subscription.useLunar) {
-    const lunarDate = solar2lunar(expiryDate.getFullYear(), expiryDate.getMonth() + 1, expiryDate.getDate());
-    if (lunarDate) {
-      lunar = lunarDate.fullStr;
-    }
-  }
+  const lunarDate = solar2lunar(expiryDate.getFullYear(), expiryDate.getMonth() + 1, expiryDate.getDate());
+  const lunar = lunarDate?.fullStr || '';
 
   const status = diffDays < 0 ? `已过期 ${Math.abs(diffDays)} 天` :
                  diffDays === 0 ? '今天到期' :
