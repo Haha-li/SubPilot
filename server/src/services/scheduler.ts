@@ -40,6 +40,11 @@ interface ProcessInput {
   dependencies: SchedulerDependencies;
 }
 
+interface RenewalResult {
+  subscription: NotificationSubscription;
+  expiryDate: Date;
+}
+
 interface ResultInput extends ResultCounts {
   source: SchedulerRunSource;
   now: Date;
@@ -72,9 +77,14 @@ async function persistSafely(action: () => Promise<void>, context: string) {
   }
 }
 
-async function renewSubscriptionIfNeeded(subscription: NotificationSubscription, now: Date): Promise<Date> {
+async function renewSubscriptionIfNeeded(
+  subscription: NotificationSubscription,
+  now: Date,
+): Promise<RenewalResult> {
   const expiryDate = new Date(subscription.expiryDate);
-  if (subscription.autoRenew !== 1 || expiryDate.getTime() >= now.getTime()) return expiryDate;
+  if (subscription.autoRenew !== 1 || expiryDate.getTime() >= now.getTime()) {
+    return { subscription, expiryDate };
+  }
   const newExpiry = new Date(expiryDate);
   const value = subscription.periodValue || 1;
   if (subscription.periodUnit === 'day') newExpiry.setDate(newExpiry.getDate() + value);
@@ -85,7 +95,10 @@ async function renewSubscriptionIfNeeded(subscription: NotificationSubscription,
     expiryDate: newDate,
     updatedAt: now.toISOString(),
   }).where(eq(schema.subscriptions.id, subscription.id));
-  return newExpiry;
+  return {
+    subscription: { ...subscription, expiryDate: newDate },
+    expiryDate: newExpiry,
+  };
 }
 
 function isWithinReminderWindow(subscription: NotificationSubscription, expiryDate: Date, now: Date): boolean {
@@ -104,11 +117,11 @@ async function processSubscriptions(input: ProcessInput): Promise<ResultCounts> 
   let sentCount = 0;
   let failedCount = 0;
   for (const subscription of input.subscriptions) {
-    const expiryDate = await renewSubscriptionIfNeeded(subscription, input.now);
-    if (!isWithinReminderWindow(subscription, expiryDate, input.now)) continue;
+    const renewed = await renewSubscriptionIfNeeded(subscription, input.now);
+    if (!isWithinReminderWindow(renewed.subscription, renewed.expiryDate, input.now)) continue;
     matchedCount += 1;
     if (!input.canSend) continue;
-    if (await input.dependencies.sendNotification(subscription)) sentCount += 1;
+    if (await input.dependencies.sendNotification(renewed.subscription)) sentCount += 1;
     else failedCount += 1;
   }
   return { checkedCount: input.subscriptions.length, matchedCount, sentCount, failedCount };

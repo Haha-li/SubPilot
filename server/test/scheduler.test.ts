@@ -64,6 +64,32 @@ test('手动检查绕过 Cron 并记录实际推送结果', async () => {
   expectEqual('manual', JSON.parse(statusWrite?.value || '{}').source);
 });
 
+test('自动续费后使用新到期日发送通知', async () => {
+  const subscription = {
+    ...matchingSubscription,
+    expiryDate: '2026-06-12',
+    autoRenew: 1,
+    periodValue: 1,
+    periodUnit: 'month',
+  };
+  const { instance } = createMockDb('0 8 * * *', [subscription]);
+  setDb(instance);
+  let notifiedExpiryDate = '';
+
+  const result = await checkAndNotify(
+    { now: new Date('2026-07-10T00:00:00.000Z'), force: true, source: 'manual' },
+    {
+      sendNotification: async (renewedSubscription) => {
+        notifiedExpiryDate = renewedSubscription.expiryDate;
+        return true;
+      },
+    },
+  );
+
+  expectEqual('success', result.outcome);
+  expectEqual('2026-07-12', notifiedExpiryDate);
+});
+
 test('定时触发未匹配 Cron 时记录触发时间但不执行推送', async () => {
   const { instance, writes } = createMockDb('0 8 * * *', [matchingSubscription]);
   setDb(instance);
