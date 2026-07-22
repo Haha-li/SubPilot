@@ -1,5 +1,16 @@
 const CATEGORY_SEPARATOR = /[/,，\s]+/;
 const DEFAULT_CURRENCY = 'CNY';
+const DEFAULT_BILLING_UNIT = 'month';
+const BILLING_UNITS = new Set(['day', 'month', 'year']);
+
+interface SharedCostInput {
+  category: unknown;
+  nonSelfPaid: unknown;
+  nonSelfPaidCurrency: unknown;
+  nonSelfPaidUnit: unknown;
+  fallbackCurrency?: unknown;
+  fallbackUnit?: unknown;
+}
 
 export function hasSharedCostCategory(category: unknown): boolean {
   const categories = Array.isArray(category)
@@ -25,14 +36,21 @@ export function normalizeCurrency(value: unknown, fallback: unknown = DEFAULT_CU
     : fallbackCode;
 }
 
-export function resolveSharedCost(
-  category: unknown,
-  nonSelfPaid: unknown,
-  nonSelfPaidCurrency: unknown,
-  fallbackCurrency: unknown = DEFAULT_CURRENCY,
-) {
+export function normalizeBillingUnit(value: unknown, fallback: unknown = DEFAULT_BILLING_UNIT): string {
+  const fallbackUnit = typeof fallback === 'string' && BILLING_UNITS.has(fallback.trim().toLowerCase())
+    ? fallback.trim().toLowerCase()
+    : DEFAULT_BILLING_UNIT;
+  return typeof value === 'string' && BILLING_UNITS.has(value.trim().toLowerCase())
+    ? value.trim().toLowerCase()
+    : fallbackUnit;
+}
+
+export function resolveSharedCost(input: SharedCostInput) {
   return {
-    nonSelfPaid: hasSharedCostCategory(category) ? normalizeNonNegativeAmount(nonSelfPaid) : 0,
-    nonSelfPaidCurrency: normalizeCurrency(nonSelfPaidCurrency, fallbackCurrency),
+    nonSelfPaid: hasSharedCostCategory(input.category)
+      ? normalizeNonNegativeAmount(input.nonSelfPaid)
+      : 0,
+    nonSelfPaidCurrency: normalizeCurrency(input.nonSelfPaidCurrency, input.fallbackCurrency),
+    nonSelfPaidUnit: normalizeBillingUnit(input.nonSelfPaidUnit, input.fallbackUnit),
   };
 }

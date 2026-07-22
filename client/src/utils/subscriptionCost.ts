@@ -11,6 +11,7 @@ export interface SubscriptionCostInput {
   currency?: string | null;
   nonSelfPaid?: number | null;
   nonSelfPaidCurrency?: string | null;
+  nonSelfPaidUnit?: string | null;
 }
 
 export type CurrencyConverter = (amount: number, from: string, to: string) => number;
@@ -57,7 +58,7 @@ export function getPersonalMonthlyCostInCurrency(
   if (nonSelfPaid === 0) return Math.max(grossCost, 0);
 
   const sharedCost = converter(
-    getMonthlyAmount(nonSelfPaid, priceUnit),
+    getMonthlyAmount(nonSelfPaid, subscription.nonSelfPaidUnit || priceUnit),
     subscription.nonSelfPaidCurrency || subscription.currency || 'CNY',
     targetCurrency,
   );

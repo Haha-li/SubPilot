@@ -55,6 +55,7 @@ const form = ref({
   currency: 'CNY',
   nonSelfPaid: 0,
   nonSelfPaidCurrency: 'CNY',
+  nonSelfPaidUnit: 'month',
   hasTrial: false,
   trialValue: 7,
   trialUnit: 'day',
@@ -65,11 +66,6 @@ const dialogVisible = ref(true);
 
 const isEditing = computed(() => !!props.subscription && !props.copy);
 const isSharedSubscription = computed(() => hasSharedCostCategory(form.value.category));
-const priceUnitSuffix = computed(() => ({
-  day: '/天',
-  month: '/月',
-  year: '/年',
-} as Record<string, string>)[form.value.priceUnit] || '/月');
 const hadSharedCategory = ref(false);
 const title = computed(() => {
   if (props.copy) return '复制订阅';
@@ -97,6 +93,7 @@ function handleCategoryChange(categories: string[]) {
   const hasSharedCategory = hasSharedCostCategory(categories);
   if (hasSharedCategory && !hadSharedCategory.value && form.value.nonSelfPaid === 0) {
     form.value.nonSelfPaidCurrency = form.value.currency || 'CNY';
+    form.value.nonSelfPaidUnit = form.value.priceUnit || 'month';
   }
   hadSharedCategory.value = hasSharedCategory;
 }
@@ -195,6 +192,7 @@ onMounted(() => {
       currency: sub.currency || 'CNY',
       nonSelfPaid: sub.nonSelfPaid || 0,
       nonSelfPaidCurrency: sub.nonSelfPaidCurrency || sub.currency || 'CNY',
+      nonSelfPaidUnit: sub.nonSelfPaidUnit || sub.priceUnit || 'month',
       hasTrial: !!(sub.trialValue && sub.trialUnit),
       trialValue: sub.trialValue || 7,
       trialUnit: sub.trialUnit || 'day',
@@ -391,7 +389,15 @@ onMounted(() => {
                 />
               </template>
               <template #append>
-                <span class="inline-flex w-12 items-center justify-center">{{ priceUnitSuffix }}</span>
+                <el-select
+                  v-model="form.nonSelfPaidUnit"
+                  style="width: 80px"
+                  aria-label="非自己付费周期"
+                >
+                  <el-option label="/年" value="year" />
+                  <el-option label="/月" value="month" />
+                  <el-option label="/天" value="day" />
+                </el-select>
               </template>
             </el-input>
             <p class="mt-1.5 text-xs text-ink-400 dark:text-ink-500">

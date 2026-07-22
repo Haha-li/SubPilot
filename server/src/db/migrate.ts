@@ -40,6 +40,7 @@ sqlite.exec(`
     notes TEXT DEFAULT '',
     non_self_paid REAL DEFAULT 0,
     non_self_paid_currency TEXT DEFAULT 'CNY',
+    non_self_paid_unit TEXT DEFAULT 'month',
     created_at TEXT DEFAULT (datetime('now')),
     updated_at TEXT DEFAULT (datetime('now'))
   );
@@ -152,6 +153,16 @@ try {
   sqlite.exec("ALTER TABLE subscriptions ADD COLUMN non_self_paid_currency TEXT DEFAULT 'CNY'");
 } catch (e: any) {
   if (!e.message.includes('duplicate column name')) throw e;
+}
+let addedNonSelfPaidUnit = false;
+try {
+  sqlite.exec("ALTER TABLE subscriptions ADD COLUMN non_self_paid_unit TEXT DEFAULT 'month'");
+  addedNonSelfPaidUnit = true;
+} catch (e: any) {
+  if (!e.message.includes('duplicate column name')) throw e;
+}
+if (addedNonSelfPaidUnit) {
+  sqlite.exec("UPDATE subscriptions SET non_self_paid_unit = COALESCE(price_unit, 'month')");
 }
 
 console.log('Database migration completed successfully');

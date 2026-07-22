@@ -34,7 +34,7 @@ export async function listSubscriptionsHandler(query: any) {
 
 export async function createSubscriptionHandler(body: any) {
   try {
-    const { name, customType, category, startDate, expiryDate, periodValue, periodUnit, reminderValue, reminderUnit, isActive, autoRenew, useLunar, notes, price, priceUnit, currency, nonSelfPaid, nonSelfPaidCurrency, trialValue, trialUnit } = body;
+    const { name, customType, category, startDate, expiryDate, periodValue, periodUnit, reminderValue, reminderUnit, isActive, autoRenew, useLunar, notes, price, priceUnit, currency, nonSelfPaid, nonSelfPaidCurrency, nonSelfPaidUnit, trialValue, trialUnit } = body;
 
     if (!name || !expiryDate) {
       return { status: 400, body: { success: false, message: '订阅名称和到期日期为必填项' } };
@@ -42,12 +42,14 @@ export async function createSubscriptionHandler(body: any) {
 
     const now = new Date().toISOString();
     const subscriptionCategory = typeof category === 'string' ? category : '';
-    const sharedCost = resolveSharedCost(
-      subscriptionCategory,
+    const sharedCost = resolveSharedCost({
+      category: subscriptionCategory,
       nonSelfPaid,
       nonSelfPaidCurrency,
-      currency,
-    );
+      nonSelfPaidUnit,
+      fallbackCurrency: currency,
+      fallbackUnit: priceUnit,
+    });
     await db.insert(schema.subscriptions).values({
       name,
       customType: customType || '',
@@ -67,6 +69,7 @@ export async function createSubscriptionHandler(body: any) {
       currency: currency || 'CNY',
       nonSelfPaid: sharedCost.nonSelfPaid,
       nonSelfPaidCurrency: sharedCost.nonSelfPaidCurrency,
+      nonSelfPaidUnit: sharedCost.nonSelfPaidUnit,
       trialValue: trialValue || null,
       trialUnit: trialUnit || null,
       createdAt: now,
@@ -84,7 +87,7 @@ export async function createSubscriptionHandler(body: any) {
 
 export async function updateSubscriptionHandler(id: number, body: any) {
   try {
-    const { name, customType, category, startDate, expiryDate, periodValue, periodUnit, reminderValue, reminderUnit, isActive, autoRenew, useLunar, notes, price, priceUnit, currency, nonSelfPaid, nonSelfPaidCurrency, isPinned, trialValue, trialUnit } = body;
+    const { name, customType, category, startDate, expiryDate, periodValue, periodUnit, reminderValue, reminderUnit, isActive, autoRenew, useLunar, notes, price, priceUnit, currency, nonSelfPaid, nonSelfPaidCurrency, nonSelfPaidUnit, isPinned, trialValue, trialUnit } = body;
 
     const [existing] = await db.select().from(schema.subscriptions).where(eq(schema.subscriptions.id, id)).limit(1);
     if (!existing) {
@@ -93,12 +96,19 @@ export async function updateSubscriptionHandler(id: number, body: any) {
 
     const now = new Date().toISOString();
     const finalCategory = category ?? existing.category ?? '';
-    const sharedCost = resolveSharedCost(
-      finalCategory,
-      nonSelfPaid !== undefined ? nonSelfPaid : existing.nonSelfPaid,
-      nonSelfPaidCurrency !== undefined ? nonSelfPaidCurrency : existing.nonSelfPaidCurrency,
-      currency ?? existing.currency,
-    );
+    const finalPriceUnit = priceUnit ?? existing.priceUnit ?? 'month';
+    const sharedCost = resolveSharedCost({
+      category: finalCategory,
+      nonSelfPaid: nonSelfPaid !== undefined ? nonSelfPaid : existing.nonSelfPaid,
+      nonSelfPaidCurrency: nonSelfPaidCurrency !== undefined
+        ? nonSelfPaidCurrency
+        : existing.nonSelfPaidCurrency,
+      nonSelfPaidUnit: nonSelfPaidUnit !== undefined
+        ? nonSelfPaidUnit
+        : existing.nonSelfPaidUnit,
+      fallbackCurrency: currency ?? existing.currency,
+      fallbackUnit: finalPriceUnit,
+    });
 
     // 续费历史记录：价格变动 或 expiryDate 延后视为续费，记一笔
     const oldPrice = existing.price || 0;
@@ -133,10 +143,11 @@ export async function updateSubscriptionHandler(id: number, body: any) {
       useLunar: useLunar !== undefined ? (useLunar ? 1 : 0) : existing.useLunar,
       notes: notes ?? existing.notes,
       price: price ?? existing.price,
-      priceUnit: priceUnit ?? existing.priceUnit,
+      priceUnit: finalPriceUnit,
       currency: currency ?? existing.currency,
       nonSelfPaid: sharedCost.nonSelfPaid,
       nonSelfPaidCurrency: sharedCost.nonSelfPaidCurrency,
+      nonSelfPaidUnit: sharedCost.nonSelfPaidUnit,
       isPinned: isPinned !== undefined ? (isPinned ? 1 : 0) : existing.isPinned,
       trialValue: trialValue !== undefined ? trialValue : existing.trialValue,
       trialUnit: trialUnit !== undefined ? trialUnit : existing.trialUnit,

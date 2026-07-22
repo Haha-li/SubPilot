@@ -120,7 +120,7 @@ function getNonSelfPaidLabel(sub: Subscription): string {
   if (!hasSharedCostCategory(sub.category) || !sub.nonSelfPaid || sub.nonSelfPaid <= 0) return '';
   const unitMap: Record<string, string> = { day: '/天', month: '/月', year: '/年' };
   const symbol = getSymbol(sub.nonSelfPaidCurrency || sub.currency || 'CNY');
-  return symbol + sub.nonSelfPaid.toFixed(2) + (unitMap[sub.priceUnit] || '/月');
+  return symbol + sub.nonSelfPaid.toFixed(2) + (unitMap[sub.nonSelfPaidUnit || sub.priceUnit] || '/月');
 }
 
 const kpiCards = computed(() => [

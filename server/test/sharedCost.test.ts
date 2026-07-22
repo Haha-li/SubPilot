@@ -5,6 +5,7 @@ import { DatabaseSync } from 'node:sqlite';
 import test from 'node:test';
 import {
   hasSharedCostCategory as hasSharedCostCategoryOnServer,
+  normalizeBillingUnit,
   normalizeCurrency,
   normalizeNonNegativeAmount,
   resolveSharedCost,
@@ -36,6 +37,7 @@ function createSubscription(overrides: Partial<SubscriptionCostInput> = {}): Sub
     currency: 'CNY',
     nonSelfPaid: 10,
     nonSelfPaidCurrency: 'USD',
+    nonSelfPaidUnit: 'month',
     ...overrides,
   };
 }
@@ -57,12 +59,21 @@ test('服务端规范非自己付费金额与独立币种', () => {
   expectEqual(12.5, normalizeNonNegativeAmount('12.5'));
   expectEqual('USD', normalizeCurrency(' usd '));
   expectEqual('CNY', normalizeCurrency('USDT'));
+  expectEqual('year', normalizeBillingUnit(' YEAR '));
+  expectEqual('month', normalizeBillingUnit('week'));
 });
 
 test('移除合租分类后服务端清零非自己付费', () => {
   expectEqual(
-    { nonSelfPaid: 0, nonSelfPaidCurrency: 'EUR' },
-    resolveSharedCost('视频', 20, 'eur', 'CNY'),
+    { nonSelfPaid: 0, nonSelfPaidCurrency: 'EUR', nonSelfPaidUnit: 'year' },
+    resolveSharedCost({
+      category: '视频',
+      nonSelfPaid: 20,
+      nonSelfPaidCurrency: 'eur',
+      nonSelfPaidUnit: 'year',
+      fallbackCurrency: 'CNY',
+      fallbackUnit: 'month',
+    }),
   );
 });
 
@@ -73,6 +84,31 @@ test('不同币种分别换算后计算个人月费', () => {
     convertWithFixedRates,
   );
   expectEqual(30, actual);
+});
+
+test('非自己付费使用独立年付周期', () => {
+  const actual = getPersonalMonthlyCostInCurrency(
+    createSubscription({
+      nonSelfPaid: 120,
+      nonSelfPaidUnit: 'year',
+    }),
+    'CNY',
+    convertWithFixedRates,
+  );
+  expectEqual(30, actual);
+});
+
+test('非自己付费使用独立日付周期', () => {
+  const actual = getPersonalMonthlyCostInCurrency(
+    createSubscription({
+      nonSelfPaid: 1,
+      nonSelfPaidCurrency: 'CNY',
+      nonSelfPaidUnit: 'day',
+    }),
+    'CNY',
+    convertWithFixedRates,
+  );
+  expectEqual(70, actual);
 });
 
 test('非合租订阅忽略非自己付费金额', () => {
@@ -86,11 +122,31 @@ test('非合租订阅忽略非自己付费金额', () => {
 
 test('旧数据未提供分摊字段时保持原费用', () => {
   const actual = getPersonalMonthlyCostInCurrency(
-    createSubscription({ nonSelfPaid: undefined, nonSelfPaidCurrency: undefined }),
+    createSubscription({
+      nonSelfPaid: undefined,
+      nonSelfPaidCurrency: undefined,
+      nonSelfPaidUnit: undefined,
+    }),
     'CNY',
     convertWithFixedRates,
   );
   expectEqual(100, actual);
+});
+
+test('旧数据未提供独立周期时沿用订阅费用周期', () => {
+  const actual = getPersonalMonthlyCostInCurrency(
+    createSubscription({
+      price: 120,
+      priceUnit: 'year',
+      currency: 'CNY',
+      nonSelfPaid: 12,
+      nonSelfPaidCurrency: 'CNY',
+      nonSelfPaidUnit: undefined,
+    }),
+    'CNY',
+    convertWithFixedRates,
+  );
+  expectEqual(9, actual);
 });
 
 test('非自己付费超过订阅总费用时个人费用不小于零', () => {
@@ -108,6 +164,7 @@ test('年付费用沿用相同周期后再换算', () => {
       price: 120,
       priceUnit: 'year',
       nonSelfPaid: 5,
+      nonSelfPaidUnit: 'year',
     }),
     'CNY',
     convertWithFixedRates,
@@ -115,17 +172,25 @@ test('年付费用沿用相同周期后再换算', () => {
   assert.ok(Math.abs(actual - (85 / 12)) < 0.000001);
 });
 
-test('D1 迁移新增分摊金额与独立币种并提供旧数据默认值', () => {
+test('D1 迁移新增独立周期并按原费用周期回填旧数据', () => {
   const database = new DatabaseSync(':memory:');
-  database.exec('CREATE TABLE subscriptions (id INTEGER PRIMARY KEY AUTOINCREMENT)');
+  database.exec(
+    "CREATE TABLE subscriptions (id INTEGER PRIMARY KEY AUTOINCREMENT, price_unit TEXT DEFAULT 'month')",
+  );
   database.exec(readFileSync(resolve(process.cwd(), 'migrations/0011_add_non_self_paid.sql'), 'utf8'));
-  database.exec('INSERT INTO subscriptions DEFAULT VALUES');
+  database.exec("INSERT INTO subscriptions (price_unit) VALUES ('year')");
+  database.exec(readFileSync(resolve(process.cwd(), 'migrations/0012_add_non_self_paid_unit.sql'), 'utf8'));
 
   const row = database.prepare(
-    'SELECT non_self_paid, non_self_paid_currency FROM subscriptions LIMIT 1',
-  ).get() as { non_self_paid: number; non_self_paid_currency: string };
+    'SELECT non_self_paid, non_self_paid_currency, non_self_paid_unit FROM subscriptions LIMIT 1',
+  ).get() as {
+    non_self_paid: number;
+    non_self_paid_currency: string;
+    non_self_paid_unit: string;
+  };
 
   expectEqual(0, row.non_self_paid);
   expectEqual('CNY', row.non_self_paid_currency);
+  expectEqual('year', row.non_self_paid_unit);
   database.close();
 });
