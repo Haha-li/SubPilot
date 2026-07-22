@@ -3,6 +3,7 @@ import { ref, computed, onMounted } from 'vue';
 import { useMediaQuery } from '@vueuse/core';
 import { useSubscriptionStore, type Subscription } from '../stores/subscription';
 import { solar2lunar } from '../utils/lunar';
+import { getCategoryTokens, hasSharedCostCategory } from '../utils/subscriptionCost';
 import { ElMessage } from 'element-plus';
 import CurrencySelect from './CurrencySelect.vue';
 import {
@@ -52,6 +53,8 @@ const form = ref({
   price: 0,
   priceUnit: 'month',
   currency: 'CNY',
+  nonSelfPaid: 0,
+  nonSelfPaidCurrency: 'CNY',
   hasTrial: false,
   trialValue: 7,
   trialUnit: 'day',
@@ -61,6 +64,13 @@ const loading = ref(false);
 const dialogVisible = ref(true);
 
 const isEditing = computed(() => !!props.subscription && !props.copy);
+const isSharedSubscription = computed(() => hasSharedCostCategory(form.value.category));
+const priceUnitSuffix = computed(() => ({
+  day: '/天',
+  month: '/月',
+  year: '/年',
+} as Record<string, string>)[form.value.priceUnit] || '/月');
+const hadSharedCategory = ref(false);
 const title = computed(() => {
   if (props.copy) return '复制订阅';
   return isEditing.value ? '编辑订阅' : '添加新订阅';
@@ -82,6 +92,14 @@ const typeOptions = [
   '办公软件', '游戏', 'VPN/代理', '邮箱', '新闻/阅读',
   '教育', '健身/健康', '社交/会员', '其他',
 ];
+
+function handleCategoryChange(categories: string[]) {
+  const hasSharedCategory = hasSharedCostCategory(categories);
+  if (hasSharedCategory && !hadSharedCategory.value && form.value.nonSelfPaid === 0) {
+    form.value.nonSelfPaidCurrency = form.value.currency || 'CNY';
+  }
+  hadSharedCategory.value = hasSharedCategory;
+}
 
 function getLunarForInput(dateStr: string): string {
   if (!dateStr || !form.value.showLunar) return '';
@@ -133,6 +151,7 @@ async function handleSubmit() {
     const payload = {
       ...rest,
       category: category.join(', '),
+      nonSelfPaid: hasSharedCostCategory(category) ? rest.nonSelfPaid : 0,
       isActive: Number(rest.isActive),
       autoRenew: Number(rest.autoRenew),
       useLunar: Number(rest.useLunar),
@@ -159,7 +178,7 @@ onMounted(() => {
     form.value = {
       name: props.copy ? sub.name + ' (副本)' : sub.name,
       customType: sub.customType || '',
-      category: (sub.category || '').split(/[/,，\s]+/).map((t) => t.trim()).filter(Boolean),
+      category: getCategoryTokens(sub.category),
       startDate: sub.startDate || '',
       expiryDate: sub.expiryDate,
       periodValue: sub.periodValue || 1,
@@ -174,11 +193,14 @@ onMounted(() => {
       price: sub.price || 0,
       priceUnit: sub.priceUnit || 'month',
       currency: sub.currency || 'CNY',
+      nonSelfPaid: sub.nonSelfPaid || 0,
+      nonSelfPaidCurrency: sub.nonSelfPaidCurrency || sub.currency || 'CNY',
       hasTrial: !!(sub.trialValue && sub.trialUnit),
       trialValue: sub.trialValue || 7,
       trialUnit: sub.trialUnit || 'day',
     };
   }
+  hadSharedCategory.value = isSharedSubscription.value;
 });
 </script>
 
@@ -242,6 +264,7 @@ onMounted(() => {
               clearable
               placeholder="选择或输入"
               class="w-full"
+              @change="handleCategoryChange"
             >
               <el-option v-for="c in allCategories" :key="c" :label="c" :value="c" />
             </el-select>
@@ -351,6 +374,29 @@ onMounted(() => {
                 </el-select>
               </template>
             </el-input>
+          </div>
+          <div v-if="isSharedSubscription" class="md:col-span-2">
+            <label class="mb-1 flex items-center justify-between gap-2 text-xs font-medium text-ink-700 dark:text-ink-200">
+              <span>非自己付费</span>
+              <span class="rounded-full bg-brand-50 px-2 py-0.5 text-[11px] font-medium text-brand-600 dark:bg-brand-500/15 dark:text-brand-300">
+                合租分摊
+              </span>
+            </label>
+            <el-input v-model.number="form.nonSelfPaid" type="number" :min="0" placeholder="0">
+              <template #prepend>
+                <CurrencySelect
+                  v-model="form.nonSelfPaidCurrency"
+                  width="112px"
+                  aria-label="非自己付费币种"
+                />
+              </template>
+              <template #append>
+                <span class="inline-flex w-12 items-center justify-center">{{ priceUnitSuffix }}</span>
+              </template>
+            </el-input>
+            <p class="mt-1.5 text-xs text-ink-400 dark:text-ink-500">
+              填写他人承担的金额，可选择与支付币种不同；个人费用会按汇率换算后扣减。
+            </p>
           </div>
         </div>
       </section>

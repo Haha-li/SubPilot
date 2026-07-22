@@ -38,6 +38,8 @@ sqlite.exec(`
     auto_renew INTEGER DEFAULT 1,
     use_lunar INTEGER DEFAULT 0,
     notes TEXT DEFAULT '',
+    non_self_paid REAL DEFAULT 0,
+    non_self_paid_currency TEXT DEFAULT 'CNY',
     created_at TEXT DEFAULT (datetime('now')),
     updated_at TEXT DEFAULT (datetime('now'))
   );
@@ -138,6 +140,16 @@ try {
 }
 try {
   sqlite.exec("ALTER TABLE subscriptions ADD COLUMN currency TEXT DEFAULT 'CNY'");
+} catch (e: any) {
+  if (!e.message.includes('duplicate column name')) throw e;
+}
+try {
+  sqlite.exec('ALTER TABLE subscriptions ADD COLUMN non_self_paid REAL DEFAULT 0');
+} catch (e: any) {
+  if (!e.message.includes('duplicate column name')) throw e;
+}
+try {
+  sqlite.exec("ALTER TABLE subscriptions ADD COLUMN non_self_paid_currency TEXT DEFAULT 'CNY'");
 } catch (e: any) {
   if (!e.message.includes('duplicate column name')) throw e;
 }

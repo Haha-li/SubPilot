@@ -20,6 +20,8 @@ export interface Subscription {
   price: number;
   priceUnit: string;
   currency: string;
+  nonSelfPaid: number;
+  nonSelfPaidCurrency: string;
   isPinned: number;
   trialValue: number | null;
   trialUnit: string | null;

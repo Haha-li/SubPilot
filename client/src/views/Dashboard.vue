@@ -3,7 +3,12 @@ import { ref, reactive, computed, watch, onMounted } from 'vue';
 import { useMediaQuery } from '@vueuse/core';
 import { useSubscriptionStore, type Subscription } from '../stores/subscription';
 import { solar2lunar } from '../utils/lunar';
-import { convert, fetchRates, getSymbol } from '../utils/currency';
+import { fetchRates, getSymbol } from '../utils/currency';
+import {
+  getCategoryTokens,
+  getPersonalMonthlyCostInCurrency,
+  getPersonalMonthlyCostOrZero,
+} from '../utils/subscriptionCost';
 import { ElMessageBox, ElMessage } from 'element-plus';
 import {
   Plus, Search, Trash2, Copy, Pencil, Bell, Pause, Play, Download, Star, LayoutGrid,
@@ -55,7 +60,7 @@ const monthlyCost = computed(() => {
   let total = 0;
   for (const s of subStore.subscriptions) {
     if (!s.isActive || !s.price) continue;
-    const cost = getMonthlyCostInCurrency(s, 'CNY');
+    const cost = getPersonalMonthlyCostInCurrency(s, 'CNY');
     if (Number.isFinite(cost)) total += cost;
   }
   return total;
@@ -83,16 +88,10 @@ watch([sortBy, sortOrder], () => {
   localStorage.setItem('sortOrder', sortOrder.value);
 });
 
-const categorySeparator = /[/,，\s]+/;
-
-function normalizeCategoryTokens(category: string): string[] {
-  return category.split(categorySeparator).map((t) => t.trim()).filter(Boolean);
-}
-
 const allCategories = computed(() => {
   const cats = new Set<string>();
   subStore.subscriptions.forEach((sub) => {
-    normalizeCategoryTokens(sub.category || '').forEach((t) => cats.add(t));
+    getCategoryTokens(sub.category).forEach((t) => cats.add(t));
   });
   return Array.from(cats).sort((a, b) => a.localeCompare(b, 'zh-CN'));
 });
@@ -105,6 +104,7 @@ const allTypes = computed(() => {
 });
 
 const filteredSubscriptions = computed(() => {
+  ratesRefreshKey.value;
   let list = [...subStore.subscriptions];
 
   if (typeFilter.value) {
@@ -114,7 +114,7 @@ const filteredSubscriptions = computed(() => {
 
   if (categoryFilter.value) {
     list = list.filter((sub) =>
-      normalizeCategoryTokens(sub.category || '').some((t) => t.toLowerCase() === categoryFilter.value.toLowerCase())
+      getCategoryTokens(sub.category).some((t) => t.toLowerCase() === categoryFilter.value.toLowerCase())
     );
   }
 
@@ -150,7 +150,9 @@ const filteredSubscriptions = computed(() => {
     let cmp = 0;
     if (sortBy.value === 'name') cmp = a.name.localeCompare(b.name, 'zh-CN');
     else if (sortBy.value === 'created') cmp = (a.createdAt || '').localeCompare(b.createdAt || '');
-    else if (sortBy.value === 'price') cmp = (b.price || 0) - (a.price || 0);
+    else if (sortBy.value === 'price') {
+      cmp = getPersonalMonthlyCostOrZero(b, 'CNY') - getPersonalMonthlyCostOrZero(a, 'CNY');
+    }
     else cmp = (a.expiryDate || '').localeCompare(b.expiryDate || '');
     return sortOrder.value === 'desc' ? -cmp : cmp;
   });
@@ -289,14 +291,6 @@ function getPriceText(sub: Subscription): string {
   const sym = getSymbol(sub.currency || 'CNY');
   const unitMap: Record<string, string> = { day: '/天', month: '/月', year: '/年' };
   return `${sym}${sub.price.toFixed(2)}${unitMap[sub.priceUnit] || '/月'}`;
-}
-
-function getMonthlyCostInCurrency(sub: Subscription, target: string): number {
-  const price = sub.price || 0;
-  if (price <= 0) return 0;
-  const unit = sub.priceUnit || 'month';
-  const monthly = unit === 'day' ? price * 30 : unit === 'year' ? price / 12 : price;
-  return convert(monthly, sub.currency || 'CNY', target);
 }
 
 function formatCnyMoney(value: number): string {
@@ -489,7 +483,7 @@ onMounted(() => {
         </div>
         <div class="min-w-0">
           <p class="font-mono-nums text-2xl font-bold text-ink-900 dark:text-ink-50">{{ monthlyCostLabel }}</p>
-          <p class="text-xs text-ink-500 dark:text-ink-400">折合月费（CNY）</p>
+          <p class="text-xs text-ink-500 dark:text-ink-400">个人折合月费（CNY）</p>
         </div>
       </div>
       <div class="bento-card flex items-center gap-3 p-4">
@@ -697,7 +691,7 @@ onMounted(() => {
               周期 {{ getPeriodLabel(sub) }}<span v-if="sub.autoRenew"> · 自动续</span>
             </span>
             <span
-              v-for="cat in normalizeCategoryTokens(sub.category || '')"
+              v-for="cat in getCategoryTokens(sub.category)"
               :key="cat"
               class="rounded-md bg-brand-50 px-2 py-0.5 text-xs font-medium text-brand-600 dark:bg-brand-500/15 dark:text-brand-300"
             >

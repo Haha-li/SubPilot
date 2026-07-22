@@ -1,8 +1,9 @@
 import { db, schema } from '../db';
+import { resolveSharedCost } from '../utils/sharedCost';
 
 function toCSV(items: any[]): string {
   if (items.length === 0) return '';
-  const fields = ['name', 'customType', 'category', 'startDate', 'expiryDate', 'periodValue', 'periodUnit', 'reminderValue', 'reminderUnit', 'isActive', 'autoRenew', 'useLunar', 'notes', 'price', 'priceUnit', 'currency', 'isPinned', 'trialValue', 'trialUnit'];
+  const fields = ['name', 'customType', 'category', 'startDate', 'expiryDate', 'periodValue', 'periodUnit', 'reminderValue', 'reminderUnit', 'isActive', 'autoRenew', 'useLunar', 'notes', 'price', 'priceUnit', 'currency', 'nonSelfPaid', 'nonSelfPaidCurrency', 'isPinned', 'trialValue', 'trialUnit'];
   const header = fields.join(',');
   const rows = items.map(item =>
     fields.map(f => {
@@ -120,10 +121,17 @@ export async function importSubscriptionsHandler(body: any) {
       }
 
       const now = new Date().toISOString();
+      const category = row.category || '';
+      const sharedCost = resolveSharedCost(
+        category,
+        row.nonSelfPaid,
+        row.nonSelfPaidCurrency,
+        row.currency,
+      );
       await db.insert(schema.subscriptions).values({
         name: row.name,
         customType: row.customType || '',
-        category: row.category || '',
+        category,
         startDate: row.startDate || null,
         expiryDate: row.expiryDate,
         periodValue: Number(row.periodValue) || 1,
@@ -137,6 +145,8 @@ export async function importSubscriptionsHandler(body: any) {
         price: Number(row.price) || 0,
         priceUnit: row.priceUnit || 'month',
         currency: row.currency || 'CNY',
+        nonSelfPaid: sharedCost.nonSelfPaid,
+        nonSelfPaidCurrency: sharedCost.nonSelfPaidCurrency,
         createdAt: now,
         updatedAt: now,
       });

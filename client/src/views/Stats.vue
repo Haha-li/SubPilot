@@ -2,7 +2,12 @@
 import { computed, onMounted, ref, watch } from 'vue';
 import { useMediaQuery } from '@vueuse/core';
 import { useSubscriptionStore, type Subscription } from '../stores/subscription';
-import { convert, getSymbol, fetchRates } from '../utils/currency';
+import { getSymbol, fetchRates } from '../utils/currency';
+import {
+  getPersonalMonthlyCostInCurrency,
+  getPersonalMonthlyCostOrZero,
+  hasSharedCostCategory,
+} from '../utils/subscriptionCost';
 import CurrencySelect from '../components/CurrencySelect.vue';
 import {
   Wallet, TrendingUp, CalendarRange, Coins, BarChart3, Layers, LineChart, ListTree,
@@ -14,34 +19,23 @@ const isMobile = useMediaQuery('(max-width: 768px)');
 const subscriptionPage = ref(1);
 const subscriptionPageSize = 10;
 
-function getMonthlyCostInCurrency(sub: Subscription, target: string): number {
-  const price = sub.price || 0;
-  if (price <= 0) return 0;
-  const unit = sub.priceUnit || 'month';
-  const monthly = unit === 'year' ? price / 12 : unit === 'day' ? price * 30 : price;
-  return convert(monthly, sub.currency || 'CNY', target);
-}
-
-function getMonthlyCostOrZero(sub: Subscription, target: string): number {
-  const value = getMonthlyCostInCurrency(sub, target);
-  return Number.isFinite(value) ? value : 0;
-}
-
 const activeSubscriptions = computed(() => subStore.subscriptions.filter((s) => s.isActive));
 
 const totalMonthly = computed(() =>
-  activeSubscriptions.value.reduce((sum, s) => sum + getMonthlyCostOrZero(s, displayCurrency.value), 0),
+  activeSubscriptions.value.reduce((sum, s) => sum + getPersonalMonthlyCostOrZero(s, displayCurrency.value), 0),
 );
 
 const totalYearly = computed(() => totalMonthly.value * 12);
 const totalDaily = computed(() => totalMonthly.value / 30);
 
-const paidSubscriptions = computed(() => activeSubscriptions.value.filter((s) => (s.price || 0) > 0));
+const paidSubscriptions = computed(() => activeSubscriptions.value.filter(
+  (s) => getPersonalMonthlyCostOrZero(s, displayCurrency.value) > 0,
+));
 
 const byType = computed(() => {
   const map: Record<string, number> = {};
   paidSubscriptions.value.forEach((s) => {
-    const cost = getMonthlyCostInCurrency(s, displayCurrency.value);
+    const cost = getPersonalMonthlyCostInCurrency(s, displayCurrency.value);
     if (!Number.isFinite(cost)) return;
     const type = s.customType || '未分类';
     map[type] = (map[type] || 0) + cost;
@@ -57,7 +51,7 @@ const byCategory = computed(() => {
   paidSubscriptions.value.forEach((s) => {
     const cat = (s.category || '').trim();
     const tokens = cat ? cat.split(/[/,，\s]+/).filter(Boolean) : ['未分类'];
-    const cost = getMonthlyCostInCurrency(s, displayCurrency.value);
+    const cost = getPersonalMonthlyCostInCurrency(s, displayCurrency.value);
     if (!Number.isFinite(cost)) return;
     tokens.forEach((t) => {
       map[t] = (map[t] || 0) + cost;
@@ -80,11 +74,10 @@ const monthlyTrend = computed(() => {
     const monthEnd = new Date(year, month + 1, 0, 23, 59, 59).getTime();
     let total = 0;
     activeSubscriptions.value.forEach((sub) => {
-      if (!sub.price || sub.price <= 0) return;
       const expiryTime = new Date(sub.expiryDate).getTime();
       const startTime = sub.startDate ? new Date(sub.startDate).getTime() : 0;
       if (expiryTime >= monthStart && startTime <= monthEnd) {
-        total += getMonthlyCostOrZero(sub, displayCurrency.value);
+        total += getPersonalMonthlyCostOrZero(sub, displayCurrency.value);
       }
     });
     months.push({ label: `${month + 1}月`, value: Math.round(total * 100) / 100 });
@@ -95,8 +88,8 @@ const maxTrendValue = computed(() => Math.max(1, ...monthlyTrend.value.map((i) =
 
 const sortedSubs = computed(() =>
   [...subStore.subscriptions].sort((a, b) => {
-    const ca = getMonthlyCostOrZero(a, displayCurrency.value);
-    const cb = getMonthlyCostOrZero(b, displayCurrency.value);
+    const ca = getPersonalMonthlyCostOrZero(a, displayCurrency.value);
+    const cb = getPersonalMonthlyCostOrZero(b, displayCurrency.value);
     if (cb !== ca) return cb - ca;
     return a.name.localeCompare(b.name, 'zh-CN');
   }),
@@ -123,6 +116,13 @@ function getPriceLabel(sub: Subscription): string {
   return `${sym}${(sub.price || 0).toFixed(2)}${unitMap[sub.priceUnit] || '/月'}`;
 }
 
+function getNonSelfPaidLabel(sub: Subscription): string {
+  if (!hasSharedCostCategory(sub.category) || !sub.nonSelfPaid || sub.nonSelfPaid <= 0) return '';
+  const unitMap: Record<string, string> = { day: '/天', month: '/月', year: '/年' };
+  const symbol = getSymbol(sub.nonSelfPaidCurrency || sub.currency || 'CNY');
+  return symbol + sub.nonSelfPaid.toFixed(2) + (unitMap[sub.priceUnit] || '/月');
+}
+
 const kpiCards = computed(() => [
   {
     label: '活跃订阅',
@@ -132,19 +132,19 @@ const kpiCards = computed(() => [
     tone: 'brand' as const,
   },
   {
-    label: '月度费用',
+    label: '个人月度费用',
     value: formatMoney(totalMonthly.value),
     icon: Wallet,
     tone: 'success' as const,
   },
   {
-    label: '年度费用',
+    label: '个人年度费用',
     value: formatMoney(totalYearly.value),
     icon: CalendarRange,
     tone: 'warning' as const,
   },
   {
-    label: '日均费用',
+    label: '个人日均费用',
     value: formatMoney(totalDaily.value),
     icon: Coins,
     tone: 'danger' as const,
@@ -222,7 +222,7 @@ onMounted(async () => {
           <div class="flex h-8 w-8 items-center justify-center rounded-lg bg-brand-50 text-brand-600 dark:bg-brand-500/15 dark:text-brand-300">
             <BarChart3 :size="16" />
           </div>
-          <h3 class="text-sm font-semibold text-ink-900 dark:text-ink-50">按类型分布 <span class="text-xs font-normal text-ink-400">月费</span></h3>
+          <h3 class="text-sm font-semibold text-ink-900 dark:text-ink-50">按类型分布 <span class="text-xs font-normal text-ink-400">个人月费</span></h3>
         </header>
         <div class="space-y-2.5">
           <div v-for="(item, idx) in byType" :key="item.label" class="group">
@@ -245,7 +245,7 @@ onMounted(async () => {
           <div class="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-50 text-emerald-600 dark:bg-emerald-500/15 dark:text-emerald-300">
             <ListTree :size="16" />
           </div>
-          <h3 class="text-sm font-semibold text-ink-900 dark:text-ink-50">按分类分布 <span class="text-xs font-normal text-ink-400">月费</span></h3>
+          <h3 class="text-sm font-semibold text-ink-900 dark:text-ink-50">按分类分布 <span class="text-xs font-normal text-ink-400">个人月费</span></h3>
         </header>
         <div class="space-y-2.5">
           <div v-for="(item, idx) in byCategory" :key="item.label" class="group">
@@ -271,7 +271,7 @@ onMounted(async () => {
           <div class="flex h-8 w-8 items-center justify-center rounded-lg bg-amber-50 text-amber-600 dark:bg-amber-500/15 dark:text-amber-300">
             <LineChart :size="16" />
           </div>
-          <h3 class="text-sm font-semibold text-ink-900 dark:text-ink-50">近 6 个月费用趋势</h3>
+          <h3 class="text-sm font-semibold text-ink-900 dark:text-ink-50">近 6 个月个人费用趋势</h3>
         </div>
         <span class="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-medium text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-300">
           <TrendingUp :size="12" />
@@ -342,15 +342,21 @@ onMounted(async () => {
               <span class="font-mono-nums text-ink-600 dark:text-ink-300">{{ getPeriodLabel(row) }}</span>
             </template>
           </el-table-column>
-          <el-table-column label="费用" min-width="110">
+          <el-table-column label="订阅总费用" min-width="120">
             <template #default="{ row }">
               <span v-if="row.price > 0" class="font-mono-nums font-semibold text-brand-600 dark:text-brand-300">{{ getPriceLabel(row) }}</span>
               <span v-else class="text-xs text-ink-400">免费</span>
             </template>
           </el-table-column>
-          <el-table-column label="折合月费" min-width="100" sortable>
+          <el-table-column label="他人承担" min-width="110">
             <template #default="{ row }">
-              <span v-if="row.price > 0" class="font-mono-nums font-semibold text-ink-900 dark:text-ink-50">{{ formatMoney(getMonthlyCostInCurrency(row, displayCurrency)) }}</span>
+              <span v-if="getNonSelfPaidLabel(row)" class="font-mono-nums text-ink-600 dark:text-ink-300">{{ getNonSelfPaidLabel(row) }}</span>
+              <span v-else class="text-ink-400">-</span>
+            </template>
+          </el-table-column>
+          <el-table-column label="个人折合月费" min-width="120" sortable>
+            <template #default="{ row }">
+              <span v-if="row.price > 0" class="font-mono-nums font-semibold text-ink-900 dark:text-ink-50">{{ formatMoney(getPersonalMonthlyCostInCurrency(row, displayCurrency)) }}</span>
               <span v-else class="text-ink-400">-</span>
             </template>
           </el-table-column>

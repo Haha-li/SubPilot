@@ -1,6 +1,7 @@
 import { db, schema } from '../db';
 import { eq } from 'drizzle-orm';
 import { sendNotification } from '../services/notification';
+import { resolveSharedCost } from '../utils/sharedCost';
 
 export async function listSubscriptionsHandler(query: any) {
   try {
@@ -33,17 +34,24 @@ export async function listSubscriptionsHandler(query: any) {
 
 export async function createSubscriptionHandler(body: any) {
   try {
-    const { name, customType, category, startDate, expiryDate, periodValue, periodUnit, reminderValue, reminderUnit, isActive, autoRenew, useLunar, notes, price, priceUnit, currency, trialValue, trialUnit } = body;
+    const { name, customType, category, startDate, expiryDate, periodValue, periodUnit, reminderValue, reminderUnit, isActive, autoRenew, useLunar, notes, price, priceUnit, currency, nonSelfPaid, nonSelfPaidCurrency, trialValue, trialUnit } = body;
 
     if (!name || !expiryDate) {
       return { status: 400, body: { success: false, message: '订阅名称和到期日期为必填项' } };
     }
 
     const now = new Date().toISOString();
+    const subscriptionCategory = typeof category === 'string' ? category : '';
+    const sharedCost = resolveSharedCost(
+      subscriptionCategory,
+      nonSelfPaid,
+      nonSelfPaidCurrency,
+      currency,
+    );
     await db.insert(schema.subscriptions).values({
       name,
       customType: customType || '',
-      category: category || '',
+      category: subscriptionCategory,
       startDate: startDate || null,
       expiryDate,
       periodValue: periodValue || 1,
@@ -57,6 +65,8 @@ export async function createSubscriptionHandler(body: any) {
       price: price ?? 0,
       priceUnit: priceUnit || 'month',
       currency: currency || 'CNY',
+      nonSelfPaid: sharedCost.nonSelfPaid,
+      nonSelfPaidCurrency: sharedCost.nonSelfPaidCurrency,
       trialValue: trialValue || null,
       trialUnit: trialUnit || null,
       createdAt: now,
@@ -74,7 +84,7 @@ export async function createSubscriptionHandler(body: any) {
 
 export async function updateSubscriptionHandler(id: number, body: any) {
   try {
-    const { name, customType, category, startDate, expiryDate, periodValue, periodUnit, reminderValue, reminderUnit, isActive, autoRenew, useLunar, notes, price, priceUnit, currency, isPinned, trialValue, trialUnit } = body;
+    const { name, customType, category, startDate, expiryDate, periodValue, periodUnit, reminderValue, reminderUnit, isActive, autoRenew, useLunar, notes, price, priceUnit, currency, nonSelfPaid, nonSelfPaidCurrency, isPinned, trialValue, trialUnit } = body;
 
     const [existing] = await db.select().from(schema.subscriptions).where(eq(schema.subscriptions.id, id)).limit(1);
     if (!existing) {
@@ -82,6 +92,13 @@ export async function updateSubscriptionHandler(id: number, body: any) {
     }
 
     const now = new Date().toISOString();
+    const finalCategory = category ?? existing.category ?? '';
+    const sharedCost = resolveSharedCost(
+      finalCategory,
+      nonSelfPaid !== undefined ? nonSelfPaid : existing.nonSelfPaid,
+      nonSelfPaidCurrency !== undefined ? nonSelfPaidCurrency : existing.nonSelfPaidCurrency,
+      currency ?? existing.currency,
+    );
 
     // 续费历史记录：价格变动 或 expiryDate 延后视为续费，记一笔
     const oldPrice = existing.price || 0;
@@ -104,7 +121,7 @@ export async function updateSubscriptionHandler(id: number, body: any) {
     await db.update(schema.subscriptions).set({
       name: name ?? existing.name,
       customType: customType ?? existing.customType,
-      category: category ?? existing.category,
+      category: finalCategory,
       startDate: startDate !== undefined ? startDate : existing.startDate,
       expiryDate: expiryDate ?? existing.expiryDate,
       periodValue: periodValue ?? existing.periodValue,
@@ -118,6 +135,8 @@ export async function updateSubscriptionHandler(id: number, body: any) {
       price: price ?? existing.price,
       priceUnit: priceUnit ?? existing.priceUnit,
       currency: currency ?? existing.currency,
+      nonSelfPaid: sharedCost.nonSelfPaid,
+      nonSelfPaidCurrency: sharedCost.nonSelfPaidCurrency,
       isPinned: isPinned !== undefined ? (isPinned ? 1 : 0) : existing.isPinned,
       trialValue: trialValue !== undefined ? trialValue : existing.trialValue,
       trialUnit: trialUnit !== undefined ? trialUnit : existing.trialUnit,

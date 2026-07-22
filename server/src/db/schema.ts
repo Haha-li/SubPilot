@@ -25,6 +25,8 @@ export const subscriptions = sqliteTable('subscriptions', {
   price: real('price').default(0),
   priceUnit: text('price_unit').default('month'),
   currency: text('currency').default('CNY'),
+  nonSelfPaid: real('non_self_paid').default(0),
+  nonSelfPaidCurrency: text('non_self_paid_currency').default('CNY'),
   isPinned: integer('is_pinned').default(0),
   trialValue: integer('trial_value'),
   trialUnit: text('trial_unit'),
