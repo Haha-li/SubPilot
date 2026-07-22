@@ -10,6 +10,7 @@ import {
   DollarSign, AlertCircle, Loader2, ArrowDownUp, ArrowDown, ArrowUp, CheckCheck, X,
 } from '@lucide/vue';
 import SubscriptionModal from '../components/SubscriptionModal.vue';
+import SubscriptionBrandIcon from '../components/SubscriptionBrandIcon.vue';
 import ImportExportDrawer from '../components/ImportExportDrawer.vue';
 import SubscriptionDetailDrawer from '../components/SubscriptionDetailDrawer.vue';
 
@@ -17,6 +18,7 @@ const subStore = useSubscriptionStore();
 const isMobile = useMediaQuery('(max-width: 768px)');
 
 const searchKeyword = ref('');
+const typeFilter = ref('');
 const categoryFilter = ref('');
 const showLunar = ref(localStorage.getItem('showLunar') === 'true');
 const statusFilter = ref('');
@@ -95,8 +97,20 @@ const allCategories = computed(() => {
   return Array.from(cats).sort((a, b) => a.localeCompare(b, 'zh-CN'));
 });
 
+const allTypes = computed(() => {
+  const types = subStore.subscriptions
+    .map((sub) => sub.customType?.trim())
+    .filter((type): type is string => Boolean(type));
+  return Array.from(new Set(types)).sort((a, b) => a.localeCompare(b, 'zh-CN'));
+});
+
 const filteredSubscriptions = computed(() => {
   let list = [...subStore.subscriptions];
+
+  if (typeFilter.value) {
+    const selectedType = typeFilter.value.toLowerCase();
+    list = list.filter((sub) => (sub.customType || '').trim().toLowerCase() === selectedType);
+  }
 
   if (categoryFilter.value) {
     list = list.filter((sub) =>
@@ -149,7 +163,7 @@ const paginatedSubscriptions = computed(() => {
   return filteredSubscriptions.value.slice(start, start + pageSize.value);
 });
 
-watch([searchKeyword, categoryFilter, statusFilter], () => {
+watch([searchKeyword, typeFilter, categoryFilter, statusFilter], () => {
   currentPage.value = 1;
   clearSelection();
 });
@@ -290,27 +304,6 @@ function formatCnyMoney(value: number): string {
   return `${getSymbol('CNY')}${Math.round(value).toLocaleString('zh-CN')}`;
 }
 
-function brandInitial(name: string) {
-  const ch = (name || '?').trim().charAt(0).toUpperCase();
-  return ch || '?';
-}
-
-function brandColor(name: string) {
-  const palette = [
-    'from-indigo-500 to-violet-600',
-    'from-sky-500 to-blue-600',
-    'from-emerald-500 to-teal-600',
-    'from-amber-500 to-orange-600',
-    'from-rose-500 to-pink-600',
-    'from-fuchsia-500 to-purple-600',
-    'from-cyan-500 to-blue-500',
-    'from-lime-500 to-green-600',
-  ];
-  let h = 0;
-  for (let i = 0; i < name.length; i++) h = (h * 31 + name.charCodeAt(i)) >>> 0;
-  return palette[h % palette.length];
-}
-
 function openAdd() {
   editingSub.value = null;
   copyMode.value = false;
@@ -388,7 +381,7 @@ onMounted(() => {
 </script>
 
 <template>
-  <div>
+  <div class="flex min-h-[calc(100vh-5.5rem)] flex-col md:min-h-[calc(100vh-4rem)]">
     <!-- Header -->
     <div class="mb-6 flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
       <div>
@@ -424,8 +417,8 @@ onMounted(() => {
     </div>
 
     <!-- Filters -->
-    <div class="bento-card mb-6 grid grid-cols-1 gap-3 p-4 md:grid-cols-12 md:items-center">
-      <div class="relative md:col-span-5">
+    <div class="bento-card mb-6 grid grid-cols-1 gap-3 p-4 sm:grid-cols-2 xl:grid-cols-12 xl:items-center">
+      <div class="relative sm:col-span-2 xl:col-span-3">
         <Search :size="16" class="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-ink-400" />
         <input
           v-model="searchKeyword"
@@ -434,12 +427,17 @@ onMounted(() => {
           class="block w-full rounded-xl border border-ink-200 bg-white/60 py-2.5 pl-10 pr-3 text-sm text-ink-900 placeholder:text-ink-400 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/30 dark:border-ink-700/60 dark:bg-ink-900/40 dark:text-ink-50 dark:placeholder:text-ink-500"
         />
       </div>
-      <div class="md:col-span-2">
+      <div class="xl:col-span-2">
+        <el-select v-model="typeFilter" placeholder="全部类型" clearable filterable size="default" class="w-full" aria-label="按订阅类型筛选">
+          <el-option v-for="type in allTypes" :key="type" :label="type" :value="type" />
+        </el-select>
+      </div>
+      <div class="xl:col-span-2">
         <el-select v-model="categoryFilter" placeholder="全部分类" clearable size="default" class="w-full">
           <el-option v-for="cat in allCategories" :key="cat" :label="cat" :value="cat" />
         </el-select>
       </div>
-      <div class="md:col-span-2">
+      <div class="xl:col-span-2">
         <el-select v-model="statusFilter" placeholder="全部状态" clearable size="default" class="w-full">
           <el-option label="正常" value="active" />
           <el-option label="已停用" value="inactive" />
@@ -448,7 +446,7 @@ onMounted(() => {
           <el-option label="收藏" value="pinned" />
         </el-select>
       </div>
-      <div class="md:col-span-2">
+      <div class="xl:col-span-2">
         <el-select v-model="sortBy" size="default" class="w-full">
           <el-option label="按到期日" value="expiry" />
           <el-option label="按名称" value="name" />
@@ -456,7 +454,7 @@ onMounted(() => {
           <el-option label="按费用" value="price" />
         </el-select>
       </div>
-      <div class="flex items-center justify-between gap-2 md:col-span-1 md:justify-end">
+      <div class="flex items-center justify-between gap-2 sm:col-span-2 xl:col-span-1 xl:justify-end">
         <button
           :title="sortOrder === 'asc' ? '升序' : '降序'"
           class="inline-flex h-9 w-9 cursor-pointer items-center justify-center rounded-lg border border-ink-200 bg-white/60 text-ink-600 transition-colors hover:bg-white hover:text-brand-600 dark:border-ink-700/60 dark:bg-ink-900/40 dark:text-ink-300"
@@ -581,7 +579,7 @@ onMounted(() => {
     </div>
 
     <!-- Card grid -->
-    <div v-else>
+    <div v-else class="flex flex-1 flex-col">
       <div class="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
         <article
           v-for="sub in paginatedSubscriptions"
@@ -621,12 +619,7 @@ onMounted(() => {
 
           <!-- Header -->
           <div class="flex items-start gap-3 pr-8" :class="selectMode ? 'pl-8' : ''">
-            <div
-              class="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-xl bg-gradient-to-br text-lg font-bold text-white shadow-sm"
-              :class="brandColor(sub.name)"
-            >
-              {{ brandInitial(sub.name) }}
-            </div>
+            <SubscriptionBrandIcon :name="sub.name" />
             <div class="min-w-0 flex-1">
               <h3 class="truncate text-base font-semibold text-ink-900 dark:text-ink-50">{{ sub.name }}</h3>
               <p v-if="sub.customType" class="mt-0.5 truncate text-xs text-ink-500 dark:text-ink-400">{{ sub.customType }}</p>
@@ -814,7 +807,7 @@ onMounted(() => {
         :layout="isMobile ? 'total, prev, next' : 'total, sizes, prev, pager, next'"
         :small="isMobile"
         background
-        class="mt-6 justify-end"
+        class="mt-auto justify-end pt-6"
       />
     </div>
 

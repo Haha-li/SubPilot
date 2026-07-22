@@ -55,7 +55,7 @@ function handleVisibleChange(visible: boolean) {
       :label="currency.code"
       :value="currency.code"
     >
-      <div class="flex min-w-0 items-center gap-2">
+      <div class="flex h-full min-w-0 items-center gap-2">
         <span class="w-12 shrink-0 font-mono-nums text-xs font-semibold text-ink-900 dark:text-ink-50">
           {{ currency.code }}
         </span>
