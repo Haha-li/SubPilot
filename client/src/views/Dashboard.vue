@@ -579,7 +579,7 @@ onMounted(() => {
     </div>
 
     <!-- Card grid -->
-    <div v-else class="flex flex-1 flex-col">
+    <div v-else class="flex flex-1 flex-col pb-24">
       <div class="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
         <article
           v-for="sub in paginatedSubscriptions"
@@ -764,7 +764,7 @@ onMounted(() => {
       >
         <div
           v-if="selectMode && selectedCount > 0"
-          class="glass-panel sticky bottom-4 z-20 mt-6 flex flex-wrap items-center justify-between gap-3 rounded-2xl px-5 py-3"
+          class="glass-panel sticky bottom-24 z-20 mt-6 flex flex-wrap items-center justify-between gap-3 rounded-2xl px-5 py-3"
         >
           <label class="flex cursor-pointer items-center gap-2.5 text-sm font-medium text-ink-700 dark:text-ink-200">
             <input
@@ -798,17 +798,22 @@ onMounted(() => {
         </div>
       </transition>
 
-      <el-pagination
+      <nav
         v-if="filteredSubscriptions.length > 0"
-        v-model:current-page="currentPage"
-        v-model:page-size="pageSize"
-        :total="filteredSubscriptions.length"
-        :page-sizes="[12, 24, 48]"
-        :layout="isMobile ? 'total, prev, next' : 'total, sizes, prev, pager, next'"
-        :small="isMobile"
-        background
-        class="mt-auto justify-end pt-6"
-      />
+        aria-label="订阅分页"
+        class="glass-panel fixed bottom-4 right-4 z-30 max-w-[calc(100vw-2rem)] overflow-x-auto rounded-2xl px-3 py-2 md:right-8"
+      >
+        <el-pagination
+          v-model:current-page="currentPage"
+          v-model:page-size="pageSize"
+          :total="filteredSubscriptions.length"
+          :page-sizes="[12, 24, 48]"
+          :layout="isMobile ? 'total, prev, next' : 'total, sizes, prev, pager, next'"
+          :small="isMobile"
+          background
+          class="justify-end"
+        />
+      </nav>
     </div>
 
     <SubscriptionModal
