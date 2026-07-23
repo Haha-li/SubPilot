@@ -22,7 +22,7 @@ app.use(cors({
   origin: process.env.NODE_ENV === 'production' ? false : ['http://localhost:5173', 'http://localhost:3000'],
   credentials: true,
 }));
-app.use(express.json());
+app.use(express.json({ limit: '512kb' }));
 
 // API Routes
 app.use('/api/auth', authRoutes);

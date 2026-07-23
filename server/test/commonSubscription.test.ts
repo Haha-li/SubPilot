@@ -47,18 +47,18 @@ test('名称必填且限制字段长度', () => {
   );
 });
 
-test('网站与头像仅允许 http 或 https', () => {
+test('网站仅允许 http/https 且头像拒绝非法上传数据', () => {
   expectEqual(
     { success: false, message: '网站地址仅支持 http 或 https' },
     normalizeCommonSubscriptionInput({ name: '示例', website: 'javascript:alert(1)' }),
   );
   expectEqual(
-    { success: false, message: '头像地址仅支持 http 或 https' },
+    { success: false, message: '上传头像数据格式不正确' },
     normalizeCommonSubscriptionInput({ name: '示例', iconUrl: 'data:image/png;base64,abc' }),
   );
 });
 
-test('头像背景色可为空且仅接受 6 位十六进制颜色', () => {
+test('头像支持安全网址或受限的本地上传图片', () => {
   assert.deepStrictEqual(
     normalizeAvatarFields({ iconUrl: '', backgroundColor: '' }),
     { success: true, value: { iconUrl: '', backgroundColor: '' } },
@@ -69,6 +69,20 @@ test('头像背景色可为空且仅接受 6 位十六进制颜色', () => {
       success: true,
       value: { iconUrl: 'https://icons.example.com/app.png', backgroundColor: '#7C3AED' },
     },
+  );
+  const uploadedIcon = `data:image/png;base64,${Buffer.from('avatar').toString('base64')}`;
+  assert.deepStrictEqual(
+    normalizeAvatarFields({ iconUrl: uploadedIcon }),
+    { success: true, value: { iconUrl: uploadedIcon, backgroundColor: '' } },
+  );
+  assert.deepStrictEqual(
+    normalizeAvatarFields({ iconUrl: 'data:image/svg+xml;base64,PHN2Zz48L3N2Zz4=' }),
+    { success: false, message: '上传头像仅支持 PNG、JPG、WebP、GIF、AVIF 或 ICO' },
+  );
+  const oversizedIcon = `data:image/png;base64,${Buffer.alloc(256 * 1_024 + 1).toString('base64')}`;
+  assert.deepStrictEqual(
+    normalizeAvatarFields({ iconUrl: oversizedIcon }),
+    { success: false, message: '上传头像不能超过 256 KB' },
   );
   assert.deepStrictEqual(
     normalizeAvatarFields({ backgroundColor: 'purple' }),

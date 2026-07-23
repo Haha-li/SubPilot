@@ -48,16 +48,18 @@ function createMemoryDb() {
 
 test('常用订阅 API 完成增查改删与重复拦截', async () => {
   setDb(createMemoryDb());
+  const uploadedIcon = `data:image/png;base64,${Buffer.from('avatar').toString('base64')}`;
 
   const created = await createCommonSubscriptionHandler({
     name: ' Netflix ',
     website: 'netflix.com',
-    iconUrl: '',
+    iconUrl: uploadedIcon,
     backgroundColor: '#2563eb',
   });
   assert.equal(created.status, 201);
   assert.equal((created.body as any).commonSubscription.name, 'Netflix');
   assert.equal((created.body as any).commonSubscription.website, 'https://netflix.com/');
+  assert.equal((created.body as any).commonSubscription.iconUrl, uploadedIcon);
   assert.equal((created.body as any).commonSubscription.backgroundColor, '#2563EB');
 
   const listed = await listCommonSubscriptionsHandler({ search: 'NETFLIX.COM' });
