@@ -46,13 +46,40 @@
 
 ### Docker 部署
 
+需要预先安装 Docker Engine 和 Docker Compose v2（使用 `docker compose` 命令）。
+
+#### 首次部署
+
 ```bash
 cp .env.example .env
 # 编辑 .env 设置 JWT_SECRET 和 ADMIN_PASSWORD
-docker compose up -d
+docker compose up -d --build
+docker compose ps
 ```
 
 访问 `http://localhost:3000`
+
+容器每次启动时都会自动执行数据库迁移。SQLite 数据保存在 Compose 命名卷
+`subpilot-data` 中，重新构建或替换容器不会丢失已有数据。
+
+#### 升级已有部署
+
+在项目目录拉取新代码并重新构建镜像：
+
+```bash
+git pull
+docker compose up -d --build
+docker compose ps
+docker compose logs --tail=100 subpilot
+```
+
+如需持续查看运行日志：
+
+```bash
+docker compose logs -f subpilot
+```
+
+> 请勿执行 `docker compose down -v`，其中 `-v` 会删除包含 SQLite 数据库的命名卷。
 
 ### Cloudflare Workers 部署
 

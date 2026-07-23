@@ -1,12 +1,12 @@
 import { Router } from 'express';
-import { auth } from '../middleware/auth';
+import { authMiddleware } from '../middleware/auth';
 import { db, schema } from '../db';
 import { eq, desc } from 'drizzle-orm';
 
 const router = Router();
 
 // Get renewal history for a subscription
-router.get('/:id', auth, async (req, res) => {
+router.get('/:id', authMiddleware, async (req, res) => {
   try {
     const id = Number(req.params.id);
     const logs = await db.select().from(schema.renewalLogs)

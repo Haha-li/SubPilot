@@ -2,7 +2,13 @@ import { Hono } from 'hono';
 import { honoAuth } from '../middleware/auth';
 import { loginHandler, getMeHandler } from '../../handlers/auth';
 
-const auth = new Hono();
+type AuthEnv = {
+  Bindings: {
+    ADMIN_PASSWORD?: string;
+  };
+};
+
+const auth = new Hono<AuthEnv>();
 
 // Login
 auth.post('/login', async (c) => {

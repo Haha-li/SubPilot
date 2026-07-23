@@ -28,10 +28,6 @@ COPY --from=backend-build /app/server/dist ./server/dist
 # Copy built frontend
 COPY --from=frontend-build /app/client/dist ./client/dist
 
-# Copy migration script (needed for first run)
-COPY server/src/db/migrate.ts ./server/src/db/migrate.ts
-COPY server/tsconfig.json ./server/
-
 # Create data directory
 RUN mkdir -p /app/data
 
@@ -43,5 +39,5 @@ ENV JWT_SECRET=change-this-in-production
 
 EXPOSE 3000
 
-# Run migration then start server
-CMD ["sh", "-c", "cd /app/server && npx tsx src/db/migrate.ts && node dist/index.js"]
+# Run compiled migration then start server
+CMD ["sh", "-c", "cd /app/server && node dist/db/migrate.js && node dist/index.js"]
