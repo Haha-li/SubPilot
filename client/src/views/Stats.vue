@@ -16,21 +16,26 @@ const displayCurrency = ref('CNY');
 const isMobile = useMediaQuery('(max-width: 768px)');
 const subscriptionPage = ref(1);
 const subscriptionPageSize = 10;
+const ratesRefreshKey = ref(0);
 
 const activeSubscriptions = computed(() => subStore.subscriptions.filter((s) => s.isActive));
 
-const paidSubscriptions = computed(() => activeSubscriptions.value.filter(
-  (s) => getPersonalMonthlyCostOrZero(s, displayCurrency.value) > 0,
-));
+const paidSubscriptions = computed(() => {
+  ratesRefreshKey.value;
+  return activeSubscriptions.value.filter(
+    (subscription) => getPersonalMonthlyCostOrZero(subscription, displayCurrency.value) > 0,
+  );
+});
 
-const sortedSubs = computed(() =>
-  [...subStore.subscriptions].sort((a, b) => {
+const sortedSubs = computed(() => {
+  ratesRefreshKey.value;
+  return [...subStore.subscriptions].sort((a, b) => {
     const ca = getPersonalMonthlyCostOrZero(a, displayCurrency.value);
     const cb = getPersonalMonthlyCostOrZero(b, displayCurrency.value);
     if (cb !== ca) return cb - ca;
     return a.name.localeCompare(b.name, 'zh-CN');
-  }),
-);
+  });
+});
 
 const paginatedSubs = computed(() => {
   const start = (subscriptionPage.value - 1) * subscriptionPageSize;
@@ -73,8 +78,10 @@ watch(() => sortedSubs.value.length, (total) => {
   }
 });
 
-onMounted(async () => {
-  fetchRates();
+onMounted(() => {
+  void fetchRates().finally(() => {
+    ratesRefreshKey.value += 1;
+  });
   if (subStore.subscriptions.length === 0) {
     subStore.fetchSubscriptions();
   }
@@ -98,6 +105,7 @@ onMounted(async () => {
     <StatsOverview
       :subscriptions="activeSubscriptions"
       :display-currency="displayCurrency"
+      :rates-refresh-key="ratesRefreshKey"
     />
 
     <!-- Detail Table -->

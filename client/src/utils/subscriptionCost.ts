@@ -141,6 +141,8 @@ export function getCostStatisticsInCurrency(
   let sharedMonthlyIncome = 0;
   let personalMonthlyCost = 0;
   let personalYearlyEstimatedCost = 0;
+  let monthlyCostUnavailable = false;
+  let yearlyCostUnavailable = false;
 
   subscriptions.forEach((subscription) => {
     const monthlyCost = getPersonalMonthlyCostInCurrency(subscription, targetCurrency, converter);
@@ -152,14 +154,24 @@ export function getCostStatisticsInCurrency(
     if (Number.isFinite(monthlyCost)) {
       personalMonthlyCost += monthlyCost;
       sharedMonthlyIncome += Math.max(-monthlyCost, 0);
+    } else {
+      monthlyCostUnavailable = true;
     }
-    if (Number.isFinite(yearlyCost)) personalYearlyEstimatedCost += yearlyCost;
+    if (Number.isFinite(yearlyCost)) {
+      personalYearlyEstimatedCost += yearlyCost;
+    } else {
+      yearlyCostUnavailable = true;
+    }
   });
 
   return {
-    sharedMonthlyIncome,
-    personalMonthlyCost,
-    personalYearlyEstimatedCost,
-    personalDailyCost: personalYearlyEstimatedCost / DAYS_PER_YEAR,
+    sharedMonthlyIncome: monthlyCostUnavailable ? Number.NaN : sharedMonthlyIncome,
+    personalMonthlyCost: monthlyCostUnavailable ? Number.NaN : personalMonthlyCost,
+    personalYearlyEstimatedCost: yearlyCostUnavailable
+      ? Number.NaN
+      : personalYearlyEstimatedCost,
+    personalDailyCost: yearlyCostUnavailable
+      ? Number.NaN
+      : personalYearlyEstimatedCost / DAYS_PER_YEAR,
   };
 }

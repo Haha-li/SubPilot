@@ -8,7 +8,7 @@ import { solar2lunar } from '../utils/lunar';
 import { fetchRates, getSymbol } from '../utils/currency';
 import {
   getCategoryTokens,
-  getPersonalMonthlyCostInCurrency,
+  getCostStatisticsInCurrency,
   getPersonalMonthlyCostOrZero,
 } from '../utils/subscriptionCost';
 import { ElMessageBox, ElMessage } from 'element-plus';
@@ -88,13 +88,8 @@ function clearSelection() {
 const totalCount = computed(() => subStore.subscriptions.length);
 const monthlyCost = computed(() => {
   ratesRefreshKey.value;
-  let total = 0;
-  for (const s of subStore.subscriptions) {
-    if (!s.isActive || !s.price) continue;
-    const cost = getPersonalMonthlyCostInCurrency(s, 'CNY');
-    if (Number.isFinite(cost)) total += cost;
-  }
-  return total;
+  const activeSubscriptions = subStore.subscriptions.filter((subscription) => subscription.isActive);
+  return getCostStatisticsInCurrency(activeSubscriptions, 'CNY').personalMonthlyCost;
 });
 const monthlyCostLabel = computed(() => formatCnyMoney(monthlyCost.value));
 const expiringSoonSubscriptions = computed(() =>

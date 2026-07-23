@@ -192,6 +192,40 @@ test('费用统计使用净收益重算个人月度年度预估和日均费用',
   }, actual);
 });
 
+test('零总费用的合租收入计入费用统计', () => {
+  const actual = getCostStatisticsInCurrency(
+    [createSubscription({
+      price: 0,
+      currency: 'CNY',
+      nonSelfPaid: 10,
+      nonSelfPaidCurrency: 'CNY',
+    })],
+    'CNY',
+    convertWithFixedRates,
+  );
+  expectEqual({
+    sharedMonthlyIncome: 10,
+    personalMonthlyCost: -10,
+    personalYearlyEstimatedCost: -120,
+    personalDailyCost: -120 / 365,
+  }, actual);
+});
+
+test('费用统计遇到缺失汇率时不返回部分合计', () => {
+  const actual = getCostStatisticsInCurrency(
+    [
+      createSubscription({ category: '视频', price: 60, currency: 'CNY' }),
+      createSubscription({ category: '视频', price: 10, currency: 'GBP' }),
+    ],
+    'CNY',
+    convertWithFixedRates,
+  );
+  assert.ok(Number.isNaN(actual.sharedMonthlyIncome));
+  assert.ok(Number.isNaN(actual.personalMonthlyCost));
+  assert.ok(Number.isNaN(actual.personalYearlyEstimatedCost));
+  assert.ok(Number.isNaN(actual.personalDailyCost));
+});
+
 test('年度预估按各订阅计费单位独立年化', () => {
   const actual = getCostStatisticsInCurrency(
     [

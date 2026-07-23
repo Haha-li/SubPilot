@@ -9,20 +9,31 @@ import {
 } from '../utils/subscriptionCost';
 import {
   Wallet, TrendingUp, CalendarRange, Coins, BarChart3, Layers, LineChart, ListTree,
+  CircleAlert,
 } from '@lucide/vue';
 
 const props = defineProps<{
   subscriptions: Subscription[];
   displayCurrency: string;
+  ratesRefreshKey: number;
 }>();
 
-const costStatistics = computed(() =>
-  getCostStatisticsInCurrency(props.subscriptions, props.displayCurrency),
+const costStatistics = computed(() => {
+  props.ratesRefreshKey;
+  return getCostStatisticsInCurrency(props.subscriptions, props.displayCurrency);
+});
+
+const hasUnavailableExchangeRate = computed(() =>
+  !Number.isFinite(costStatistics.value.personalMonthlyCost)
+  || !Number.isFinite(costStatistics.value.personalYearlyEstimatedCost),
 );
 
-const paidSubscriptions = computed(() => props.subscriptions.filter(
-  (subscription) => getPersonalMonthlyCostOrZero(subscription, props.displayCurrency) > 0,
-));
+const paidSubscriptions = computed(() => {
+  props.ratesRefreshKey;
+  return props.subscriptions.filter(
+    (subscription) => getPersonalMonthlyCostOrZero(subscription, props.displayCurrency) > 0,
+  );
+});
 
 const byType = computed(() => {
   const totals: Record<string, number> = {};
@@ -57,6 +68,7 @@ const maxTypeValue = computed(() => Math.max(1, ...byType.value.map((item) => it
 const maxCategoryValue = computed(() => Math.max(1, ...byCategory.value.map((item) => item.value)));
 
 const monthlyTrend = computed(() => {
+  props.ratesRefreshKey;
   const months: { label: string; value: number }[] = [];
   const now = new Date();
   for (let offset = 5; offset >= 0; offset -= 1) {
@@ -137,7 +149,17 @@ const toneClasses = {
     </div>
   </div>
 
-  <div class="mb-5 grid grid-cols-1 gap-4 lg:grid-cols-2">
+  <div
+    v-if="hasUnavailableExchangeRate"
+    role="status"
+    aria-live="polite"
+    class="mb-5 flex items-start gap-2.5 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-200"
+  >
+    <CircleAlert :size="18" class="mt-0.5 flex-shrink-0" aria-hidden="true" />
+    <span>部分订阅缺少可用汇率，费用汇总和图表暂时无法完整计算。</span>
+  </div>
+
+  <div v-if="!hasUnavailableExchangeRate" class="mb-5 grid grid-cols-1 gap-4 lg:grid-cols-2">
     <section v-if="byType.length > 0" class="bento-card p-5">
       <header class="mb-4 flex items-center gap-2.5">
         <div class="flex h-8 w-8 items-center justify-center rounded-lg bg-brand-50 text-brand-600 dark:bg-brand-500/15 dark:text-brand-300"><BarChart3 :size="16" /></div>
@@ -175,7 +197,7 @@ const toneClasses = {
     </section>
   </div>
 
-  <section v-if="monthlyTrend.some((month) => month.value !== 0)" class="bento-card mb-5 p-5">
+  <section v-if="!hasUnavailableExchangeRate && monthlyTrend.some((month) => month.value !== 0)" class="bento-card mb-5 p-5">
     <header class="mb-5 flex items-center justify-between">
       <div class="flex items-center gap-2.5">
         <div class="flex h-8 w-8 items-center justify-center rounded-lg bg-amber-50 text-amber-600 dark:bg-amber-500/15 dark:text-amber-300"><LineChart :size="16" /></div>
@@ -201,7 +223,7 @@ const toneClasses = {
     </div>
   </section>
 
-  <div v-if="byType.length === 0 && byCategory.length === 0" class="bento-card flex flex-col items-center justify-center px-6 py-20 text-center">
+  <div v-if="!hasUnavailableExchangeRate && byType.length === 0 && byCategory.length === 0" class="bento-card flex flex-col items-center justify-center px-6 py-20 text-center">
     <div class="flex h-16 w-16 items-center justify-center rounded-2xl bg-brand-50 text-brand-500 dark:bg-brand-500/10 dark:text-brand-300"><BarChart3 :size="28" /></div>
     <p class="mt-4 text-base font-medium text-ink-700 dark:text-ink-200">暂无正向费用数据</p>
     <p class="mt-1 text-sm text-ink-500 dark:text-ink-400">合租收益与净费用可在顶部汇总和订阅明细中查看</p>
