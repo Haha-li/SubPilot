@@ -53,18 +53,36 @@
 ```bash
 cp .env.example .env
 # 编辑 .env 设置 JWT_SECRET 和 ADMIN_PASSWORD
+mkdir -p data
 docker compose up -d --build
 docker compose ps
 ```
 
 访问 `http://localhost:3000`
 
-容器每次启动时都会自动执行数据库迁移。SQLite 数据保存在 Compose 命名卷
-`subpilot-data` 中，重新构建或替换容器不会丢失已有数据。
+容器每次启动时都会自动执行数据库迁移。SQLite 数据保存在项目目录下的
+`data/subpilot.db`，重新构建或替换容器不会丢失已有数据。`data/` 已被 Git
+和 Docker 构建上下文忽略，请自行将该目录纳入服务器备份。
+
+#### 从旧版命名卷迁移
+
+如果旧版本仍将数据库保存在 `subpilot-data` 命名卷中，拉取新代码后、启动新容器前，
+先停止旧容器并复制数据。此操作只需要执行一次：
+
+```bash
+git pull
+docker stop subpilot
+mkdir -p data
+docker cp subpilot:/app/data/. ./data
+docker compose up -d --build --force-recreate
+docker compose ps
+```
+
+确认订阅数据正常后可保留旧命名卷作为临时备份。
 
 #### 升级已有部署
 
-在项目目录拉取新代码并重新构建镜像：
+已经使用项目 `data/` 目录的版本，可直接拉取新代码并重新构建镜像：
 
 ```bash
 git pull
@@ -79,7 +97,7 @@ docker compose logs --tail=100 subpilot
 docker compose logs -f subpilot
 ```
 
-> 请勿执行 `docker compose down -v`，其中 `-v` 会删除包含 SQLite 数据库的命名卷。
+> 请勿删除项目中的 `data/` 目录；Git 不会跟踪其中的数据库文件。
 
 ### Cloudflare Workers 部署
 
