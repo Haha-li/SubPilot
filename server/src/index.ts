@@ -8,6 +8,7 @@ import subscriptionRoutes from './routes/subscription';
 import configRoutes from './routes/config';
 import notifyLogsRoutes from './routes/notifyLogs';
 import renewalsRoutes from './routes/renewals';
+import commonSubscriptionRoutes from './routes/commonSubscription';
 import { startScheduler } from './services/scheduler';
 
 // Initialize database
@@ -29,6 +30,7 @@ app.use('/api/subscriptions', subscriptionRoutes);
 app.use('/api/config', configRoutes);
 app.use('/api/notify-logs', notifyLogsRoutes);
 app.use('/api/renewals', renewalsRoutes);
+app.use('/api/common-subscriptions', commonSubscriptionRoutes);
 
 // Serve static frontend in production
 if (process.env.NODE_ENV === 'production') {

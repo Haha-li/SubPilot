@@ -4,6 +4,9 @@ import { resolveBrandIcon } from '../utils/brandIcon';
 
 const props = defineProps<{
   name: string;
+  website?: string;
+  iconUrl?: string;
+  small?: boolean;
 }>();
 
 const palette = [
@@ -28,26 +31,34 @@ const toneClass = computed(() => {
   return palette[hash % palette.length];
 });
 
-watch(() => props.name, async (name) => {
+watch(() => [props.name, props.website, props.iconUrl] as const, async ([name, website, providedIcon]) => {
   const version = ++requestVersion;
   iconUrl.value = null;
   imageFailed.value = false;
-  const resolvedUrl = await resolveBrandIcon(name);
+  if (providedIcon) {
+    iconUrl.value = providedIcon;
+    return;
+  }
+  const resolvedUrl = await resolveBrandIcon(name, website);
   if (version === requestVersion) iconUrl.value = resolvedUrl;
 }, { immediate: true });
 </script>
 
 <template>
   <div
-    class="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-xl bg-gradient-to-br text-lg font-bold text-white shadow-sm"
-    :class="toneClass"
+    class="flex flex-shrink-0 items-center justify-center bg-gradient-to-br font-bold text-white shadow-sm"
+    :class="[
+      toneClass,
+      small ? 'h-7 w-7 rounded-lg text-xs' : 'h-12 w-12 rounded-xl text-lg',
+    ]"
     aria-hidden="true"
   >
     <img
       v-if="iconUrl && !imageFailed"
       :src="iconUrl"
       alt=""
-      class="h-7 w-7 object-contain"
+      class="object-contain"
+      :class="small ? 'h-4 w-4' : 'h-7 w-7'"
       loading="lazy"
       decoding="async"
       referrerpolicy="no-referrer"

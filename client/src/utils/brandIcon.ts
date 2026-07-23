@@ -1,5 +1,6 @@
 const ICONIFY_SEARCH_URL = 'https://api.iconify.design/search';
 const ICONIFY_ICON_URL = 'https://api.iconify.design';
+const GOOGLE_FAVICON_URL = 'https://www.google.com/s2/favicons';
 const SIMPLE_ICONS_PREFIX = 'simple-icons:';
 const ICON_SEARCH_LIMIT = '1';
 const ICON_REQUEST_TIMEOUT_MS = 4_000;
@@ -12,14 +13,49 @@ interface IconifySearchResponse {
 
 const brandIconCache = new Map<string, Promise<string | null>>();
 
-function buildSearchQueries(name: string): string[] {
+export function getWebsiteHostname(website: string): string | null {
+  const trimmed = website.trim();
+  if (!trimmed) return null;
+
+  const source = /^[a-z][a-z\d+.-]*:/i.test(trimmed) ? trimmed : `https://${trimmed}`;
+  try {
+    const url = new URL(source);
+    if (!['http:', 'https:'].includes(url.protocol) || !url.hostname) return null;
+    return url.hostname.toLocaleLowerCase();
+  } catch {
+    return null;
+  }
+}
+
+export function buildWebsiteFaviconUrl(website: string): string | null {
+  const hostname = getWebsiteHostname(website);
+  if (!hostname) return null;
+
+  const url = new URL(GOOGLE_FAVICON_URL);
+  url.searchParams.set('domain', hostname);
+  url.searchParams.set('sz', '128');
+  return url.toString();
+}
+
+export function buildBrandSearchQueries(name: string, website = ''): string[] {
   const original = name.trim();
   const simplified = original
     .replace(CHINESE_SUBSCRIPTION_SUFFIX, '')
     .replace(ENGLISH_SUBSCRIPTION_SUFFIX, '')
     .trim();
+  const hostname = getWebsiteHostname(website)?.replace(/^www\./, '') || '';
+  const domainBrand = hostname.split('.')[0] || '';
 
-  return Array.from(new Set([original, simplified].filter(Boolean)));
+  const queries: string[] = [];
+  const seen = new Set<string>();
+  for (const query of [simplified, original, domainBrand, hostname]) {
+    const key = query.toLocaleLowerCase();
+    if (!query || seen.has(key)) continue;
+    seen.add(key);
+    queries.push(query);
+  }
+
+  return queries;
 }
 
 function buildIconUrl(icon: string): string | null {
@@ -56,22 +92,25 @@ async function searchBrandIcon(query: string): Promise<string | null> {
   }
 }
 
-async function findBrandIcon(name: string): Promise<string | null> {
-  for (const query of buildSearchQueries(name)) {
-    const iconUrl = await searchBrandIcon(query);
-    if (iconUrl) return iconUrl;
-  }
-  return null;
+async function findBrandIcon(name: string, website: string): Promise<string | null> {
+  const results = await Promise.all(
+    buildBrandSearchQueries(name, website).map((query) => searchBrandIcon(query)),
+  );
+  const matchedIcon = results.find(Boolean);
+  if (matchedIcon) return matchedIcon;
+  return buildWebsiteFaviconUrl(website);
 }
 
-export function resolveBrandIcon(name: string): Promise<string | null> {
-  const cacheKey = name.trim().toLocaleLowerCase();
-  if (!cacheKey) return Promise.resolve(null);
+export function resolveBrandIcon(name: string, website = '', force = false): Promise<string | null> {
+  const normalizedName = name.trim().toLocaleLowerCase();
+  const normalizedWebsite = website.trim().toLocaleLowerCase();
+  if (!normalizedName && !normalizedWebsite) return Promise.resolve(null);
+  const cacheKey = `${normalizedName}|${normalizedWebsite}`;
 
   const cached = brandIconCache.get(cacheKey);
-  if (cached) return cached;
+  if (cached && !force) return cached;
 
-  const request = findBrandIcon(name);
+  const request = findBrandIcon(name, website);
   brandIconCache.set(cacheKey, request);
   return request;
 }

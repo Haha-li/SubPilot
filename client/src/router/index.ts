@@ -41,6 +41,11 @@ const router = createRouter({
           component: () => import('../views/Categories.vue'),
         },
         {
+          path: 'common-subscriptions',
+          name: 'CommonSubscriptions',
+          component: () => import('../views/CommonSubscriptions.vue'),
+        },
+        {
           path: 'calendar',
           name: 'Calendar',
           component: () => import('../views/Calendar.vue'),

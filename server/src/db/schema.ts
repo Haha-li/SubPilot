@@ -35,6 +35,15 @@ export const subscriptions = sqliteTable('subscriptions', {
   updatedAt: text('updated_at').default(new Date().toISOString()),
 });
 
+export const commonSubscriptions = sqliteTable('common_subscriptions', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  name: text('name').notNull().unique(),
+  website: text('website').notNull().default(''),
+  iconUrl: text('icon_url').notNull().default(''),
+  createdAt: text('created_at').notNull().default(new Date().toISOString()),
+  updatedAt: text('updated_at').notNull().default(new Date().toISOString()),
+});
+
 export const config = sqliteTable('config', {
   key: text('key').primaryKey(),
   value: text('value').notNull(),

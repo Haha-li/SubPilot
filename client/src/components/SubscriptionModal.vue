@@ -2,10 +2,13 @@
 import { ref, computed, onMounted } from 'vue';
 import { useMediaQuery } from '@vueuse/core';
 import { useSubscriptionStore, type Subscription } from '../stores/subscription';
+import { useCommonSubscriptionStore } from '../stores/commonSubscription';
 import { solar2lunar } from '../utils/lunar';
 import { getCategoryTokens, hasSharedCostCategory } from '../utils/subscriptionCost';
 import { ElMessage } from 'element-plus';
 import CurrencySelect from './CurrencySelect.vue';
+import SubscriptionBrandIcon from './SubscriptionBrandIcon.vue';
+import { getWebsiteHostname } from '../utils/brandIcon';
 import {
   Tag as TagIcon, Calendar as CalendarIcon, Repeat, Wallet, Bell, Sparkles,
   StickyNote, Calculator, Loader2, Save, X, Moon as MoonIcon,
@@ -14,6 +17,7 @@ import {
 const props = defineProps<{
   subscription: Subscription | null;
   copy?: boolean;
+  presetName?: string;
 }>();
 
 const emit = defineEmits<{
@@ -22,6 +26,7 @@ const emit = defineEmits<{
 }>();
 
 const subStore = useSubscriptionStore();
+const commonStore = useCommonSubscriptionStore();
 const isMobile = useMediaQuery('(max-width: 768px)');
 
 const allCategories = computed(() => {
@@ -197,8 +202,13 @@ onMounted(() => {
       trialValue: sub.trialValue || 7,
       trialUnit: sub.trialUnit || 'day',
     };
+  } else if (props.presetName) {
+    form.value.name = props.presetName.trim();
   }
   hadSharedCategory.value = isSharedSubscription.value;
+  if (commonStore.items.length === 0) {
+    void commonStore.fetchItems().catch(() => undefined);
+  }
 });
 </script>
 
@@ -244,7 +254,36 @@ onMounted(() => {
             <label class="mb-1 block text-xs font-medium text-ink-700 dark:text-ink-200">
               订阅名称<span class="text-danger">*</span>
             </label>
-            <el-input v-model="form.name" placeholder="例如：Netflix 会员" />
+            <el-select
+              v-model="form.name"
+              filterable
+              allow-create
+              clearable
+              default-first-option
+              aria-label="订阅名称"
+              placeholder="选择常用订阅或手动输入"
+              class="w-full"
+            >
+              <el-option
+                v-for="item in commonStore.items"
+                :key="item.id"
+                :label="item.name"
+                :value="item.name"
+              >
+                <div class="flex min-w-0 items-center gap-2 py-0.5">
+                  <SubscriptionBrandIcon
+                    :name="item.name"
+                    :website="item.website"
+                    :icon-url="item.iconUrl"
+                    small
+                  />
+                  <span class="min-w-0 flex-1 truncate">{{ item.name }}</span>
+                  <span v-if="item.website" class="max-w-28 truncate text-xs text-ink-400">
+                    {{ getWebsiteHostname(item.website) }}
+                  </span>
+                </div>
+              </el-option>
+            </el-select>
           </div>
           <div>
             <label class="mb-1 block text-xs font-medium text-ink-700 dark:text-ink-200">订阅类型</label>

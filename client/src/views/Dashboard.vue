@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, reactive, computed, watch, onMounted } from 'vue';
+import { useRoute, useRouter } from 'vue-router';
 import { useMediaQuery } from '@vueuse/core';
 import { useSubscriptionStore, type Subscription } from '../stores/subscription';
 import { solar2lunar } from '../utils/lunar';
@@ -20,6 +21,8 @@ import ImportExportDrawer from '../components/ImportExportDrawer.vue';
 import SubscriptionDetailDrawer from '../components/SubscriptionDetailDrawer.vue';
 
 const subStore = useSubscriptionStore();
+const route = useRoute();
+const router = useRouter();
 const isMobile = useMediaQuery('(max-width: 768px)');
 
 const searchKeyword = ref('');
@@ -38,6 +41,7 @@ const sortOrder = ref(localStorage.getItem('sortOrder') || 'asc');
 const showImportExport = ref(false);
 const showModal = ref(false);
 const editingSub = ref<Subscription | null>(null);
+const presetName = ref('');
 const copyMode = ref(false);
 const showDetail = ref(false);
 const detailSub = ref<Subscription | null>(null);
@@ -298,15 +302,17 @@ function formatCnyMoney(value: number): string {
   return `${getSymbol('CNY')}${Math.round(value).toLocaleString('zh-CN')}`;
 }
 
-function openAdd() {
+function openAdd(name = '') {
   editingSub.value = null;
   copyMode.value = false;
+  presetName.value = name;
   showModal.value = true;
 }
 
 function openEdit(sub: Subscription) {
   editingSub.value = { ...sub };
   copyMode.value = false;
+  presetName.value = '';
   showModal.value = true;
 }
 
@@ -334,6 +340,7 @@ function onDetailTest(sub: Subscription) {
 function handleCopy(sub: Subscription) {
   editingSub.value = { ...sub };
   copyMode.value = true;
+  presetName.value = '';
   showModal.value = true;
 }
 
@@ -371,6 +378,13 @@ onMounted(() => {
     ratesRefreshKey.value += 1;
   });
   subStore.fetchSubscriptions();
+  const preset = Array.isArray(route.query.preset) ? route.query.preset[0] : route.query.preset;
+  if (typeof preset === 'string' && preset.trim()) {
+    openAdd(preset.trim());
+    const nextQuery = { ...route.query };
+    delete nextQuery.preset;
+    void router.replace({ query: nextQuery });
+  }
 });
 </script>
 
@@ -402,7 +416,7 @@ onMounted(() => {
         </button>
         <button
           class="inline-flex cursor-pointer items-center gap-2 rounded-xl bg-brand-500 hover:bg-brand-600 px-4 py-2 text-sm font-semibold text-white shadow-md shadow-brand-500/30 transition-all hover:shadow-lg hover:shadow-brand-500/40 active:scale-[0.98]"
-          @click="openAdd"
+          @click="openAdd()"
         >
           <Plus :size="16" />
           添加订阅
@@ -565,7 +579,7 @@ onMounted(() => {
       <p class="mt-1 text-sm text-ink-500 dark:text-ink-400">添加第一条订阅，开始追踪到期日</p>
       <button
         class="mt-6 inline-flex cursor-pointer items-center gap-2 rounded-xl bg-brand-500 hover:bg-brand-600 px-5 py-2.5 text-sm font-semibold text-white shadow-md shadow-brand-500/30 hover:shadow-lg"
-        @click="openAdd"
+        @click="openAdd()"
       >
         <Plus :size="16" />
         添加订阅
@@ -814,6 +828,7 @@ onMounted(() => {
       v-if="showModal"
       :subscription="editingSub"
       :copy="copyMode"
+      :preset-name="presetName"
       @close="showModal = false"
       @saved="showModal = false"
     />
