@@ -59,5 +59,18 @@ export const useCommonSubscriptionStore = defineStore('commonSubscription', () =
     return data;
   }
 
-  return { items, loading, fetchItems, createItem, updateItem, deleteItem };
+  async function fetchWebsiteIcon(website: string): Promise<string> {
+    const { data } = await api.post('/common-subscriptions/fetch-icon', { website });
+    return data.iconUrl;
+  }
+
+  return {
+    items,
+    loading,
+    fetchItems,
+    createItem,
+    updateItem,
+    deleteItem,
+    fetchWebsiteIcon,
+  };
 });

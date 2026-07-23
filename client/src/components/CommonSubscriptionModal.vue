@@ -2,7 +2,7 @@
 import { computed, onMounted, ref } from 'vue';
 import { useMediaQuery } from '@vueuse/core';
 import { ElMessage } from 'element-plus';
-import { Image, Loader2, Palette, Save, Search, Sparkles, X } from '@lucide/vue';
+import { Globe2, Image, Loader2, Palette, Save, Search, Sparkles, X } from '@lucide/vue';
 import {
   type CommonSubscription,
   useCommonSubscriptionStore,
@@ -19,6 +19,7 @@ const form = ref({ name: '', website: '', iconUrl: '', backgroundColor: '' });
 const dialogVisible = ref(true);
 const saving = ref(false);
 const searchingIcon = ref(false);
+const fetchingWebsiteIcon = ref(false);
 const nameError = ref('');
 
 const isEditing = computed(() => Boolean(props.item));
@@ -32,7 +33,7 @@ function handleCustomColor(event: Event) {
 }
 
 async function findIcon(silent = false) {
-  if (searchingIcon.value) return;
+  if (searchingIcon.value || fetchingWebsiteIcon.value) return;
   if (!form.value.name.trim() && !form.value.website.trim()) {
     if (!silent) ElMessage.warning('请先填写名称或网站');
     return;
@@ -49,6 +50,24 @@ async function findIcon(silent = false) {
     }
   } finally {
     searchingIcon.value = false;
+  }
+}
+
+async function fetchIconFromWebsite() {
+  if (searchingIcon.value || fetchingWebsiteIcon.value) return;
+  if (!form.value.website.trim()) {
+    ElMessage.warning('请先填写网站地址');
+    return;
+  }
+
+  fetchingWebsiteIcon.value = true;
+  try {
+    form.value.iconUrl = await store.fetchWebsiteIcon(form.value.website);
+    ElMessage.success('已获取网站声明的头像');
+  } catch (error: any) {
+    ElMessage.error(error.response?.data?.message || '读取网站头像失败');
+  } finally {
+    fetchingWebsiteIcon.value = false;
   }
 }
 
@@ -127,15 +146,26 @@ onMounted(() => {
             <label for="common-icon-url" class="flex items-center gap-1.5 text-xs font-medium text-ink-700 dark:text-ink-200">
               <Image :size="13" /> 头像地址
             </label>
-            <button
-              type="button"
-              class="inline-flex min-h-11 cursor-pointer items-center gap-1.5 rounded-lg bg-brand-50 px-3 text-xs font-semibold text-brand-600 transition-colors hover:bg-brand-100 disabled:cursor-not-allowed disabled:opacity-60 dark:bg-brand-500/15 dark:text-brand-300 dark:hover:bg-brand-500/25"
-              :disabled="searchingIcon"
-              @click="findIcon()"
-            >
-              <component :is="searchingIcon ? Loader2 : Search" :size="13" :class="searchingIcon && 'animate-spin'" />
-              {{ searchingIcon ? '搜索中' : '自动获取' }}
-            </button>
+            <div class="flex flex-wrap justify-end gap-2">
+              <button
+                type="button"
+                class="inline-flex min-h-11 cursor-pointer items-center gap-1.5 rounded-lg bg-brand-50 px-3 text-xs font-semibold text-brand-600 transition-colors hover:bg-brand-100 disabled:cursor-not-allowed disabled:opacity-60 dark:bg-brand-500/15 dark:text-brand-300 dark:hover:bg-brand-500/25"
+                :disabled="searchingIcon || fetchingWebsiteIcon"
+                @click="findIcon()"
+              >
+                <component :is="searchingIcon ? Loader2 : Search" :size="13" :class="searchingIcon && 'animate-spin'" />
+                {{ searchingIcon ? '搜索中' : '搜索品牌' }}
+              </button>
+              <button
+                type="button"
+                class="inline-flex min-h-11 cursor-pointer items-center gap-1.5 rounded-lg border border-ink-200 bg-white/70 px-3 text-xs font-semibold text-ink-600 transition-colors hover:border-brand-300 hover:text-brand-600 disabled:cursor-not-allowed disabled:opacity-60 dark:border-ink-700 dark:bg-ink-800/40 dark:text-ink-300 dark:hover:border-brand-500/60 dark:hover:text-brand-300"
+                :disabled="searchingIcon || fetchingWebsiteIcon || !form.website.trim()"
+                @click="fetchIconFromWebsite"
+              >
+                <component :is="fetchingWebsiteIcon ? Loader2 : Globe2" :size="13" :class="fetchingWebsiteIcon && 'animate-spin'" />
+                {{ fetchingWebsiteIcon ? '获取中' : '获取网页图标' }}
+              </button>
+            </div>
           </div>
           <el-input id="common-icon-url" v-model="form.iconUrl" clearable placeholder="留空则根据名称和网站自动查找" />
           <p class="mt-1.5 text-xs text-ink-400 dark:text-ink-500">支持手动填写 http/https 图片地址</p>
@@ -203,7 +233,7 @@ onMounted(() => {
         </div>
         <div>
           <label for="common-website" class="mb-1.5 block text-xs font-medium text-ink-700 dark:text-ink-200">网站</label>
-          <el-input id="common-website" v-model="form.website" clearable placeholder="例如：netflix.com" @blur="!form.iconUrl && findIcon(true)" />
+          <el-input id="common-website" v-model="form.website" clearable placeholder="例如：netflix.com" />
           <p class="mt-1.5 text-xs text-ink-400 dark:text-ink-500">
             {{ websiteHost ? `将保存为可访问的 ${websiteHost} 地址` : '可不填写；输入域名时会自动补全 https://' }}
           </p>
@@ -214,7 +244,7 @@ onMounted(() => {
     <template #footer>
       <div class="flex items-center justify-end gap-2">
         <button class="inline-flex h-11 cursor-pointer items-center rounded-xl border border-ink-200 bg-white/70 px-4 text-sm font-medium text-ink-700 transition-colors hover:bg-white dark:border-ink-700/60 dark:bg-ink-800/40 dark:text-ink-200" @click="handleClose">取消</button>
-        <button class="inline-flex h-11 cursor-pointer items-center gap-1.5 rounded-xl bg-brand-500 px-5 text-sm font-semibold text-white shadow-md shadow-brand-500/30 transition-colors hover:bg-brand-600 disabled:cursor-not-allowed disabled:opacity-60" :disabled="saving || searchingIcon" @click="handleSubmit">
+        <button class="inline-flex h-11 cursor-pointer items-center gap-1.5 rounded-xl bg-brand-500 px-5 text-sm font-semibold text-white shadow-md shadow-brand-500/30 transition-colors hover:bg-brand-600 disabled:cursor-not-allowed disabled:opacity-60" :disabled="saving || searchingIcon || fetchingWebsiteIcon" @click="handleSubmit">
           <component :is="saving ? Loader2 : Save" :size="15" :class="saving && 'animate-spin'" />
           {{ saving ? '保存中...' : '保存' }}
         </button>

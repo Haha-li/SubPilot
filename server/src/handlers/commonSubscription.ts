@@ -4,9 +4,21 @@ import {
   findDuplicateCommonSubscription,
   normalizeCommonSubscriptionInput,
 } from '../utils/commonSubscription';
+import { fetchWebsiteIcon, type WebsiteIconFetch } from '../utils/websiteIcon';
 
 function duplicateMessage(field: 'name' | 'website'): string {
   return field === 'name' ? '该名称已存在' : '该网站已存在';
+}
+
+export async function fetchCommonSubscriptionIconHandler(
+  body: any,
+  fetcher?: WebsiteIconFetch,
+) {
+  const result = await fetchWebsiteIcon(body?.website, fetcher);
+  if (!result.success) {
+    return { status: result.status, body: { success: false, message: result.message } };
+  }
+  return { status: 200, body: { success: true, ...result.value } };
 }
 
 export async function listCommonSubscriptionsHandler(query: any) {

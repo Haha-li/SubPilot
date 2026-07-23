@@ -3,6 +3,7 @@ import { authMiddleware, AuthRequest } from '../middleware/auth';
 import {
   createCommonSubscriptionHandler,
   deleteCommonSubscriptionHandler,
+  fetchCommonSubscriptionIconHandler,
   listCommonSubscriptionsHandler,
   updateCommonSubscriptionHandler,
 } from '../handlers/commonSubscription';
@@ -16,6 +17,11 @@ router.get('/', authMiddleware, async (req: AuthRequest, res: Response) => {
 
 router.post('/', authMiddleware, async (req: AuthRequest, res: Response) => {
   const result = await createCommonSubscriptionHandler(req.body);
+  res.status(result.status).json(result.body);
+});
+
+router.post('/fetch-icon', authMiddleware, async (req: AuthRequest, res: Response) => {
+  const result = await fetchCommonSubscriptionIconHandler(req.body);
   res.status(result.status).json(result.body);
 });
 

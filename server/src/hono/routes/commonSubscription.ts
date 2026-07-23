@@ -3,6 +3,7 @@ import { honoAuth } from '../middleware/auth';
 import {
   createCommonSubscriptionHandler,
   deleteCommonSubscriptionHandler,
+  fetchCommonSubscriptionIconHandler,
   listCommonSubscriptionsHandler,
   updateCommonSubscriptionHandler,
 } from '../../handlers/commonSubscription';
@@ -16,6 +17,11 @@ commonSubscriptions.get('/', honoAuth, async (c) => {
 
 commonSubscriptions.post('/', honoAuth, async (c) => {
   const result = await createCommonSubscriptionHandler(await c.req.json());
+  return c.json(result.body, result.status as any);
+});
+
+commonSubscriptions.post('/fetch-icon', honoAuth, async (c) => {
+  const result = await fetchCommonSubscriptionIconHandler(await c.req.json());
   return c.json(result.body, result.status as any);
 });
 
