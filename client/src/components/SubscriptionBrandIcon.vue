@@ -6,6 +6,7 @@ const props = defineProps<{
   name: string;
   website?: string;
   iconUrl?: string;
+  backgroundColor?: string;
   small?: boolean;
 }>();
 
@@ -30,6 +31,15 @@ const toneClass = computed(() => {
   for (const char of props.name) hash = (hash * 31 + char.charCodeAt(0)) >>> 0;
   return palette[hash % palette.length];
 });
+const hasImage = computed(() => Boolean(iconUrl.value && !imageFailed.value));
+const useFallbackTone = computed(() => !hasImage.value && !props.backgroundColor);
+const foregroundColor = computed(() => {
+  const color = props.backgroundColor;
+  if (!color || !/^#[0-9A-F]{6}$/i.test(color)) return '#ffffff';
+  const channels = [1, 3, 5].map((index) => Number.parseInt(color.slice(index, index + 2), 16));
+  const luminance = (channels[0] * 299 + channels[1] * 587 + channels[2] * 114) / 255000;
+  return luminance > 0.58 ? '#0f172a' : '#ffffff';
+});
 
 watch(() => [props.name, props.website, props.iconUrl] as const, async ([name, website, providedIcon]) => {
   const version = ++requestVersion;
@@ -46,11 +56,15 @@ watch(() => [props.name, props.website, props.iconUrl] as const, async ([name, w
 
 <template>
   <div
-    class="flex flex-shrink-0 items-center justify-center bg-gradient-to-br font-bold text-white shadow-sm"
+    class="flex flex-shrink-0 items-center justify-center overflow-hidden font-bold shadow-sm"
     :class="[
-      toneClass,
+      useFallbackTone ? ['bg-gradient-to-br', toneClass] : '',
       small ? 'h-7 w-7 rounded-lg text-xs' : 'h-12 w-12 rounded-xl text-lg',
     ]"
+    :style="{
+      backgroundColor: backgroundColor || 'transparent',
+      color: foregroundColor,
+    }"
     aria-hidden="true"
   >
     <img
@@ -58,7 +72,9 @@ watch(() => [props.name, props.website, props.iconUrl] as const, async ([name, w
       :src="iconUrl"
       alt=""
       class="object-contain"
-      :class="small ? 'h-4 w-4' : 'h-7 w-7'"
+      :class="backgroundColor
+        ? (small ? 'h-4 w-4' : 'h-7 w-7')
+        : 'h-full w-full'"
       loading="lazy"
       decoding="async"
       referrerpolicy="no-referrer"

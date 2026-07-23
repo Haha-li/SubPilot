@@ -7,11 +7,15 @@ export interface CommonSubscription {
   name: string;
   website: string;
   iconUrl: string;
+  backgroundColor: string;
   createdAt: string;
   updatedAt: string;
 }
 
-export type CommonSubscriptionPayload = Pick<CommonSubscription, 'name' | 'website' | 'iconUrl'>;
+export type CommonSubscriptionPayload = Pick<
+  CommonSubscription,
+  'name' | 'website' | 'iconUrl' | 'backgroundColor'
+>;
 
 export const useCommonSubscriptionStore = defineStore('commonSubscription', () => {
   const items = ref<CommonSubscription[]>([]);

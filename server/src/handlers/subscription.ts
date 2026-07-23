@@ -2,6 +2,7 @@ import { db, schema } from '../db';
 import { eq } from 'drizzle-orm';
 import { sendNotification } from '../services/notification';
 import { resolveSharedCost } from '../utils/sharedCost';
+import { normalizeAvatarFields } from '../utils/avatar';
 
 export async function listSubscriptionsHandler(query: any) {
   try {
@@ -34,10 +35,15 @@ export async function listSubscriptionsHandler(query: any) {
 
 export async function createSubscriptionHandler(body: any) {
   try {
-    const { name, customType, category, startDate, expiryDate, periodValue, periodUnit, reminderValue, reminderUnit, isActive, autoRenew, useLunar, notes, price, priceUnit, currency, nonSelfPaid, nonSelfPaidCurrency, nonSelfPaidUnit, trialValue, trialUnit } = body;
+    const { name, customType, category, startDate, expiryDate, periodValue, periodUnit, reminderValue, reminderUnit, isActive, autoRenew, useLunar, notes, iconUrl, iconBackgroundColor, price, priceUnit, currency, nonSelfPaid, nonSelfPaidCurrency, nonSelfPaidUnit, trialValue, trialUnit } = body;
 
     if (!name || !expiryDate) {
       return { status: 400, body: { success: false, message: '订阅名称和到期日期为必填项' } };
+    }
+
+    const avatar = normalizeAvatarFields({ iconUrl, backgroundColor: iconBackgroundColor });
+    if (!avatar.success) {
+      return { status: 400, body: { success: false, message: avatar.message } };
     }
 
     const now = new Date().toISOString();
@@ -64,6 +70,8 @@ export async function createSubscriptionHandler(body: any) {
       autoRenew: autoRenew !== false ? 1 : 0,
       useLunar: useLunar ? 1 : 0,
       notes: notes || '',
+      iconUrl: avatar.value.iconUrl,
+      iconBackgroundColor: avatar.value.backgroundColor,
       price: price ?? 0,
       priceUnit: priceUnit || 'month',
       currency: currency || 'CNY',
@@ -87,11 +95,22 @@ export async function createSubscriptionHandler(body: any) {
 
 export async function updateSubscriptionHandler(id: number, body: any) {
   try {
-    const { name, customType, category, startDate, expiryDate, periodValue, periodUnit, reminderValue, reminderUnit, isActive, autoRenew, useLunar, notes, price, priceUnit, currency, nonSelfPaid, nonSelfPaidCurrency, nonSelfPaidUnit, isPinned, trialValue, trialUnit } = body;
+    const { name, customType, category, startDate, expiryDate, periodValue, periodUnit, reminderValue, reminderUnit, isActive, autoRenew, useLunar, notes, iconUrl, iconBackgroundColor, price, priceUnit, currency, nonSelfPaid, nonSelfPaidCurrency, nonSelfPaidUnit, isPinned, trialValue, trialUnit } = body;
 
     const [existing] = await db.select().from(schema.subscriptions).where(eq(schema.subscriptions.id, id)).limit(1);
     if (!existing) {
       return { status: 404, body: { success: false, message: '订阅不存在' } };
+    }
+
+    const avatar = normalizeAvatarFields(
+      { iconUrl, backgroundColor: iconBackgroundColor },
+      {
+        iconUrl: existing.iconUrl || '',
+        backgroundColor: existing.iconBackgroundColor || '',
+      },
+    );
+    if (!avatar.success) {
+      return { status: 400, body: { success: false, message: avatar.message } };
     }
 
     const now = new Date().toISOString();
@@ -142,6 +161,8 @@ export async function updateSubscriptionHandler(id: number, body: any) {
       autoRenew: autoRenew !== undefined ? (autoRenew ? 1 : 0) : existing.autoRenew,
       useLunar: useLunar !== undefined ? (useLunar ? 1 : 0) : existing.useLunar,
       notes: notes ?? existing.notes,
+      iconUrl: avatar.value.iconUrl,
+      iconBackgroundColor: avatar.value.backgroundColor,
       price: price ?? existing.price,
       priceUnit: finalPriceUnit,
       currency: currency ?? existing.currency,

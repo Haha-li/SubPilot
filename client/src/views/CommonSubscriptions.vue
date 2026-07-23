@@ -111,7 +111,12 @@ onMounted(async () => {
     <section v-else-if="filteredItems.length" aria-label="常用订阅列表" class="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
       <article v-for="item in filteredItems" :key="item.id" class="bento-card flex min-w-0 flex-col p-5">
         <div class="flex min-w-0 items-start gap-3">
-          <SubscriptionBrandIcon :name="item.name" :website="item.website" :icon-url="item.iconUrl" />
+          <SubscriptionBrandIcon
+            :name="item.name"
+            :website="item.website"
+            :icon-url="item.iconUrl"
+            :background-color="item.backgroundColor"
+          />
           <div class="min-w-0 flex-1">
             <h3 class="truncate text-base font-semibold text-ink-900 dark:text-ink-50" :title="item.name">{{ item.name }}</h3>
             <a

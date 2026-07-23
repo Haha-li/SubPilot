@@ -22,6 +22,8 @@ export const subscriptions = sqliteTable('subscriptions', {
   autoRenew: integer('auto_renew').default(1),
   useLunar: integer('use_lunar').default(0),
   notes: text('notes').default(''),
+  iconUrl: text('icon_url').notNull().default(''),
+  iconBackgroundColor: text('icon_background_color').notNull().default(''),
   price: real('price').default(0),
   priceUnit: text('price_unit').default('month'),
   currency: text('currency').default('CNY'),
@@ -40,6 +42,7 @@ export const commonSubscriptions = sqliteTable('common_subscriptions', {
   name: text('name').notNull().unique(),
   website: text('website').notNull().default(''),
   iconUrl: text('icon_url').notNull().default(''),
+  backgroundColor: text('background_color').notNull().default(''),
   createdAt: text('created_at').notNull().default(new Date().toISOString()),
   updatedAt: text('updated_at').notNull().default(new Date().toISOString()),
 });

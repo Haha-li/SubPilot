@@ -38,6 +38,8 @@ sqlite.exec(`
     auto_renew INTEGER DEFAULT 1,
     use_lunar INTEGER DEFAULT 0,
     notes TEXT DEFAULT '',
+    icon_url TEXT NOT NULL DEFAULT '',
+    icon_background_color TEXT NOT NULL DEFAULT '',
     non_self_paid REAL DEFAULT 0,
     non_self_paid_currency TEXT DEFAULT 'CNY',
     non_self_paid_unit TEXT DEFAULT 'month',
@@ -55,6 +57,7 @@ sqlite.exec(`
     name TEXT NOT NULL COLLATE NOCASE UNIQUE,
     website TEXT NOT NULL DEFAULT '',
     icon_url TEXT NOT NULL DEFAULT '',
+    background_color TEXT NOT NULL DEFAULT '',
     created_at TEXT NOT NULL DEFAULT (datetime('now')),
     updated_at TEXT NOT NULL DEFAULT (datetime('now'))
   );
@@ -176,6 +179,21 @@ try {
 }
 if (addedNonSelfPaidUnit) {
   sqlite.exec("UPDATE subscriptions SET non_self_paid_unit = COALESCE(price_unit, 'month')");
+}
+try {
+  sqlite.exec("ALTER TABLE common_subscriptions ADD COLUMN background_color TEXT NOT NULL DEFAULT ''");
+} catch (e: any) {
+  if (!e.message.includes('duplicate column name')) throw e;
+}
+try {
+  sqlite.exec("ALTER TABLE subscriptions ADD COLUMN icon_url TEXT NOT NULL DEFAULT ''");
+} catch (e: any) {
+  if (!e.message.includes('duplicate column name')) throw e;
+}
+try {
+  sqlite.exec("ALTER TABLE subscriptions ADD COLUMN icon_background_color TEXT NOT NULL DEFAULT ''");
+} catch (e: any) {
+  if (!e.message.includes('duplicate column name')) throw e;
 }
 
 console.log('Database migration completed successfully');

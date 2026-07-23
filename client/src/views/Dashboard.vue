@@ -3,6 +3,7 @@ import { ref, reactive, computed, watch, onMounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useMediaQuery } from '@vueuse/core';
 import { useSubscriptionStore, type Subscription } from '../stores/subscription';
+import { useCommonSubscriptionStore } from '../stores/commonSubscription';
 import { solar2lunar } from '../utils/lunar';
 import { fetchRates, getSymbol } from '../utils/currency';
 import {
@@ -21,6 +22,7 @@ import ImportExportDrawer from '../components/ImportExportDrawer.vue';
 import SubscriptionDetailDrawer from '../components/SubscriptionDetailDrawer.vue';
 
 const subStore = useSubscriptionStore();
+const commonStore = useCommonSubscriptionStore();
 const route = useRoute();
 const router = useRouter();
 const isMobile = useMediaQuery('(max-width: 768px)');
@@ -48,6 +50,31 @@ const detailSub = ref<Subscription | null>(null);
 const currentPage = ref(1);
 const pageSize = ref(12);
 const ratesRefreshKey = ref(0);
+
+const commonSubscriptionsByName = computed(() => new Map(
+  commonStore.items.map((item) => [item.name.trim().toLocaleLowerCase(), item]),
+));
+
+function getCommonSubscription(name: string) {
+  return commonSubscriptionsByName.value.get(name.trim().toLocaleLowerCase());
+}
+
+function getSubscriptionIconUrl(sub: Subscription): string {
+  return getCommonSubscription(sub.name)?.iconUrl || sub.iconUrl || '';
+}
+
+function getSubscriptionIconBackground(sub: Subscription): string {
+  const common = getCommonSubscription(sub.name);
+  return common ? (common.backgroundColor || '') : (sub.iconBackgroundColor || '');
+}
+
+function withResolvedAvatar(sub: Subscription): Subscription {
+  return {
+    ...sub,
+    iconUrl: getSubscriptionIconUrl(sub),
+    iconBackgroundColor: getSubscriptionIconBackground(sub),
+  };
+}
 
 const selectMode = ref(false);
 // 用 reactive 而非 ref：template 的 selectedMap[sub.id] 直接访问 reactive 属性，避免 ref 索引解包的响应式边界
@@ -310,7 +337,7 @@ function openAdd(name = '') {
 }
 
 function openEdit(sub: Subscription) {
-  editingSub.value = { ...sub };
+  editingSub.value = withResolvedAvatar(sub);
   copyMode.value = false;
   presetName.value = '';
   showModal.value = true;
@@ -319,7 +346,7 @@ function openEdit(sub: Subscription) {
 function openDetail(sub: Subscription) {
   // 批量选择模式下点卡片不开详情，避免误触
   if (selectMode.value) return;
-  detailSub.value = sub;
+  detailSub.value = withResolvedAvatar(sub);
   showDetail.value = true;
 }
 function onDetailEdit(sub: Subscription) {
@@ -338,7 +365,7 @@ function onDetailTest(sub: Subscription) {
 }
 
 function handleCopy(sub: Subscription) {
-  editingSub.value = { ...sub };
+  editingSub.value = withResolvedAvatar(sub);
   copyMode.value = true;
   presetName.value = '';
   showModal.value = true;
@@ -378,6 +405,9 @@ onMounted(() => {
     ratesRefreshKey.value += 1;
   });
   subStore.fetchSubscriptions();
+  if (commonStore.items.length === 0) {
+    void commonStore.fetchItems().catch(() => undefined);
+  }
   const preset = Array.isArray(route.query.preset) ? route.query.preset[0] : route.query.preset;
   if (typeof preset === 'string' && preset.trim()) {
     openAdd(preset.trim());
@@ -627,7 +657,12 @@ onMounted(() => {
 
           <!-- Header -->
           <div class="flex items-start gap-3 pr-8" :class="selectMode ? 'pl-8' : ''">
-            <SubscriptionBrandIcon :name="sub.name" />
+            <SubscriptionBrandIcon
+              :name="sub.name"
+              :website="getCommonSubscription(sub.name)?.website"
+              :icon-url="getSubscriptionIconUrl(sub)"
+              :background-color="getSubscriptionIconBackground(sub)"
+            />
             <div class="min-w-0 flex-1">
               <h3 class="truncate text-base font-semibold text-ink-900 dark:text-ink-50">{{ sub.name }}</h3>
               <p v-if="sub.customType" class="mt-0.5 truncate text-xs text-ink-500 dark:text-ink-400">{{ sub.customType }}</p>

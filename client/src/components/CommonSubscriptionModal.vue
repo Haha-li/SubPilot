@@ -2,7 +2,7 @@
 import { computed, onMounted, ref } from 'vue';
 import { useMediaQuery } from '@vueuse/core';
 import { ElMessage } from 'element-plus';
-import { Image, Loader2, Save, Search, Sparkles, X } from '@lucide/vue';
+import { Image, Loader2, Palette, Save, Search, Sparkles, X } from '@lucide/vue';
 import {
   type CommonSubscription,
   useCommonSubscriptionStore,
@@ -15,7 +15,7 @@ const emit = defineEmits<{ close: []; saved: [] }>();
 
 const store = useCommonSubscriptionStore();
 const isMobile = useMediaQuery('(max-width: 768px)');
-const form = ref({ name: '', website: '', iconUrl: '' });
+const form = ref({ name: '', website: '', iconUrl: '', backgroundColor: '' });
 const dialogVisible = ref(true);
 const saving = ref(false);
 const searchingIcon = ref(false);
@@ -24,6 +24,12 @@ const nameError = ref('');
 const isEditing = computed(() => Boolean(props.item));
 const title = computed(() => (isEditing.value ? '编辑常用订阅' : '新增常用订阅'));
 const websiteHost = computed(() => getWebsiteHostname(form.value.website));
+const backgroundPresets = ['#111827', '#2563EB', '#7C3AED', '#059669', '#DC2626'];
+
+function handleCustomColor(event: Event) {
+  const input = event.target as HTMLInputElement;
+  form.value.backgroundColor = input.value.toUpperCase();
+}
 
 async function findIcon(silent = false) {
   if (searchingIcon.value) return;
@@ -75,6 +81,7 @@ onMounted(() => {
     name: props.item.name,
     website: props.item.website || '',
     iconUrl: props.item.iconUrl || '',
+    backgroundColor: props.item.backgroundColor || '',
   };
 });
 </script>
@@ -108,7 +115,12 @@ onMounted(() => {
     <div class="space-y-5">
       <section class="grid gap-4 rounded-2xl border border-ink-200 bg-white/40 p-4 dark:border-ink-700/50 dark:bg-ink-800/20 sm:grid-cols-[72px_minmax(0,1fr)]">
         <div class="flex h-[72px] w-[72px] items-center justify-center rounded-2xl bg-ink-50 dark:bg-ink-900/30">
-          <SubscriptionBrandIcon :name="form.name" :website="form.website" :icon-url="form.iconUrl" />
+          <SubscriptionBrandIcon
+            :name="form.name"
+            :website="form.website"
+            :icon-url="form.iconUrl"
+            :background-color="form.backgroundColor"
+          />
         </div>
         <div class="min-w-0">
           <div class="mb-2 flex flex-wrap items-center justify-between gap-2">
@@ -127,6 +139,59 @@ onMounted(() => {
           </div>
           <el-input id="common-icon-url" v-model="form.iconUrl" clearable placeholder="留空则根据名称和网站自动查找" />
           <p class="mt-1.5 text-xs text-ink-400 dark:text-ink-500">支持手动填写 http/https 图片地址</p>
+          <div class="mt-4 border-t border-ink-200/70 pt-3 dark:border-ink-700/50">
+            <div class="mb-2 flex items-center justify-between gap-2">
+              <span class="flex items-center gap-1.5 text-xs font-medium text-ink-700 dark:text-ink-200">
+                <Palette :size="13" /> 背景色（可选）
+              </span>
+              <span class="text-xs text-ink-400 dark:text-ink-500">
+                {{ form.backgroundColor || '无背景' }}
+              </span>
+            </div>
+            <div class="flex flex-wrap items-center gap-2" role="radiogroup" aria-label="头像背景色">
+              <button
+                type="button"
+                role="radio"
+                :aria-checked="!form.backgroundColor"
+                class="inline-flex h-11 cursor-pointer items-center rounded-xl border px-3 text-xs font-semibold transition-colors"
+                :class="!form.backgroundColor
+                  ? 'border-brand-500 bg-brand-50 text-brand-600 dark:bg-brand-500/15 dark:text-brand-300'
+                  : 'border-ink-200 text-ink-500 hover:border-brand-300 dark:border-ink-700 dark:text-ink-400'"
+                @click="form.backgroundColor = ''"
+              >
+                无背景
+              </button>
+              <button
+                v-for="color in backgroundPresets"
+                :key="color"
+                type="button"
+                role="radio"
+                :aria-label="`背景色 ${color}`"
+                :aria-checked="form.backgroundColor === color"
+                class="inline-flex h-11 w-11 cursor-pointer items-center justify-center rounded-xl border transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500/40"
+                :class="form.backgroundColor === color ? 'border-brand-500 ring-2 ring-brand-500/25' : 'border-ink-200 dark:border-ink-700'"
+                @click="form.backgroundColor = color"
+              >
+                <span class="h-6 w-6 rounded-lg shadow-sm ring-1 ring-black/10" :style="{ backgroundColor: color }" />
+              </button>
+              <label
+                class="relative inline-flex h-11 w-11 cursor-pointer items-center justify-center rounded-xl border border-dashed border-ink-300 text-ink-500 transition-colors hover:border-brand-400 hover:text-brand-600 dark:border-ink-600 dark:text-ink-400"
+                title="自定义背景色"
+              >
+                <Palette :size="17" />
+                <input
+                  type="color"
+                  :value="form.backgroundColor || '#409EFF'"
+                  class="absolute inset-0 h-full w-full cursor-pointer opacity-0"
+                  aria-label="自定义头像背景色"
+                  @input="handleCustomColor"
+                />
+              </label>
+            </div>
+            <p class="mt-2 text-xs text-ink-400 dark:text-ink-500">
+              不选择背景色时，头像图片会无内边距铺满整个区域。
+            </p>
+          </div>
         </div>
       </section>
 

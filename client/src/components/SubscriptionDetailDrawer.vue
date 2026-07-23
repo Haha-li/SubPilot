@@ -5,6 +5,7 @@ import type { Subscription } from '../stores/subscription';
 import { solar2lunar } from '../utils/lunar';
 import { getSymbol } from '../utils/currency';
 import api from '../utils/api';
+import SubscriptionBrandIcon from './SubscriptionBrandIcon.vue';
 import {
   Pencil, Bell, Pause, Play, Trash2, Star, CalendarDays,
   Repeat, Tag, DollarSign, Clock, FileText, X, History,
@@ -87,9 +88,6 @@ function getStatusMeta(sub: Subscription) {
   if (isSoon) return { label: '即将到期', tone: 'warning' as const };
   return { label: '正常', tone: 'success' as const };
 }
-function brandInitial(name: string) {
-  return (name || '?').trim().charAt(0).toUpperCase() || '?';
-}
 function normalizeCategoryTokens(category: string): string[] {
   return (category || '').split(/[/,，\s]+/).map((t) => t.trim()).filter(Boolean);
 }
@@ -118,9 +116,11 @@ function handleClose() {
       <!-- 自定义头部 -->
       <div class="glass-panel sticky top-0 z-10 flex items-center justify-between px-5 py-4">
         <div class="flex items-center gap-3">
-          <div class="flex h-11 w-11 items-center justify-center rounded-xl bg-brand-500 text-lg font-bold text-white shadow-md shadow-brand-500/30">
-            {{ brandInitial(subscription.name) }}
-          </div>
+          <SubscriptionBrandIcon
+            :name="subscription.name"
+            :icon-url="subscription.iconUrl"
+            :background-color="subscription.iconBackgroundColor"
+          />
           <div class="min-w-0">
             <h3 class="truncate font-heading text-lg font-bold tracking-tight text-ink-900 dark:text-ink-50">
               {{ subscription.name }}

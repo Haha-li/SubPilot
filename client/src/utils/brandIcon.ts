@@ -1,5 +1,5 @@
 const ICONIFY_SEARCH_URL = 'https://api.iconify.design/search';
-const ICONIFY_ICON_URL = 'https://api.iconify.design';
+const SIMPLE_ICONS_CDN_URL = 'https://cdn.simpleicons.org';
 const GOOGLE_FAVICON_URL = 'https://www.google.com/s2/favicons';
 const SIMPLE_ICONS_PREFIX = 'simple-icons:';
 const ICON_SEARCH_LIMIT = '1';
@@ -63,9 +63,7 @@ function buildIconUrl(icon: string): string | null {
   const slug = icon.slice(SIMPLE_ICONS_PREFIX.length);
   if (!slug) return null;
 
-  const url = new URL(`${ICONIFY_ICON_URL}/simple-icons/${encodeURIComponent(slug)}.svg`);
-  url.searchParams.set('color', '#ffffff');
-  return url.toString();
+  return new URL(encodeURIComponent(slug), `${SIMPLE_ICONS_CDN_URL}/`).toString();
 }
 
 async function searchBrandIcon(query: string): Promise<string | null> {

@@ -17,6 +17,8 @@ export interface Subscription {
   autoRenew: number;
   useLunar: number;
   notes: string;
+  iconUrl: string;
+  iconBackgroundColor: string;
   price: number;
   priceUnit: string;
   currency: string;

@@ -55,6 +55,8 @@ const form = ref({
   useLunar: false,
   showLunar: true,
   notes: '',
+  iconUrl: '',
+  iconBackgroundColor: '',
   price: 0,
   priceUnit: 'month',
   currency: 'CNY',
@@ -101,6 +103,15 @@ function handleCategoryChange(categories: string[]) {
     form.value.nonSelfPaidUnit = form.value.priceUnit || 'month';
   }
   hadSharedCategory.value = hasSharedCategory;
+}
+
+function applyCommonAvatar(name: string) {
+  const normalizedName = (name || '').trim().toLocaleLowerCase();
+  const item = commonStore.items.find((candidate) =>
+    candidate.name.trim().toLocaleLowerCase() === normalizedName,
+  );
+  form.value.iconUrl = item?.iconUrl || '';
+  form.value.iconBackgroundColor = item?.backgroundColor || '';
 }
 
 function getLunarForInput(dateStr: string): string {
@@ -174,7 +185,7 @@ async function handleSubmit() {
   }
 }
 
-onMounted(() => {
+onMounted(async () => {
   if (props.subscription) {
     const sub = props.subscription;
     form.value = {
@@ -192,6 +203,8 @@ onMounted(() => {
       useLunar: !!sub.useLunar,
       showLunar: true,
       notes: sub.notes || '',
+      iconUrl: sub.iconUrl || '',
+      iconBackgroundColor: sub.iconBackgroundColor || '',
       price: sub.price || 0,
       priceUnit: sub.priceUnit || 'month',
       currency: sub.currency || 'CNY',
@@ -207,7 +220,10 @@ onMounted(() => {
   }
   hadSharedCategory.value = isSharedSubscription.value;
   if (commonStore.items.length === 0) {
-    void commonStore.fetchItems().catch(() => undefined);
+    await commonStore.fetchItems().catch(() => undefined);
+  }
+  if (!props.subscription && form.value.name) {
+    applyCommonAvatar(form.value.name);
   }
 });
 </script>
@@ -263,6 +279,7 @@ onMounted(() => {
               aria-label="订阅名称"
               placeholder="选择常用订阅或手动输入"
               class="w-full"
+              @change="applyCommonAvatar"
             >
               <el-option
                 v-for="item in commonStore.items"
@@ -275,6 +292,7 @@ onMounted(() => {
                     :name="item.name"
                     :website="item.website"
                     :icon-url="item.iconUrl"
+                    :background-color="item.backgroundColor"
                     small
                   />
                   <span class="min-w-0 flex-1 truncate">{{ item.name }}</span>

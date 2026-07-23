@@ -53,10 +53,12 @@ test('常用订阅 API 完成增查改删与重复拦截', async () => {
     name: ' Netflix ',
     website: 'netflix.com',
     iconUrl: '',
+    backgroundColor: '#2563eb',
   });
   assert.equal(created.status, 201);
   assert.equal((created.body as any).commonSubscription.name, 'Netflix');
   assert.equal((created.body as any).commonSubscription.website, 'https://netflix.com/');
+  assert.equal((created.body as any).commonSubscription.backgroundColor, '#2563EB');
 
   const listed = await listCommonSubscriptionsHandler({ search: 'NETFLIX.COM' });
   assert.equal(listed.status, 200);
@@ -73,6 +75,7 @@ test('常用订阅 API 完成增查改删与重复拦截', async () => {
   const updated = await updateCommonSubscriptionHandler(id, {
     name: 'Netflix Premium',
     iconUrl: 'https://cdn.example.com/netflix.png',
+    backgroundColor: '',
   });
   assert.equal(updated.status, 200);
   assert.equal((updated.body as any).commonSubscription.name, 'Netflix Premium');
@@ -80,6 +83,7 @@ test('常用订阅 API 完成增查改删与重复拦截', async () => {
     (updated.body as any).commonSubscription.iconUrl,
     'https://cdn.example.com/netflix.png',
   );
+  assert.equal((updated.body as any).commonSubscription.backgroundColor, '');
 
   const removed = await deleteCommonSubscriptionHandler(id);
   assert.equal(removed.status, 200);

@@ -1,3 +1,5 @@
+import { normalizeAvatarFields } from './avatar';
+
 const MAX_NAME_LENGTH = 100;
 const MAX_URL_LENGTH = 2_048;
 
@@ -5,12 +7,14 @@ export interface CommonSubscriptionInput {
   name?: unknown;
   website?: unknown;
   iconUrl?: unknown;
+  backgroundColor?: unknown;
 }
 
 export interface NormalizedCommonSubscription {
   name: string;
   website: string;
   iconUrl: string;
+  backgroundColor: string;
 }
 
 interface CommonSubscriptionLike {
@@ -67,13 +71,10 @@ export function normalizeCommonSubscriptionInput(
   );
   if (typeof website !== 'string') return { success: false, message: website.error };
 
-  const iconUrl = normalizeHttpUrl(
-    input.iconUrl !== undefined ? input.iconUrl : existing?.iconUrl,
-    '头像地址',
-  );
-  if (typeof iconUrl !== 'string') return { success: false, message: iconUrl.error };
+  const avatar = normalizeAvatarFields(input, existing);
+  if (!avatar.success) return avatar;
 
-  return { success: true, value: { name, website, iconUrl } };
+  return { success: true, value: { name, website, ...avatar.value } };
 }
 
 function canonicalWebsite(value: string): string {

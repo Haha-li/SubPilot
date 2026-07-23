@@ -7,6 +7,7 @@ import {
   findDuplicateCommonSubscription,
   normalizeCommonSubscriptionInput,
 } from '../src/utils/commonSubscription';
+import { normalizeAvatarFields } from '../src/utils/avatar';
 import {
   buildBrandSearchQueries,
   buildWebsiteFaviconUrl,
@@ -22,6 +23,7 @@ test('规范常用订阅名称、网站与头像地址', () => {
     name: '  Netflix  ',
     website: 'netflix.com',
     iconUrl: 'cdn.example.com/netflix.png',
+    backgroundColor: ' #2563eb ',
   });
 
   assert.equal(result.success, true);
@@ -30,6 +32,7 @@ test('规范常用订阅名称、网站与头像地址', () => {
     name: 'Netflix',
     website: 'https://netflix.com/',
     iconUrl: 'https://cdn.example.com/netflix.png',
+    backgroundColor: '#2563EB',
   }, result.value);
 });
 
@@ -55,10 +58,33 @@ test('网站与头像仅允许 http 或 https', () => {
   );
 });
 
+test('头像背景色可为空且仅接受 6 位十六进制颜色', () => {
+  assert.deepStrictEqual(
+    normalizeAvatarFields({ iconUrl: '', backgroundColor: '' }),
+    { success: true, value: { iconUrl: '', backgroundColor: '' } },
+  );
+  assert.deepStrictEqual(
+    normalizeAvatarFields({ iconUrl: 'icons.example.com/app.png', backgroundColor: '#7c3aed' }),
+    {
+      success: true,
+      value: { iconUrl: 'https://icons.example.com/app.png', backgroundColor: '#7C3AED' },
+    },
+  );
+  assert.deepStrictEqual(
+    normalizeAvatarFields({ backgroundColor: 'purple' }),
+    { success: false, message: '头像背景色必须是 6 位十六进制颜色' },
+  );
+});
+
 test('更新时保留未提交字段并移除网址片段', () => {
   const result = normalizeCommonSubscriptionInput(
     { website: 'https://Example.com/products#pricing' },
-    { name: 'Example', website: 'https://example.com/', iconUrl: 'https://example.com/icon.png' },
+    {
+      name: 'Example',
+      website: 'https://example.com/',
+      iconUrl: 'https://example.com/icon.png',
+      backgroundColor: '#111827',
+    },
   );
 
   assert.equal(result.success, true);
@@ -67,6 +93,7 @@ test('更新时保留未提交字段并移除网址片段', () => {
     name: 'Example',
     website: 'https://example.com/products',
     iconUrl: 'https://example.com/icon.png',
+    backgroundColor: '#111827',
   }, result.value);
 });
 
@@ -91,20 +118,22 @@ test('按名称或非空网站识别重复项，编辑时忽略自身', () => {
   expectEqual(null, findDuplicateCommonSubscription(entries, { name: '新 App', website: '' }));
 });
 
-test('D1 迁移创建常用订阅表、时间字段与唯一约束', () => {
+test('D1 迁移创建常用订阅表、头像背景与唯一约束', () => {
   const database = new DatabaseSync(':memory:');
   database.exec(readFileSync(resolve(process.cwd(), 'migrations/0013_create_common_subscriptions.sql'), 'utf8'));
+  database.exec(readFileSync(resolve(process.cwd(), 'migrations/0014_add_common_subscription_background.sql'), 'utf8'));
 
   database.prepare(
-    'INSERT INTO common_subscriptions (name, website, icon_url) VALUES (?, ?, ?)',
-  ).run('Netflix', 'https://netflix.com/', 'https://example.com/netflix.png');
+    'INSERT INTO common_subscriptions (name, website, icon_url, background_color) VALUES (?, ?, ?, ?)',
+  ).run('Netflix', 'https://netflix.com/', 'https://example.com/netflix.png', '#111827');
 
   const row = database.prepare(
-    'SELECT name, website, icon_url, created_at, updated_at FROM common_subscriptions LIMIT 1',
+    'SELECT name, website, icon_url, background_color, created_at, updated_at FROM common_subscriptions LIMIT 1',
   ).get() as Record<string, unknown>;
   expectEqual('Netflix', row.name);
   expectEqual('https://netflix.com/', row.website);
   expectEqual('https://example.com/netflix.png', row.icon_url);
+  expectEqual('#111827', row.background_color);
   assert.equal(typeof row.created_at, 'string');
   assert.equal(typeof row.updated_at, 'string');
 
@@ -119,6 +148,21 @@ test('D1 迁移创建常用订阅表、时间字段与唯一约束', () => {
     ).run('Netflix 2', 'https://NETFLIX.com/');
   });
 
+  database.close();
+});
+
+test('D1 迁移为订阅保存头像 URL 与背景色快照', () => {
+  const database = new DatabaseSync(':memory:');
+  database.exec('CREATE TABLE subscriptions (id INTEGER PRIMARY KEY AUTOINCREMENT)');
+  database.exec(readFileSync(resolve(process.cwd(), 'migrations/0015_add_subscription_icon_url.sql'), 'utf8'));
+  database.exec(readFileSync(resolve(process.cwd(), 'migrations/0016_add_subscription_icon_background.sql'), 'utf8'));
+  database.exec('INSERT INTO subscriptions DEFAULT VALUES');
+
+  const row = database.prepare(
+    'SELECT icon_url, icon_background_color FROM subscriptions LIMIT 1',
+  ).get() as Record<string, unknown>;
+  expectEqual('', row.icon_url);
+  expectEqual('', row.icon_background_color);
   database.close();
 });
 

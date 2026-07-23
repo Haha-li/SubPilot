@@ -1,9 +1,10 @@
 import { db, schema } from '../db';
 import { resolveSharedCost } from '../utils/sharedCost';
+import { normalizeAvatarFields } from '../utils/avatar';
 
 function toCSV(items: any[]): string {
   if (items.length === 0) return '';
-  const fields = ['name', 'customType', 'category', 'startDate', 'expiryDate', 'periodValue', 'periodUnit', 'reminderValue', 'reminderUnit', 'isActive', 'autoRenew', 'useLunar', 'notes', 'price', 'priceUnit', 'currency', 'nonSelfPaid', 'nonSelfPaidCurrency', 'nonSelfPaidUnit', 'isPinned', 'trialValue', 'trialUnit'];
+  const fields = ['name', 'customType', 'category', 'startDate', 'expiryDate', 'periodValue', 'periodUnit', 'reminderValue', 'reminderUnit', 'isActive', 'autoRenew', 'useLunar', 'notes', 'iconUrl', 'iconBackgroundColor', 'price', 'priceUnit', 'currency', 'nonSelfPaid', 'nonSelfPaidCurrency', 'nonSelfPaidUnit', 'isPinned', 'trialValue', 'trialUnit'];
   const header = fields.join(',');
   const rows = items.map(item =>
     fields.map(f => {
@@ -130,6 +131,14 @@ export async function importSubscriptionsHandler(body: any) {
         fallbackCurrency: row.currency,
         fallbackUnit: row.priceUnit,
       });
+      const avatar = normalizeAvatarFields({
+        iconUrl: row.iconUrl,
+        backgroundColor: row.iconBackgroundColor,
+      });
+      if (!avatar.success) {
+        errors.push(`跳过: ${row.name} - ${avatar.message}`);
+        continue;
+      }
       await db.insert(schema.subscriptions).values({
         name: row.name,
         customType: row.customType || '',
@@ -144,6 +153,8 @@ export async function importSubscriptionsHandler(body: any) {
         autoRenew: row.autoRenew !== undefined ? Number(row.autoRenew) : 1,
         useLunar: row.useLunar ? Number(row.useLunar) : 0,
         notes: row.notes || '',
+        iconUrl: avatar.value.iconUrl,
+        iconBackgroundColor: avatar.value.backgroundColor,
         price: Number(row.price) || 0,
         priceUnit: row.priceUnit || 'month',
         currency: row.currency || 'CNY',
