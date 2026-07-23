@@ -109,7 +109,7 @@ const kpiCards = computed(() => [
   { label: '活跃订阅', value: String(props.subscriptions.length), suffix: '个', icon: Layers, tone: 'brand' as const },
   { label: '合租月收益', value: formatMoney(costStatistics.value.sharedMonthlyIncome), icon: TrendingUp, tone: 'income' as const },
   { label: '个人月度费用', value: formatMoney(costStatistics.value.personalMonthlyCost), icon: Wallet, tone: 'success' as const },
-  { label: '个人年度费用', value: formatMoney(costStatistics.value.personalYearlyCost), icon: CalendarRange, tone: 'warning' as const },
+  { label: '个人年度预估费用', value: formatMoney(costStatistics.value.personalYearlyEstimatedCost), icon: CalendarRange, tone: 'warning' as const },
   { label: '个人日均费用', value: formatMoney(costStatistics.value.personalDailyCost), icon: Coins, tone: 'danger' as const },
 ]);
 
@@ -126,7 +126,7 @@ const toneClasses = {
   <div class="mb-5 grid grid-cols-2 gap-4 md:grid-cols-3 xl:grid-cols-5">
     <div v-for="kpi in kpiCards" :key="kpi.label" class="bento-card p-5">
       <div class="flex items-center justify-between">
-        <span class="text-xs font-medium uppercase tracking-wide text-ink-400 dark:text-ink-500">{{ kpi.label }}</span>
+        <span class="whitespace-nowrap text-[10px] font-medium uppercase tracking-wide text-ink-400 sm:text-xs dark:text-ink-500">{{ kpi.label }}</span>
         <div class="flex h-9 w-9 items-center justify-center rounded-xl" :class="[toneClasses[kpi.tone].bg, toneClasses[kpi.tone].text]">
           <component :is="kpi.icon" :size="18" :stroke-width="2.25" />
         </div>

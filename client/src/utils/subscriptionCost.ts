@@ -3,6 +3,7 @@ import { convert } from './currency';
 const CATEGORY_SEPARATOR = /[/,，\s]+/;
 const MONTHS_PER_YEAR = 12;
 const DAYS_PER_MONTH = 30;
+const DAYS_PER_YEAR = 365;
 
 export interface SubscriptionCostInput {
   category?: string | null;
@@ -19,13 +20,17 @@ export type CurrencyConverter = (amount: number, from: string, to: string) => nu
 export interface CostStatistics {
   sharedMonthlyIncome: number;
   personalMonthlyCost: number;
-  personalYearlyCost: number;
+  personalYearlyEstimatedCost: number;
   personalDailyCost: number;
 }
 
-interface MonthlyCostBreakdown {
-  sharedIncome: number;
-  personalCost: number;
+type PeriodAmountResolver = (amount: number, unit: string | null | undefined) => number;
+
+interface PersonalCostCalculation {
+  subscription: SubscriptionCostInput;
+  targetCurrency: string;
+  converter: CurrencyConverter;
+  resolvePeriodAmount: PeriodAmountResolver;
 }
 
 export function getCategoryTokens(category: string | string[] | null | undefined): string[] {
@@ -48,15 +53,18 @@ function getMonthlyAmount(amount: number, unit: string | null | undefined): numb
   return amount;
 }
 
-function getMonthlyCostBreakdown(
-  subscription: SubscriptionCostInput,
-  targetCurrency: string,
-  converter: CurrencyConverter,
-): MonthlyCostBreakdown {
+function getYearlyEstimatedAmount(amount: number, unit: string | null | undefined): number {
+  if (unit === 'month') return amount * MONTHS_PER_YEAR;
+  if (unit === 'day') return amount * DAYS_PER_YEAR;
+  return amount;
+}
+
+function calculatePersonalCostInCurrency(input: PersonalCostCalculation): number {
+  const { subscription, targetCurrency, converter, resolvePeriodAmount } = input;
   const price = normalizeAmount(subscription.price);
   const priceUnit = subscription.priceUnit || 'month';
   const grossCost = price === 0 ? 0 : converter(
-    getMonthlyAmount(price, priceUnit),
+    resolvePeriodAmount(price, priceUnit),
     subscription.currency || 'CNY',
     targetCurrency,
   );
@@ -64,16 +72,15 @@ function getMonthlyCostBreakdown(
   const nonSelfPaid = hasSharedCostCategory(subscription.category)
     ? normalizeAmount(subscription.nonSelfPaid)
     : 0;
-  const sharedIncome = nonSelfPaid === 0 ? 0 : converter(
-    getMonthlyAmount(nonSelfPaid, subscription.nonSelfPaidUnit || priceUnit),
+  const sharedContribution = nonSelfPaid === 0 ? 0 : converter(
+    resolvePeriodAmount(nonSelfPaid, subscription.nonSelfPaidUnit || priceUnit),
     subscription.nonSelfPaidCurrency || subscription.currency || 'CNY',
     targetCurrency,
   );
 
-  const personalCost = Number.isFinite(grossCost) && Number.isFinite(sharedIncome)
-    ? grossCost - sharedIncome
+  return Number.isFinite(grossCost) && Number.isFinite(sharedContribution)
+    ? grossCost - sharedContribution
     : Number.NaN;
-  return { sharedIncome, personalCost };
 }
 
 export function getPersonalMonthlyCostInCurrency(
@@ -81,7 +88,25 @@ export function getPersonalMonthlyCostInCurrency(
   targetCurrency: string,
   converter: CurrencyConverter = convert,
 ): number {
-  return getMonthlyCostBreakdown(subscription, targetCurrency, converter).personalCost;
+  return calculatePersonalCostInCurrency({
+    subscription,
+    targetCurrency,
+    converter,
+    resolvePeriodAmount: getMonthlyAmount,
+  });
+}
+
+export function getPersonalYearlyEstimatedCostInCurrency(
+  subscription: SubscriptionCostInput,
+  targetCurrency: string,
+  converter: CurrencyConverter = convert,
+): number {
+  return calculatePersonalCostInCurrency({
+    subscription,
+    targetCurrency,
+    converter,
+    resolvePeriodAmount: getYearlyEstimatedAmount,
+  });
 }
 
 export function getSharedMonthlyIncomeInCurrency(
@@ -89,7 +114,14 @@ export function getSharedMonthlyIncomeInCurrency(
   targetCurrency: string,
   converter: CurrencyConverter = convert,
 ): number {
-  return getMonthlyCostBreakdown(subscription, targetCurrency, converter).sharedIncome;
+  const personalMonthlyCost = getPersonalMonthlyCostInCurrency(
+    subscription,
+    targetCurrency,
+    converter,
+  );
+  return Number.isFinite(personalMonthlyCost)
+    ? Math.max(-personalMonthlyCost, 0)
+    : Number.NaN;
 }
 
 export function getPersonalMonthlyCostOrZero(
@@ -108,17 +140,26 @@ export function getCostStatisticsInCurrency(
 ): CostStatistics {
   let sharedMonthlyIncome = 0;
   let personalMonthlyCost = 0;
+  let personalYearlyEstimatedCost = 0;
 
   subscriptions.forEach((subscription) => {
-    const breakdown = getMonthlyCostBreakdown(subscription, targetCurrency, converter);
-    if (Number.isFinite(breakdown.sharedIncome)) sharedMonthlyIncome += breakdown.sharedIncome;
-    if (Number.isFinite(breakdown.personalCost)) personalMonthlyCost += breakdown.personalCost;
+    const monthlyCost = getPersonalMonthlyCostInCurrency(subscription, targetCurrency, converter);
+    const yearlyCost = getPersonalYearlyEstimatedCostInCurrency(
+      subscription,
+      targetCurrency,
+      converter,
+    );
+    if (Number.isFinite(monthlyCost)) {
+      personalMonthlyCost += monthlyCost;
+      sharedMonthlyIncome += Math.max(-monthlyCost, 0);
+    }
+    if (Number.isFinite(yearlyCost)) personalYearlyEstimatedCost += yearlyCost;
   });
 
   return {
     sharedMonthlyIncome,
     personalMonthlyCost,
-    personalYearlyCost: personalMonthlyCost * MONTHS_PER_YEAR,
-    personalDailyCost: personalMonthlyCost / DAYS_PER_MONTH,
+    personalYearlyEstimatedCost,
+    personalDailyCost: personalYearlyEstimatedCost / DAYS_PER_YEAR,
   };
 }

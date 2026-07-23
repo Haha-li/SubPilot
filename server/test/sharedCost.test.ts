@@ -160,16 +160,22 @@ test('非自己付费超过订阅总费用时个人月费保留负数', () => {
   expectEqual(-40, actual);
 });
 
-test('合租月收益按独立币种和周期折算', () => {
-  const actual = getSharedMonthlyIncomeInCurrency(
+test('合租月收益只统计负个人月费的绝对值', () => {
+  const noIncome = getSharedMonthlyIncomeInCurrency(
     createSubscription({ nonSelfPaid: 120, nonSelfPaidUnit: 'year' }),
     'CNY',
     convertWithFixedRates,
   );
-  expectEqual(70, actual);
+  const income = getSharedMonthlyIncomeInCurrency(
+    createSubscription({ nonSelfPaid: 20 }),
+    'CNY',
+    convertWithFixedRates,
+  );
+  expectEqual(0, noIncome);
+  expectEqual(40, income);
 });
 
-test('费用统计使用合租收益重算个人月度年度和日均费用', () => {
+test('费用统计使用净收益重算个人月度年度预估和日均费用', () => {
   const actual = getCostStatisticsInCurrency(
     [
       createSubscription({ nonSelfPaid: 20 }),
@@ -179,10 +185,49 @@ test('费用统计使用合租收益重算个人月度年度和日均费用', ()
     convertWithFixedRates,
   );
   expectEqual({
-    sharedMonthlyIncome: 140,
+    sharedMonthlyIncome: 40,
     personalMonthlyCost: 20,
-    personalYearlyCost: 240,
-    personalDailyCost: 20 / 30,
+    personalYearlyEstimatedCost: 240,
+    personalDailyCost: 240 / 365,
+  }, actual);
+});
+
+test('年度预估按各订阅计费单位独立年化', () => {
+  const actual = getCostStatisticsInCurrency(
+    [
+      createSubscription({ category: '视频', price: 2, priceUnit: 'day', currency: 'CNY' }),
+      createSubscription({ category: '视频', price: 120, priceUnit: 'year', currency: 'CNY' }),
+    ],
+    'CNY',
+    convertWithFixedRates,
+  );
+  expectEqual({
+    sharedMonthlyIncome: 0,
+    personalMonthlyCost: 70,
+    personalYearlyEstimatedCost: 850,
+    personalDailyCost: 850 / 365,
+  }, actual);
+  assert.notEqual(actual.personalYearlyEstimatedCost, actual.personalMonthlyCost * 12);
+});
+
+test('年度预估按他人承担的独立计费单位扣减', () => {
+  const actual = getCostStatisticsInCurrency(
+    [createSubscription({
+      price: 120,
+      priceUnit: 'year',
+      currency: 'CNY',
+      nonSelfPaid: 1,
+      nonSelfPaidCurrency: 'CNY',
+      nonSelfPaidUnit: 'day',
+    })],
+    'CNY',
+    convertWithFixedRates,
+  );
+  expectEqual({
+    sharedMonthlyIncome: 20,
+    personalMonthlyCost: -20,
+    personalYearlyEstimatedCost: -245,
+    personalDailyCost: -245 / 365,
   }, actual);
 });
 
