@@ -11,7 +11,9 @@ import {
   resolveSharedCost,
 } from '../src/utils/sharedCost';
 import {
+  getCostStatisticsInCurrency,
   getPersonalMonthlyCostInCurrency,
+  getSharedMonthlyIncomeInCurrency,
   hasSharedCostCategory,
   type CurrencyConverter,
   type SubscriptionCostInput,
@@ -149,13 +151,39 @@ test('旧数据未提供独立周期时沿用订阅费用周期', () => {
   expectEqual(9, actual);
 });
 
-test('非自己付费超过订阅总费用时个人费用不小于零', () => {
+test('非自己付费超过订阅总费用时个人月费保留负数', () => {
   const actual = getPersonalMonthlyCostInCurrency(
     createSubscription({ nonSelfPaid: 20 }),
     'CNY',
     convertWithFixedRates,
   );
-  expectEqual(0, actual);
+  expectEqual(-40, actual);
+});
+
+test('合租月收益按独立币种和周期折算', () => {
+  const actual = getSharedMonthlyIncomeInCurrency(
+    createSubscription({ nonSelfPaid: 120, nonSelfPaidUnit: 'year' }),
+    'CNY',
+    convertWithFixedRates,
+  );
+  expectEqual(70, actual);
+});
+
+test('费用统计使用合租收益重算个人月度年度和日均费用', () => {
+  const actual = getCostStatisticsInCurrency(
+    [
+      createSubscription({ nonSelfPaid: 20 }),
+      createSubscription({ category: '视频', price: 60, currency: 'CNY' }),
+    ],
+    'CNY',
+    convertWithFixedRates,
+  );
+  expectEqual({
+    sharedMonthlyIncome: 140,
+    personalMonthlyCost: 20,
+    personalYearlyCost: 240,
+    personalDailyCost: 20 / 30,
+  }, actual);
 });
 
 test('年付费用沿用相同周期后再换算', () => {

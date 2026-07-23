@@ -326,7 +326,10 @@ function getPriceText(sub: Subscription): string {
 
 function formatCnyMoney(value: number): string {
   if (!Number.isFinite(value)) return '汇率缺失';
-  return `${getSymbol('CNY')}${Math.round(value).toLocaleString('zh-CN')}`;
+  const symbol = getSymbol('CNY');
+  const rounded = Math.round(value);
+  const amount = Math.abs(rounded).toLocaleString('zh-CN');
+  return rounded < 0 ? `-${symbol}${amount}` : `${symbol}${amount}`;
 }
 
 function openAdd(name = '') {

@@ -16,6 +16,18 @@ export interface SubscriptionCostInput {
 
 export type CurrencyConverter = (amount: number, from: string, to: string) => number;
 
+export interface CostStatistics {
+  sharedMonthlyIncome: number;
+  personalMonthlyCost: number;
+  personalYearlyCost: number;
+  personalDailyCost: number;
+}
+
+interface MonthlyCostBreakdown {
+  sharedIncome: number;
+  personalCost: number;
+}
+
 export function getCategoryTokens(category: string | string[] | null | undefined): string[] {
   const values = Array.isArray(category) ? category : (category || '').split(CATEGORY_SEPARATOR);
   return values.map((value) => value.trim()).filter(Boolean);
@@ -36,35 +48,48 @@ function getMonthlyAmount(amount: number, unit: string | null | undefined): numb
   return amount;
 }
 
+function getMonthlyCostBreakdown(
+  subscription: SubscriptionCostInput,
+  targetCurrency: string,
+  converter: CurrencyConverter,
+): MonthlyCostBreakdown {
+  const price = normalizeAmount(subscription.price);
+  const priceUnit = subscription.priceUnit || 'month';
+  const grossCost = price === 0 ? 0 : converter(
+    getMonthlyAmount(price, priceUnit),
+    subscription.currency || 'CNY',
+    targetCurrency,
+  );
+
+  const nonSelfPaid = hasSharedCostCategory(subscription.category)
+    ? normalizeAmount(subscription.nonSelfPaid)
+    : 0;
+  const sharedIncome = nonSelfPaid === 0 ? 0 : converter(
+    getMonthlyAmount(nonSelfPaid, subscription.nonSelfPaidUnit || priceUnit),
+    subscription.nonSelfPaidCurrency || subscription.currency || 'CNY',
+    targetCurrency,
+  );
+
+  const personalCost = Number.isFinite(grossCost) && Number.isFinite(sharedIncome)
+    ? grossCost - sharedIncome
+    : Number.NaN;
+  return { sharedIncome, personalCost };
+}
+
 export function getPersonalMonthlyCostInCurrency(
   subscription: SubscriptionCostInput,
   targetCurrency: string,
   converter: CurrencyConverter = convert,
 ): number {
-  const price = normalizeAmount(subscription.price);
-  if (price === 0) return 0;
+  return getMonthlyCostBreakdown(subscription, targetCurrency, converter).personalCost;
+}
 
-  const priceUnit = subscription.priceUnit || 'month';
-  const grossCost = converter(
-    getMonthlyAmount(price, priceUnit),
-    subscription.currency || 'CNY',
-    targetCurrency,
-  );
-  if (!Number.isFinite(grossCost)) return Number.NaN;
-
-  const nonSelfPaid = hasSharedCostCategory(subscription.category)
-    ? normalizeAmount(subscription.nonSelfPaid)
-    : 0;
-  if (nonSelfPaid === 0) return Math.max(grossCost, 0);
-
-  const sharedCost = converter(
-    getMonthlyAmount(nonSelfPaid, subscription.nonSelfPaidUnit || priceUnit),
-    subscription.nonSelfPaidCurrency || subscription.currency || 'CNY',
-    targetCurrency,
-  );
-  if (!Number.isFinite(sharedCost)) return Number.NaN;
-
-  return Math.max(grossCost - sharedCost, 0);
+export function getSharedMonthlyIncomeInCurrency(
+  subscription: SubscriptionCostInput,
+  targetCurrency: string,
+  converter: CurrencyConverter = convert,
+): number {
+  return getMonthlyCostBreakdown(subscription, targetCurrency, converter).sharedIncome;
 }
 
 export function getPersonalMonthlyCostOrZero(
@@ -74,4 +99,26 @@ export function getPersonalMonthlyCostOrZero(
 ): number {
   const value = getPersonalMonthlyCostInCurrency(subscription, targetCurrency, converter);
   return Number.isFinite(value) ? value : 0;
+}
+
+export function getCostStatisticsInCurrency(
+  subscriptions: SubscriptionCostInput[],
+  targetCurrency: string,
+  converter: CurrencyConverter = convert,
+): CostStatistics {
+  let sharedMonthlyIncome = 0;
+  let personalMonthlyCost = 0;
+
+  subscriptions.forEach((subscription) => {
+    const breakdown = getMonthlyCostBreakdown(subscription, targetCurrency, converter);
+    if (Number.isFinite(breakdown.sharedIncome)) sharedMonthlyIncome += breakdown.sharedIncome;
+    if (Number.isFinite(breakdown.personalCost)) personalMonthlyCost += breakdown.personalCost;
+  });
+
+  return {
+    sharedMonthlyIncome,
+    personalMonthlyCost,
+    personalYearlyCost: personalMonthlyCost * MONTHS_PER_YEAR,
+    personalDailyCost: personalMonthlyCost / DAYS_PER_MONTH,
+  };
 }
