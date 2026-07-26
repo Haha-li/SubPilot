@@ -5,7 +5,7 @@ import { useDark, useToggle, useMediaQuery } from '@vueuse/core';
 import { useAuthStore } from '../stores/auth';
 import {
   LayoutGrid, BarChart3, Tag, CalendarDays, FileText, Settings,
-  Sun, Moon, ChevronsLeft, ChevronsRight, LogOut, Menu, X, Compass, Library,
+  Sun, Moon, ChevronsLeft, ChevronsRight, LogOut, Menu, X, Library,
 } from '@lucide/vue';
 
 const router = useRouter();
@@ -76,10 +76,7 @@ function toggleCollapse() {
         class="glass-panel fixed left-0 top-0 bottom-0 z-[2000] w-[260px] flex flex-col"
       >
         <div class="flex items-center justify-between px-5 pt-5 pb-4">
-          <div class="flex items-center gap-2.5">
-            <div class="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-brand-500 to-brand-700 text-white shadow-md">
-              <Compass :size="20" :stroke-width="2.25" />
-            </div>
+          <div class="flex items-center">
             <span class="font-heading text-lg font-bold tracking-tight">SubPilot</span>
           </div>
           <button class="cursor-pointer rounded-lg p-1.5 text-ink-500 hover:bg-ink-100 dark:hover:bg-ink-800/40" @click="drawerOpen = false">
@@ -119,10 +116,7 @@ function toggleCollapse() {
       class="glass-panel sticky top-0 flex h-screen flex-shrink-0 flex-col transition-[width] duration-300 ease-soft"
       :style="{ width: sidebarWidth }"
     >
-      <div class="flex items-center gap-2.5 px-5 pb-4 pt-6">
-        <div class="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-brand-500 to-brand-700 text-white shadow-md">
-          <Compass :size="20" :stroke-width="2.25" />
-        </div>
+      <div class="flex items-center px-5 pb-4 pt-6">
         <span v-show="!isCollapsed" class="font-heading text-lg font-bold tracking-tight">SubPilot</span>
       </div>
 
@@ -187,10 +181,7 @@ function toggleCollapse() {
         <button class="cursor-pointer rounded-lg p-2 text-ink-700 hover:bg-ink-100 dark:text-ink-200 dark:hover:bg-ink-800/40" @click="drawerOpen = true">
           <Menu :size="22" />
         </button>
-        <div class="flex items-center gap-2">
-          <div class="flex h-7 w-7 items-center justify-center rounded-lg bg-gradient-to-br from-brand-500 to-brand-700 text-white">
-            <Compass :size="16" :stroke-width="2.25" />
-          </div>
+        <div class="flex items-center">
           <span class="font-heading text-base font-bold">SubPilot</span>
         </div>
         <button class="cursor-pointer rounded-lg p-2 text-ink-700 hover:bg-ink-100 dark:text-ink-200 dark:hover:bg-ink-800/40" @click="toggleDark()">
