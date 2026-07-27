@@ -17,6 +17,7 @@ import {
   getSuggestedRenewalPeriods,
 } from '../utils/renewalCenter';
 import SubscriptionBrandIcon from '../components/SubscriptionBrandIcon.vue';
+import SubscriptionModal from '../components/SubscriptionModal.vue';
 import {
   AlertCircle,
   ArrowRight,
@@ -34,7 +35,6 @@ import {
 } from '@lucide/vue';
 
 const SubscriptionDetailDrawer = defineAsyncComponent(() => import('../components/SubscriptionDetailDrawer.vue'));
-const SubscriptionModal = defineAsyncComponent(() => import('../components/SubscriptionModal.vue'));
 
 const subscriptionStore = useSubscriptionStore();
 const renewalStore = useRenewalStore();

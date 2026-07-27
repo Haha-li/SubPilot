@@ -23,8 +23,8 @@ import {
   DollarSign, AlertCircle, Loader2, ArrowDownUp, ArrowDown, ArrowUp, CheckCheck, X,
 } from '@lucide/vue';
 import SubscriptionBrandIcon from '../components/SubscriptionBrandIcon.vue';
+import SubscriptionModal from '../components/SubscriptionModal.vue';
 
-const SubscriptionModal = defineAsyncComponent(() => import('../components/SubscriptionModal.vue'));
 const ImportExportDrawer = defineAsyncComponent(() => import('../components/ImportExportDrawer.vue'));
 const SubscriptionDetailDrawer = defineAsyncComponent(() => import('../components/SubscriptionDetailDrawer.vue'));
 
