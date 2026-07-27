@@ -1,5 +1,5 @@
 # Stage 1: Build frontend
-FROM node:20-alpine AS frontend-build
+FROM node:22-alpine AS frontend-build
 WORKDIR /app/client
 COPY client/package.json client/package-lock.json* ./
 RUN npm install
@@ -7,7 +7,7 @@ COPY client/ .
 RUN npm run build
 
 # Stage 2: Build backend
-FROM node:20-alpine AS backend-build
+FROM node:22-alpine AS backend-build
 WORKDIR /app/server
 COPY server/package.json server/package-lock.json* ./
 RUN npm install
@@ -15,7 +15,7 @@ COPY server/ .
 RUN npm run build
 
 # Stage 3: Production
-FROM node:20-alpine AS production
+FROM node:22-alpine AS production
 WORKDIR /app
 
 # Install production dependencies for server
