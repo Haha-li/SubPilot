@@ -1,9 +1,10 @@
 import { Hono } from 'hono';
+import type { WorkerEnv } from '../../types/env';
 import { honoAuth } from '../middleware/auth';
 import { db, schema } from '../../db';
 import { eq, desc } from 'drizzle-orm';
 
-const renewals = new Hono();
+const renewals = new Hono<WorkerEnv>();
 
 // Get renewal history for a subscription
 renewals.get('/:id', honoAuth, async (c) => {

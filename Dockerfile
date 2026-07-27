@@ -35,7 +35,6 @@ RUN mkdir -p /app/data
 ENV NODE_ENV=production
 ENV PORT=3000
 ENV DB_PATH=/app/data/subpilot.db
-ENV JWT_SECRET=change-this-in-production
 
 EXPOSE 3000
 

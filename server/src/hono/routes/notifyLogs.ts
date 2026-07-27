@@ -1,8 +1,9 @@
 import { Hono } from 'hono';
+import type { WorkerEnv } from '../../types/env';
 import { honoAuth } from '../middleware/auth';
 import { listNotifyLogsHandler, clearNotifyLogsHandler } from '../../handlers/notifyLogs';
 
-const logs = new Hono();
+const logs = new Hono<WorkerEnv>();
 
 // Get notify logs with filters and pagination
 logs.get('/', honoAuth, async (c) => {

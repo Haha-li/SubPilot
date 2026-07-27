@@ -1,7 +1,6 @@
 import Database from 'better-sqlite3';
 import path from 'path';
 import fs from 'fs';
-import bcrypt from 'bcryptjs';
 
 const dbPath = process.env.DB_PATH || './data/subpilot.db';
 const dbDir = path.dirname(dbPath);
@@ -87,14 +86,6 @@ sqlite.exec(`
     FOREIGN KEY (subscription_id) REFERENCES subscriptions(id) ON DELETE CASCADE
   );
 `);
-
-// Insert default admin user if not exists
-const existingUser = sqlite.prepare('SELECT id FROM users WHERE username = ?').get('admin');
-if (!existingUser) {
-  const hash = bcrypt.hashSync('password', 10);
-  sqlite.prepare('INSERT INTO users (username, password_hash) VALUES (?, ?)').run('admin', hash);
-  console.log('Default admin user created (username: admin, password: password)');
-}
 
 // Insert default config if not exists
 const defaultConfig: Record<string, string> = {

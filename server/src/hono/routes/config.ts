@@ -1,4 +1,5 @@
 import { Hono } from 'hono';
+import type { WorkerEnv } from '../../types/env';
 import { honoAuth } from '../middleware/auth';
 import {
   getConfigHandler,
@@ -8,7 +9,7 @@ import {
   updateConfigHandler,
 } from '../../handlers/config';
 
-const config = new Hono();
+const config = new Hono<WorkerEnv>();
 
 // Get all config
 config.get('/', honoAuth, async (c) => {

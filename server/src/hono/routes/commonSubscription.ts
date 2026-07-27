@@ -1,4 +1,5 @@
 import { Hono } from 'hono';
+import type { WorkerEnv } from '../../types/env';
 import { honoAuth } from '../middleware/auth';
 import {
   createCommonSubscriptionHandler,
@@ -8,7 +9,7 @@ import {
   updateCommonSubscriptionHandler,
 } from '../../handlers/commonSubscription';
 
-const commonSubscriptions = new Hono();
+const commonSubscriptions = new Hono<WorkerEnv>();
 
 commonSubscriptions.get('/', honoAuth, async (c) => {
   const result = await listCommonSubscriptionsHandler({ search: c.req.query('search') });

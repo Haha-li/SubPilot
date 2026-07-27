@@ -6,7 +6,10 @@ const router = Router();
 
 // Login
 router.post('/login', async (req: AuthRequest, res: Response) => {
-  const result = await loginHandler(req.body, process.env.ADMIN_PASSWORD);
+  const result = await loginHandler(req.body, {
+    adminPassword: process.env.ADMIN_PASSWORD,
+    jwtSecret: process.env.JWT_SECRET,
+  });
   if (result.body.token) {
     res.cookie('token', result.body.token, {
       httpOnly: true,

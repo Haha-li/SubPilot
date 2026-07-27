@@ -1,14 +1,45 @@
 import jwt from 'jsonwebtoken';
 
-const JWT_SECRET = process.env.JWT_SECRET || 'subpilot-default-secret-change-me';
+const TOKEN_ISSUER = 'subpilot';
+const TOKEN_AUDIENCE = 'subpilot-admin';
 
-export function generateToken(userId: number, username: string): string {
-  return jwt.sign({ userId, username }, JWT_SECRET, { expiresIn: '7d' });
+export interface AuthTokenPayload {
+  userId: number;
+  username: string;
 }
 
-export function verifyToken(token: string): { userId: number; username: string } | null {
+export function generateToken(
+  userId: number,
+  username: string,
+  secret: string,
+): string {
+  return jwt.sign(
+    { userId, username },
+    secret,
+    {
+      algorithm: 'HS256',
+      expiresIn: '7d',
+      issuer: TOKEN_ISSUER,
+      audience: TOKEN_AUDIENCE,
+    },
+  );
+}
+
+export function verifyToken(token: string, secret: string): AuthTokenPayload | null {
   try {
-    return jwt.verify(token, JWT_SECRET) as { userId: number; username: string };
+    const decoded = jwt.verify(token, secret, {
+      algorithms: ['HS256'],
+      issuer: TOKEN_ISSUER,
+      audience: TOKEN_AUDIENCE,
+    });
+    if (
+      typeof decoded !== 'object'
+      || typeof decoded.userId !== 'number'
+      || typeof decoded.username !== 'string'
+    ) {
+      return null;
+    }
+    return { userId: decoded.userId, username: decoded.username };
   } catch {
     return null;
   }

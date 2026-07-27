@@ -10,6 +10,13 @@ import notifyLogsRoutes from './routes/notifyLogs';
 import renewalsRoutes from './routes/renewals';
 import commonSubscriptionRoutes from './routes/commonSubscription';
 import { startScheduler } from './services/scheduler';
+import { resolveAllowedCorsOrigin } from './utils/cors';
+import { assertAuthConfiguration } from './utils/securityConfig';
+
+assertAuthConfiguration({
+  jwtSecret: process.env.JWT_SECRET,
+  adminPassword: process.env.ADMIN_PASSWORD,
+});
 
 // Initialize database
 initNodeDb();
@@ -18,9 +25,24 @@ const app = express();
 const PORT = Number(process.env.PORT) || 3000;
 
 // Middleware
+const developmentOrigins = ['http://localhost:5173', 'http://localhost:3000'];
 app.use(cors({
-  origin: process.env.NODE_ENV === 'production' ? false : ['http://localhost:5173', 'http://localhost:3000'],
-  credentials: true,
+  origin(origin, callback) {
+    if (!origin) {
+      callback(null, true);
+      return;
+    }
+    const allowedOrigin = resolveAllowedCorsOrigin(
+      origin,
+      process.env.FRONTEND_ORIGINS,
+      process.env.NODE_ENV === 'production' ? [] : developmentOrigins,
+    );
+    callback(null, Boolean(allowedOrigin));
+  },
+  credentials: false,
+  allowedHeaders: ['Authorization', 'Content-Type'],
+  methods: ['GET', 'HEAD', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  maxAge: 86400,
 }));
 app.use(express.json({ limit: '512kb' }));
 

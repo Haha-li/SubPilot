@@ -52,7 +52,9 @@
 
 ```bash
 cp .env.example .env
-# 编辑 .env 设置 JWT_SECRET 和 ADMIN_PASSWORD
+# 编辑 .env，设置至少 32 位随机 JWT_SECRET 和非默认 ADMIN_PASSWORD
+# JWT_SECRET 可使用以下命令生成：
+# node -e "console.log(require('crypto').randomBytes(48).toString('base64url'))"
 mkdir -p data
 docker compose up -d --build
 docker compose ps
@@ -124,13 +126,15 @@ Fork 本仓库后，通过 GitHub Actions 自动部署到 Cloudflare Workers + P
 | `CLOUDFLARE_API_TOKEN`  | 上一步创建的 API Token                   |
 | `CLOUDFLARE_ACCOUNT_ID` | Cloudflare Dashboard 右侧栏的 Account ID |
 | `D1_DATABASE_ID`        | 第一步创建的 D1 Database ID              |
-| `JWT_SECRET`            | 随机字符串，用于签发登录令牌             |
-| `ADMIN_PASSWORD`        | 管理密码（可选，默认 `password`）        |
+| `JWT_SECRET`            | 至少 32 位随机字符串，用于签发登录令牌    |
+| `ADMIN_PASSWORD`        | 必填，且不能使用 `password` 等默认弱密码  |
+
+可选：在同一页面的 **Variables** 中添加 `FRONTEND_ORIGINS`，值为允许访问 API 的前端来源，多个来源用逗号分隔，例如 `https://subpilot-frontend.pages.dev,https://subpilot.example.com`。未配置时工作流默认使用 `https://subpilot-frontend.pages.dev`。
 
 **第三步：推送到 GitHub**
 
 ```bash
-git push origin main
+git push origin master
 ```
 
 GitHub Actions 会自动：
@@ -159,15 +163,29 @@ wrangler d1 create subpilot
 
 将输出的 `database_id` 填入 `server/wrangler.toml`。
 
-**2. 设置 JWT_SECRET**
+**2. 设置认证密钥与前端来源**
 
-在 Cloudflare Dashboard → Workers → Settings → Variables and Secrets 中添加 `JWT_SECRET`（Secret 类型）。
+在 Cloudflare Dashboard → Workers → Settings → Variables and Secrets 中添加：
+
+- `JWT_SECRET`：Secret 类型，至少 32 位随机字符串
+- `ADMIN_PASSWORD`：Secret 类型，不能使用默认弱密码
+- `FRONTEND_ORIGINS`：普通变量，填写实际 Pages 或自定义前端域名
+
+也可以使用命令写入 Secret：
+
+```bash
+cd server
+npx wrangler secret put JWT_SECRET
+npx wrangler secret put ADMIN_PASSWORD
+```
+
+手动生产部署前还需将 `server/wrangler.toml` 中的 `FRONTEND_ORIGINS` 从本地地址改为实际前端域名。
 
 **3. 初始化数据库 + 部署后端**
 
 ```bash
 cd server
-npm install
+npm ci
 npx wrangler d1 execute subpilot --file=migrations/0001_init.sql
 npx wrangler deploy
 ```
@@ -190,6 +208,7 @@ npx wrangler pages deploy dist --project-name=subpilot-frontend
 cd server
 npm install
 cp .env.example .env
+# 将示例 JWT_SECRET 和 ADMIN_PASSWORD 替换为安全值
 npm run dev
 
 # Workers 版（需要先配置 wrangler.toml）

@@ -139,7 +139,6 @@ async function handleLogin() {
                 placeholder="请输入管理密码"
                 autocomplete="current-password"
                 class="block w-full rounded-xl border border-ink-200 bg-white/60 py-3 pl-11 pr-11 text-base text-ink-900 placeholder:text-ink-400 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/30 dark:border-ink-700/60 dark:bg-ink-900/40 dark:text-ink-50 dark:placeholder:text-ink-500"
-                @keyup.enter="handleLogin"
               />
               <button
                 type="button"
@@ -167,7 +166,7 @@ async function handleLogin() {
         </form>
 
         <p class="mt-8 text-center text-xs text-ink-400 dark:text-ink-500">
-          默认密码 <code class="rounded bg-ink-100 px-1.5 py-0.5 font-mono text-ink-600 dark:bg-ink-800/60 dark:text-ink-300">password</code>，可在 .env 中修改
+          管理密码由部署环境中的 <code class="rounded bg-ink-100 px-1.5 py-0.5 font-mono text-ink-600 dark:bg-ink-800/60 dark:text-ink-300">ADMIN_PASSWORD</code> 配置
         </p>
       </section>
     </div>

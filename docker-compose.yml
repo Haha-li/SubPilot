@@ -9,9 +9,9 @@ services:
     volumes:
       - ./data:/app/data
     environment:
-      - NODE_ENV=production
-      - PORT=3000
-      - DB_PATH=/app/data/subpilot.db
-      - JWT_SECRET=${JWT_SECRET:-change-this-in-production}
-      - ADMIN_PASSWORD=${ADMIN_PASSWORD:-password}
+      NODE_ENV: production
+      PORT: 3000
+      DB_PATH: /app/data/subpilot.db
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET must be set in .env}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:?ADMIN_PASSWORD must be set in .env}
     restart: unless-stopped

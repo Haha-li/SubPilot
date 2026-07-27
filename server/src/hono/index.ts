@@ -1,5 +1,6 @@
 import { Hono } from 'hono';
 import { cors } from 'hono/cors';
+import type { WorkerBindings, WorkerEnv } from '../types/env';
 import { initD1Db } from '../db/d1';
 import { authRoutes } from './routes/auth';
 import { subscriptionRoutes } from './routes/subscription';
@@ -8,18 +9,17 @@ import { notifyLogsRoutes } from './routes/notifyLogs';
 import { renewalRoutes } from './routes/renewals';
 import { commonSubscriptionRoutes } from './routes/commonSubscription';
 import { checkAndNotify } from '../services/scheduler';
+import { resolveAllowedCorsOrigin } from '../utils/cors';
 
-interface Env {
-  Bindings: {
-    DB: any; // D1Database
-    JWT_SECRET: string;
-    ADMIN_PASSWORD: string;
-  };
-}
+const app = new Hono<WorkerEnv>();
 
-const app = new Hono<Env>();
-
-app.use('*', cors({ origin: '*', credentials: true }));
+app.use('*', cors({
+  origin: (origin, c) => resolveAllowedCorsOrigin(origin, c.env.FRONTEND_ORIGINS),
+  allowHeaders: ['Authorization', 'Content-Type'],
+  allowMethods: ['GET', 'HEAD', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  maxAge: 86400,
+  credentials: false,
+}));
 
 // Initialize D1 database on each request
 app.use('*', async (c, next) => {
@@ -35,9 +35,11 @@ app.route('/api/notify-logs', notifyLogsRoutes);
 app.route('/api/renewals', renewalRoutes);
 app.route('/api/common-subscriptions', commonSubscriptionRoutes);
 
+export { app };
+
 export default {
   fetch: app.fetch,
-  async scheduled(event: any, env: any) {
+  async scheduled(event: any, env: WorkerBindings) {
     initD1Db(env.DB);
     await checkAndNotify({ now: new Date(event.scheduledTime), source: 'cron' });
   },

@@ -1,4 +1,5 @@
 import { Hono } from 'hono';
+import type { WorkerEnv } from '../../types/env';
 import { honoAuth } from '../middleware/auth';
 import {
   listSubscriptionsHandler,
@@ -10,7 +11,7 @@ import {
 } from '../../handlers/subscription';
 import { exportSubscriptionsHandler, importSubscriptionsHandler } from '../../handlers/importExport';
 
-const subs = new Hono();
+const subs = new Hono<WorkerEnv>();
 
 // Export subscriptions (must be before /:id routes)
 subs.get('/export', honoAuth, async (c) => {
