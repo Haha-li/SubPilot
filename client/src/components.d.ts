@@ -14,6 +14,7 @@ declare module 'vue' {
     CommonSubscriptionAvatarEditor: typeof import('./components/CommonSubscriptionAvatarEditor.vue')['default']
     CommonSubscriptionModal: typeof import('./components/CommonSubscriptionModal.vue')['default']
     CurrencySelect: typeof import('./components/CurrencySelect.vue')['default']
+    ElButton: typeof import('element-plus/es')['ElButton']
     ElConfigProvider: typeof import('element-plus/es')['ElConfigProvider']
     ElDatePicker: typeof import('element-plus/es')['ElDatePicker']
     ElDialog: typeof import('element-plus/es')['ElDialog']

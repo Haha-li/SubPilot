@@ -1,21 +1,32 @@
-import { Router } from 'express';
-import { authMiddleware } from '../middleware/auth';
-import { db, schema } from '../db';
-import { eq, desc } from 'drizzle-orm';
+import { Router, type Response } from 'express';
+import { authMiddleware, type AuthRequest } from '../middleware/auth';
+import {
+  batchRenewalsHandler,
+  listRenewalHistoryHandler,
+  listSubscriptionRenewalsHandler,
+  renewSubscriptionHandler,
+} from '../handlers/renewals';
 
 const router = Router();
 
-// Get renewal history for a subscription
-router.get('/:id', authMiddleware, async (req, res) => {
-  try {
-    const id = Number(req.params.id);
-    const logs = await db.select().from(schema.renewalLogs)
-      .where(eq(schema.renewalLogs.subscriptionId, id))
-      .orderBy(desc(schema.renewalLogs.renewedAt));
-    res.json(logs);
-  } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
-  }
+router.get('/', authMiddleware, async (req: AuthRequest, res: Response) => {
+  const result = await listRenewalHistoryHandler(req.query);
+  res.status(result.status).json(result.body);
+});
+
+router.post('/batch', authMiddleware, async (req: AuthRequest, res: Response) => {
+  const result = await batchRenewalsHandler(req.body);
+  res.status(result.status).json(result.body);
+});
+
+router.post('/:id/renew', authMiddleware, async (req: AuthRequest, res: Response) => {
+  const result = await renewSubscriptionHandler(Number(req.params.id), req.body);
+  res.status(result.status).json(result.body);
+});
+
+router.get('/:id', authMiddleware, async (req: AuthRequest, res: Response) => {
+  const result = await listSubscriptionRenewalsHandler(Number(req.params.id));
+  res.status(result.status).json(result.body);
 });
 
 export default router;

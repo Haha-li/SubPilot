@@ -19,6 +19,11 @@ const router = createRouter({
           component: () => import('../views/Dashboard.vue'),
         },
         {
+          path: 'renewals',
+          name: 'RenewalCenter',
+          component: () => import('../views/RenewalCenter.vue'),
+        },
+        {
           path: 'config',
           name: 'Config',
           component: () => import('../views/Config.vue'),

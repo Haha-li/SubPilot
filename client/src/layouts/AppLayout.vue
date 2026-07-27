@@ -5,7 +5,7 @@ import { useDark, useToggle, useMediaQuery } from '@vueuse/core';
 import { useAuthStore } from '../stores/auth';
 import { useSystemConfigStore } from '../stores/systemConfig';
 import {
-  LayoutGrid, BarChart3, Tag, CalendarDays, FileText, Settings,
+  LayoutGrid, BarChart3, Tag, CalendarDays, FileText, Settings, RefreshCw,
   Sun, Moon, ChevronsLeft, ChevronsRight, LogOut, Menu, X, Library,
 } from '@lucide/vue';
 
@@ -22,6 +22,7 @@ const toggleDark = useToggle(isDark);
 
 const navItems = [
   { path: '/',           label: '订阅管理', icon: LayoutGrid },
+  { path: '/renewals',   label: '续费中心', icon: RefreshCw },
   { path: '/common-subscriptions', label: '常用订阅', icon: Library },
   { path: '/stats',      label: '费用统计', icon: BarChart3 },
   { path: '/categories', label: '分类管理', icon: Tag },

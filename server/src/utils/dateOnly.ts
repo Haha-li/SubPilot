@@ -140,6 +140,33 @@ export function addDateOnlyPeriod(
   });
 }
 
+export function advanceDateOnlyByPeriods(
+  expiryDate: string,
+  periodValue: number,
+  periodUnit: DatePeriodUnit,
+  periods: number,
+): string {
+  requireDateOnly(expiryDate);
+  if (!Number.isSafeInteger(periodValue) || periodValue <= 0) {
+    throw new Error('续费周期必须是正整数');
+  }
+  if (!Number.isSafeInteger(periods) || periods < 0) {
+    throw new Error('续费次数必须是非负整数');
+  }
+  if (periods === 0) return expiryDate;
+  if (periodUnit === 'day') {
+    const amount = periodValue * periods;
+    if (!Number.isSafeInteger(amount)) throw new Error('续费日期计算超出安全范围');
+    return addDateOnlyPeriod(expiryDate, amount, periodUnit);
+  }
+
+  let nextExpiryDate = expiryDate;
+  for (let index = 0; index < periods; index += 1) {
+    nextExpiryDate = addDateOnlyPeriod(nextExpiryDate, periodValue, periodUnit);
+  }
+  return nextExpiryDate;
+}
+
 export function advanceDateOnlyToAtLeast(
   expiryDate: string,
   targetDate: string,
