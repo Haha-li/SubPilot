@@ -33,9 +33,10 @@ const emit = defineEmits<{
 const subStore = useSubscriptionStore();
 const commonStore = useCommonSubscriptionStore();
 const isMobile = useMediaQuery('(max-width: 768px)');
+const DEFAULT_CATEGORY = '自用';
 
 const allCategories = computed(() => {
-  const cats = new Set<string>();
+  const cats = new Set<string>([DEFAULT_CATEGORY]);
   const sep = /[/,，\s]+/;
   subStore.subscriptions.forEach((sub) => {
     (sub.category || '').split(sep).map((t) => t.trim()).filter(Boolean).forEach((t) => cats.add(t));
@@ -48,7 +49,7 @@ const allCategories = computed(() => {
 const form = ref({
   name: '',
   customType: '',
-  category: [] as string[],
+  category: [DEFAULT_CATEGORY] as string[],
   startDate: '',
   expiryDate: '',
   periodValue: 1,
