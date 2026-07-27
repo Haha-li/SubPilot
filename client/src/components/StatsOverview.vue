@@ -2,6 +2,7 @@
 import { computed } from 'vue';
 import type { Subscription } from '../stores/subscription';
 import { getSymbol } from '../utils/currency';
+import { normalizeDateOnly } from '../utils/dateOnly';
 import {
   getCostStatisticsInCurrency,
   getPersonalMonthlyCostInCurrency,
@@ -75,13 +76,19 @@ const monthlyTrend = computed(() => {
     const date = new Date(now.getFullYear(), now.getMonth() - offset, 1);
     const year = date.getFullYear();
     const month = date.getMonth();
-    const monthStart = new Date(year, month, 1).getTime();
-    const monthEnd = new Date(year, month + 1, 0, 23, 59, 59).getTime();
+    const monthStart = `${year}-${String(month + 1).padStart(2, '0')}-01`;
+    const monthEnd = `${year}-${String(month + 1).padStart(2, '0')}-${String(new Date(year, month + 1, 0).getDate()).padStart(2, '0')}`;
     let total = 0;
     props.subscriptions.forEach((subscription) => {
-      const expiryTime = new Date(subscription.expiryDate).getTime();
-      const startTime = subscription.startDate ? new Date(subscription.startDate).getTime() : 0;
-      if (expiryTime >= monthStart && startTime <= monthEnd) {
+      const expiryDate = normalizeDateOnly(subscription.expiryDate);
+      if (!expiryDate) return;
+      const startDate = subscription.startDate
+        ? normalizeDateOnly(subscription.startDate)
+        : null;
+      if (
+        expiryDate >= monthStart
+        && (!subscription.startDate || (startDate && startDate <= monthEnd))
+      ) {
         total += getPersonalMonthlyCostOrZero(subscription, props.displayCurrency);
       }
     });

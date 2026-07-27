@@ -8,12 +8,18 @@ interface ConfigWrite {
   value: string;
 }
 
+interface SubscriptionUpdate {
+  expiryDate?: string;
+  updatedAt?: string;
+}
+
 function expectEqual<T>(expected: T, actual: T) {
   assert.deepStrictEqual(actual, expected);
 }
 
 function createMockDb(cronExpression: string, subscriptions: object[], notifyChannels = 'pushplus') {
   const writes: ConfigWrite[] = [];
+  const subscriptionUpdates: SubscriptionUpdate[] = [];
   const configs = [
     { key: 'timezone', value: 'Asia/Shanghai' },
     { key: 'cron_expression', value: cronExpression },
@@ -32,10 +38,12 @@ function createMockDb(cronExpression: string, subscriptions: object[], notifyCha
       }),
     }),
     update: () => ({
-      set: () => ({ where: async () => undefined }),
+      set: (value: SubscriptionUpdate) => ({
+        where: async () => { subscriptionUpdates.push(value); },
+      }),
     }),
   };
-  return { instance, writes };
+  return { instance, writes, subscriptionUpdates };
 }
 
 const matchingSubscription = {
@@ -88,6 +96,71 @@ test('自动续费后使用新到期日发送通知', async () => {
 
   expectEqual('success', result.outcome);
   expectEqual('2026-07-12', notifiedExpiryDate);
+});
+
+test('到期日当天不会因运行时刻晚于 UTC 零点而提前续费', async () => {
+  const subscription = {
+    ...matchingSubscription,
+    expiryDate: '2026-07-10',
+    autoRenew: 1,
+    periodValue: 1,
+    periodUnit: 'month',
+  };
+  const { instance, subscriptionUpdates } = createMockDb('0 8 * * *', [subscription]);
+  setDb(instance);
+
+  const result = await checkAndNotify(
+    { now: new Date('2026-07-10T15:00:00.000Z'), force: true, source: 'manual' },
+    { sendNotification: async () => true },
+  );
+
+  expectEqual('success', result.outcome);
+  expectEqual([], subscriptionUpdates);
+});
+
+test('长期过期订阅在一次检查中追赶全部周期', async () => {
+  const subscription = {
+    ...matchingSubscription,
+    expiryDate: '2026-01-31',
+    autoRenew: 1,
+    periodValue: 1,
+    periodUnit: 'month',
+  };
+  const { instance, subscriptionUpdates } = createMockDb('0 8 * * *', [subscription]);
+  setDb(instance);
+
+  const result = await checkAndNotify(
+    { now: new Date('2026-04-15T00:00:00.000Z'), force: true, source: 'manual' },
+    { sendNotification: async () => true },
+  );
+
+  expectEqual('skipped', result.outcome);
+  expectEqual('no_matching_subscriptions', result.skipReason);
+  expectEqual(1, subscriptionUpdates.length);
+  expectEqual('2026-04-28', subscriptionUpdates[0].expiryDate);
+});
+
+test('单个旧订阅日期异常不会阻断其他订阅提醒', async () => {
+  const invalidSubscription = {
+    ...matchingSubscription,
+    id: 2,
+    expiryDate: '1000-01-01',
+    autoRenew: 1,
+    periodValue: Number.MAX_SAFE_INTEGER,
+    periodUnit: 'year',
+  };
+  const { instance } = createMockDb('0 8 * * *', [invalidSubscription, matchingSubscription]);
+  setDb(instance);
+  let sendCount = 0;
+
+  const result = await checkAndNotify(
+    { now: new Date('2026-07-10T00:00:00.000Z'), force: true, source: 'manual' },
+    { sendNotification: async () => { sendCount += 1; return true; } },
+  );
+
+  expectEqual('success', result.outcome);
+  expectEqual(1, result.matchedCount);
+  expectEqual(1, sendCount);
 });
 
 test('定时触发未匹配 Cron 时记录触发时间但不执行推送', async () => {

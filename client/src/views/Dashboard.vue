@@ -7,6 +7,12 @@ import { useCommonSubscriptionStore } from '../stores/commonSubscription';
 import { solar2lunar } from '../utils/lunar';
 import { fetchRates, getSymbol } from '../utils/currency';
 import {
+  differenceInCalendarDays,
+  getDaysUntilDate,
+  getHoursUntilDateEnd,
+  parseDateOnly,
+} from '../utils/dateOnly';
+import {
   getCategoryTokens,
   getCostStatisticsInCurrency,
   getPersonalMonthlyCostOrZero,
@@ -96,17 +102,17 @@ const expiringSoonSubscriptions = computed(() =>
   subStore.subscriptions
     .filter((s) => {
       if (!s.isActive) return false;
-      const diff = Math.ceil((new Date(s.expiryDate).getTime() - Date.now()) / 86400000);
+      const diff = getDaysUntilDate(s.expiryDate);
       return diff >= 0 && diff <= 7;
     })
     .sort((a, b) => {
-      const dateDiff = new Date(a.expiryDate).getTime() - new Date(b.expiryDate).getTime();
+      const dateDiff = a.expiryDate.localeCompare(b.expiryDate);
       return dateDiff || a.name.localeCompare(b.name, 'zh-CN');
     }),
 );
 const expiringSoonCount = computed(() => expiringSoonSubscriptions.value.length);
 const expiredCount = computed(() => subStore.subscriptions.filter((s) =>
-  s.isActive && new Date(s.expiryDate).getTime() < Date.now()
+  s.isActive && getDaysUntilDate(s.expiryDate) < 0
 ).length);
 
 watch([sortBy, sortOrder], () => {
@@ -158,11 +164,11 @@ const filteredSubscriptions = computed(() => {
       if (statusFilter.value === 'inactive') return !sub.isActive;
       if (statusFilter.value === 'pinned') return sub.isPinned;
       if (statusFilter.value === 'expired') {
-        return sub.isActive && new Date(sub.expiryDate).getTime() < Date.now();
+        return sub.isActive && getDaysUntilDate(sub.expiryDate) < 0;
       }
       if (statusFilter.value === 'soon') {
         if (!sub.isActive) return false;
-        const diffDays = Math.ceil((new Date(sub.expiryDate).getTime() - Date.now()) / (1000 * 60 * 60 * 24));
+        const diffDays = getDaysUntilDate(sub.expiryDate);
         return diffDays >= 0 && diffDays <= 7;
       }
       return true;
@@ -245,15 +251,14 @@ async function handleBatchDelete() {
 type DaysInfo = { text: string; tone: 'danger' | 'warning' | 'success' | 'muted'; percent: number };
 
 function getDaysLeft(sub: Subscription): DaysInfo {
-  const now = new Date();
-  const expiry = new Date(sub.expiryDate);
-  const diffMs = expiry.getTime() - now.getTime();
-  const diffDays = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
+  const diffDays = getDaysUntilDate(sub.expiryDate);
+  if (!Number.isFinite(diffDays)) {
+    return { text: '日期无效', tone: 'danger', percent: 100 };
+  }
 
   let totalDays = 30;
-  if (sub.startDate) {
-    const start = new Date(sub.startDate);
-    totalDays = Math.max(1, Math.ceil((expiry.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)));
+  if (sub.startDate && parseDateOnly(sub.startDate)) {
+    totalDays = Math.max(1, differenceInCalendarDays(sub.startDate, sub.expiryDate));
   }
   const elapsed = totalDays - diffDays;
   const percent = Math.min(100, Math.max(0, Math.round((elapsed / totalDays) * 100)));
@@ -268,14 +273,12 @@ function getDaysLeft(sub: Subscription): DaysInfo {
 function getStatusMeta(sub: Subscription): { label: string; tone: 'danger' | 'warning' | 'success' | 'muted' } {
   if (!sub.isActive) return { label: '已停用', tone: 'muted' };
 
-  const now = new Date();
-  const expiry = new Date(sub.expiryDate);
-  const diffMs = expiry.getTime() - now.getTime();
-  const diffDays = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
+  const diffDays = getDaysUntilDate(sub.expiryDate);
+  if (!Number.isFinite(diffDays)) return { label: '日期无效', tone: 'danger' };
 
   const reminderValue = sub.reminderValue ?? 7;
   const reminderUnit = sub.reminderUnit || 'day';
-  const diffHours = diffMs / (1000 * 60 * 60);
+  const diffHours = getHoursUntilDateEnd(sub.expiryDate);
 
   let isSoon = false;
   if (reminderUnit === 'hour') {
@@ -291,8 +294,9 @@ function getStatusMeta(sub: Subscription): { label: string; tone: 'danger' | 'wa
 
 function getLunarText(dateStr: string): string {
   if (!showLunar.value) return '';
-  const d = new Date(dateStr);
-  const lunar = solar2lunar(d.getFullYear(), d.getMonth() + 1, d.getDate());
+  const date = parseDateOnly(dateStr);
+  if (!date) return '';
+  const lunar = solar2lunar(date.year, date.month, date.day);
   return lunar ? lunar.fullStr : '';
 }
 

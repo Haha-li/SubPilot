@@ -9,6 +9,14 @@ import { sendEmail } from './notifiers/email';
 import { sendNotifyX } from './notifiers/notifyx';
 import { sendPushPlus } from './notifiers/pushplus';
 import { getCurrencySymbol } from '../utils/currency';
+import {
+  addDateOnlyPeriod,
+  differenceInCalendarDays,
+  getDateOnlyInTimeZone,
+  isValidTimeZone,
+  normalizeDateOnly,
+  parseDateOnly,
+} from '../utils/dateOnly';
 
 interface Subscription {
   id: number;
@@ -37,16 +45,26 @@ async function getConfigMap(): Promise<Record<string, string>> {
   return map;
 }
 
-export function formatNotifyMessage(subscription: Subscription, config: Record<string, string>): string {
-  const expiryDate = new Date(subscription.expiryDate);
-  const now = new Date();
-  const diffMs = expiryDate.getTime() - now.getTime();
-  const diffDays = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
+export function formatNotifyMessage(
+  subscription: Subscription,
+  config: Record<string, string>,
+  now = new Date(),
+): string {
+  const timezone = isValidTimeZone(config.timezone) ? config.timezone : 'Asia/Shanghai';
+  const expiryDate = normalizeDateOnly(subscription.expiryDate);
+  const expiryParts = parseDateOnly(expiryDate);
+  const today = getDateOnlyInTimeZone(now, timezone);
+  const diffDays = expiryDate === null
+    ? null
+    : differenceInCalendarDays(today, expiryDate);
 
-  const lunarDate = solar2lunar(expiryDate.getFullYear(), expiryDate.getMonth() + 1, expiryDate.getDate());
+  const lunarDate = expiryParts
+    ? solar2lunar(expiryParts.year, expiryParts.month, expiryParts.day)
+    : null;
   const lunar = lunarDate?.fullStr || '';
 
-  const status = diffDays < 0 ? `已过期 ${Math.abs(diffDays)} 天` :
+  const status = diffDays === null ? '到期日期无效' :
+                 diffDays < 0 ? `已过期 ${Math.abs(diffDays)} 天` :
                  diffDays === 0 ? '今天到期' :
                  `还有 ${diffDays} 天到期`;
 
@@ -69,18 +87,22 @@ export function formatNotifyMessage(subscription: Subscription, config: Record<s
     .replace(/\{\{type\}\}/g, subscription.customType || '其他')
     .replace(/\{\{expiryDate\}\}/g, subscription.expiryDate)
     .replace(/\{\{status\}\}/g, status)
-    .replace(/\{\{daysLeft\}\}/g, String(diffDays))
+    .replace(/\{\{daysLeft\}\}/g, diffDays === null ? '—' : String(diffDays))
     .replace(/\{\{lunar\}\}/g, lunar)
     .replace(/\{\{notes\}\}/g, subscription.notes || '')
     .replace(/\{\{price\}\}/g, price)
     .replace(/\{\{period\}\}/g, period)
     .replace(/\{\{autoRenew\}\}/g, autoRenew)
     .replace(/\{\{reminder\}\}/g, reminder)
-    .replace(/\{\{time\}\}/g, new Date().toLocaleString('zh-CN', { timeZone: config.timezone || 'Asia/Shanghai' }))
-    .replace(/\{\{timezone\}\}/g, config.timezone || 'Asia/Shanghai');
+    .replace(/\{\{time\}\}/g, now.toLocaleString('zh-CN', { timeZone: timezone }))
+    .replace(/\{\{timezone\}\}/g, timezone);
 }
 
-export async function sendNotification(subscription: Subscription, isTest = false): Promise<boolean> {
+export async function sendNotification(
+  subscription: Subscription,
+  isTest = false,
+  now = new Date(),
+): Promise<boolean> {
   const config = await getConfigMap();
   const channels = (config.notify_channels || '').split(',').filter(Boolean);
 
@@ -90,7 +112,7 @@ export async function sendNotification(subscription: Subscription, isTest = fals
 
   const message = isTest
     ? `🔔 测试通知\n━━━━━━━━━━━━━━\n名称: ${subscription.name}\n这是一条测试通知，说明通知渠道配置正确。`
-    : formatNotifyMessage(subscription, config);
+    : formatNotifyMessage(subscription, config, now);
 
   let success = false;
 
@@ -180,11 +202,9 @@ export async function testNotificationChannel(channel: string, formConfig?: Reco
 export async function testTemplateNotification(channel: string, formConfig?: Record<string, string>): Promise<boolean> {
   const config = formConfig || await getConfigMap();
 
-  const today = new Date();
-  const expiryDate = new Date(today.getTime() + 10 * 24 * 60 * 60 * 1000);
-  const yyyy = expiryDate.getFullYear();
-  const mm = String(expiryDate.getMonth() + 1).padStart(2, '0');
-  const dd = String(expiryDate.getDate()).padStart(2, '0');
+  const now = new Date();
+  const timezone = isValidTimeZone(config.timezone) ? config.timezone : 'Asia/Shanghai';
+  const expiryDate = addDateOnlyPeriod(getDateOnlyInTimeZone(now, timezone), 10, 'day');
 
   const mockSub: Subscription = {
     id: 0,
@@ -192,7 +212,7 @@ export async function testTemplateNotification(channel: string, formConfig?: Rec
     customType: '视频会员',
     category: null,
     startDate: null,
-    expiryDate: `${yyyy}-${mm}-${dd}`,
+    expiryDate,
     periodValue: 1,
     periodUnit: 'month',
     reminderValue: 7,
@@ -206,7 +226,7 @@ export async function testTemplateNotification(channel: string, formConfig?: Rec
     currency: 'CNY',
   };
 
-  const message = formatNotifyMessage(mockSub, config);
+  const message = formatNotifyMessage(mockSub, config, now);
 
   try {
     switch (channel) {

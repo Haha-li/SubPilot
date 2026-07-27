@@ -9,6 +9,15 @@ import {
   SchedulerRunSource,
   SchedulerSkipReason,
 } from './schedulerStatus';
+import {
+  advanceDateOnlyToAtLeast,
+  compareDateOnly,
+  differenceInCalendarDays,
+  getCalendarHoursUntilDateEnd,
+  getDateOnlyInTimeZone,
+  isDatePeriodUnit,
+  normalizeDateOnly,
+} from '../utils/dateOnly';
 
 type NotificationSubscription = Parameters<typeof sendNotification>[0];
 
@@ -19,7 +28,7 @@ interface SchedulerOptions {
 }
 
 interface SchedulerDependencies {
-  sendNotification: (subscription: NotificationSubscription) => Promise<boolean>;
+  sendNotification: (subscription: NotificationSubscription, now: Date) => Promise<boolean>;
 }
 
 interface ScheduledTask {
@@ -36,13 +45,14 @@ interface ResultCounts {
 interface ProcessInput {
   subscriptions: NotificationSubscription[];
   now: Date;
+  timezone: string;
   canSend: boolean;
   dependencies: SchedulerDependencies;
 }
 
 interface RenewalResult {
   subscription: NotificationSubscription;
-  expiryDate: Date;
+  expiryDate: string | null;
 }
 
 interface ResultInput extends ResultCounts {
@@ -55,7 +65,9 @@ interface ResultInput extends ResultCounts {
   skipReason?: SchedulerSkipReason;
 }
 
-const DEFAULT_DEPENDENCIES: SchedulerDependencies = { sendNotification };
+const DEFAULT_DEPENDENCIES: SchedulerDependencies = {
+  sendNotification: (subscription, now) => sendNotification(subscription, false, now),
+};
 let scheduledTask: ScheduledTask | null = null;
 
 async function loadConfigMap(): Promise<Record<string, string>> {
@@ -80,35 +92,56 @@ async function persistSafely(action: () => Promise<void>, context: string) {
 async function renewSubscriptionIfNeeded(
   subscription: NotificationSubscription,
   now: Date,
+  today: string,
 ): Promise<RenewalResult> {
-  const expiryDate = new Date(subscription.expiryDate);
-  if (subscription.autoRenew !== 1 || expiryDate.getTime() >= now.getTime()) {
+  const expiryDate = normalizeDateOnly(subscription.expiryDate);
+  if (!expiryDate) {
+    console.error(JSON.stringify({
+      message: 'subscription has invalid expiry date',
+      subscriptionId: subscription.id,
+      expiryDate: subscription.expiryDate,
+    }));
+    return { subscription, expiryDate: null };
+  }
+  if (subscription.autoRenew !== 1 || compareDateOnly(expiryDate, today) >= 0) {
     return { subscription, expiryDate };
   }
-  const newExpiry = new Date(expiryDate);
-  const value = subscription.periodValue || 1;
-  if (subscription.periodUnit === 'day') newExpiry.setDate(newExpiry.getDate() + value);
-  else if (subscription.periodUnit === 'year') newExpiry.setFullYear(newExpiry.getFullYear() + value);
-  else newExpiry.setMonth(newExpiry.getMonth() + value);
-  const newDate = newExpiry.toISOString().split('T')[0];
+
+  const periodValue = Number.isSafeInteger(subscription.periodValue)
+    && Number(subscription.periodValue) > 0
+    ? Number(subscription.periodValue)
+    : 1;
+  const periodUnit = isDatePeriodUnit(subscription.periodUnit)
+    ? subscription.periodUnit
+    : 'month';
+  const renewed = advanceDateOnlyToAtLeast(expiryDate, today, periodValue, periodUnit);
   await db.update(schema.subscriptions).set({
-    expiryDate: newDate,
+    expiryDate: renewed.expiryDate,
     updatedAt: now.toISOString(),
   }).where(eq(schema.subscriptions.id, subscription.id));
   return {
-    subscription: { ...subscription, expiryDate: newDate },
-    expiryDate: newExpiry,
+    subscription: { ...subscription, expiryDate: renewed.expiryDate },
+    expiryDate: renewed.expiryDate,
   };
 }
 
-function isWithinReminderWindow(subscription: NotificationSubscription, expiryDate: Date, now: Date): boolean {
-  const diffMs = expiryDate.getTime() - now.getTime();
-  const reminderValue = subscription.reminderValue ?? 7;
+function isWithinReminderWindow(
+  subscription: NotificationSubscription,
+  expiryDate: string | null,
+  now: Date,
+  timezone: string,
+  today: string,
+): boolean {
+  if (!expiryDate) return false;
+  const reminderValue = Number.isFinite(subscription.reminderValue)
+    && Number(subscription.reminderValue) >= 0
+    ? Number(subscription.reminderValue)
+    : 7;
   if (subscription.reminderUnit === 'hour') {
-    const diffHours = diffMs / (60 * 60 * 1000);
+    const diffHours = getCalendarHoursUntilDateEnd(expiryDate, now, timezone);
     return diffHours >= 0 && diffHours <= reminderValue;
   }
-  const diffDays = Math.ceil(diffMs / (24 * 60 * 60 * 1000));
+  const diffDays = differenceInCalendarDays(today, expiryDate);
   return diffDays >= 0 && diffDays <= reminderValue;
 }
 
@@ -116,13 +149,28 @@ async function processSubscriptions(input: ProcessInput): Promise<ResultCounts> 
   let matchedCount = 0;
   let sentCount = 0;
   let failedCount = 0;
+  const today = getDateOnlyInTimeZone(input.now, input.timezone);
   for (const subscription of input.subscriptions) {
-    const renewed = await renewSubscriptionIfNeeded(subscription, input.now);
-    if (!isWithinReminderWindow(renewed.subscription, renewed.expiryDate, input.now)) continue;
-    matchedCount += 1;
-    if (!input.canSend) continue;
-    if (await input.dependencies.sendNotification(renewed.subscription)) sentCount += 1;
-    else failedCount += 1;
+    try {
+      const renewed = await renewSubscriptionIfNeeded(subscription, input.now, today);
+      if (!isWithinReminderWindow(
+        renewed.subscription,
+        renewed.expiryDate,
+        input.now,
+        input.timezone,
+        today,
+      )) continue;
+      matchedCount += 1;
+      if (!input.canSend) continue;
+      if (await input.dependencies.sendNotification(renewed.subscription, input.now)) sentCount += 1;
+      else failedCount += 1;
+    } catch (error) {
+      console.error(JSON.stringify({
+        message: 'subscription date processing failed',
+        subscriptionId: subscription.id,
+        error: error instanceof Error ? error.message : String(error),
+      }));
+    }
   }
   return { checkedCount: input.subscriptions.length, matchedCount, sentCount, failedCount };
 }
@@ -188,7 +236,7 @@ export async function checkAndNotify(
       .from(schema.subscriptions)
       .where(eq(schema.subscriptions.isActive, 1));
     const canSend = Boolean(configMap.notify_channels?.split(',').filter(Boolean).length);
-    const counts = await processSubscriptions({ subscriptions, now, canSend, dependencies });
+    const counts = await processSubscriptions({ subscriptions, now, timezone, canSend, dependencies });
     const details = getResultDetails(counts, canSend);
     const result = createResult({
       source, now, timezone, cronExpression, ...counts,

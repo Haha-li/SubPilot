@@ -22,6 +22,15 @@ const subscription = {
   currency: 'CNY',
 };
 
+test('通知剩余天数按配置时区的日历日期计算', () => {
+  const message = formatNotifyMessage(subscription, {
+    notify_template: '{{status}} / {{daysLeft}}',
+    timezone: 'Asia/Shanghai',
+  }, new Date('2026-07-10T15:30:00.000Z'));
+
+  assert.strictEqual('今天到期 / 0', message);
+});
+
 test('农历模板变量不依赖周期按农历设置', () => {
   const message = formatNotifyMessage(subscription, {
     notify_template: '农历: {{lunar}}',

@@ -3,6 +3,38 @@ import { eq } from 'drizzle-orm';
 import { sendNotification } from '../services/notification';
 import { resolveSharedCost } from '../utils/sharedCost';
 import { normalizeAvatarFields } from '../utils/avatar';
+import {
+  addDateOnlyPeriod,
+  compareDateOnly,
+  isDatePeriodUnit,
+  normalizeDateOnly,
+  type DatePeriodUnit,
+} from '../utils/dateOnly';
+
+function normalizePositiveInteger(value: unknown): number | null {
+  const number = typeof value === 'number' ? value : Number(value);
+  return Number.isSafeInteger(number) && number > 0 ? number : null;
+}
+
+function validateDateRange(startDate: string | null, expiryDate: string): string | null {
+  if (startDate && compareDateOnly(startDate, expiryDate) > 0) {
+    return '开始日期不能晚于到期日期';
+  }
+  return null;
+}
+
+function validateRenewalRange(
+  expiryDate: string,
+  periodValue: number,
+  periodUnit: DatePeriodUnit,
+): string | null {
+  try {
+    addDateOnlyPeriod(expiryDate, periodValue, periodUnit);
+    return null;
+  } catch {
+    return '订阅周期导致续费日期超出支持范围';
+  }
+}
 
 export async function listSubscriptionsHandler(query: any) {
   try {
@@ -41,6 +73,37 @@ export async function createSubscriptionHandler(body: any) {
       return { status: 400, body: { success: false, message: '订阅名称和到期日期为必填项' } };
     }
 
+    const normalizedExpiryDate = normalizeDateOnly(expiryDate);
+    if (!normalizedExpiryDate) {
+      return { status: 400, body: { success: false, message: '到期日期必须是有效的 YYYY-MM-DD 日期' } };
+    }
+    const normalizedStartDate = startDate ? normalizeDateOnly(startDate) : null;
+    if (startDate && !normalizedStartDate) {
+      return { status: 400, body: { success: false, message: '开始日期必须是有效的 YYYY-MM-DD 日期' } };
+    }
+    const normalizedPeriodValue = periodValue === undefined || periodValue === null
+      ? 1
+      : normalizePositiveInteger(periodValue);
+    if (!normalizedPeriodValue) {
+      return { status: 400, body: { success: false, message: '订阅周期必须是正整数' } };
+    }
+    const normalizedPeriodUnit = periodUnit || 'month';
+    if (!isDatePeriodUnit(normalizedPeriodUnit)) {
+      return { status: 400, body: { success: false, message: '订阅周期单位无效' } };
+    }
+    const dateRangeError = validateDateRange(normalizedStartDate, normalizedExpiryDate);
+    if (dateRangeError) {
+      return { status: 400, body: { success: false, message: dateRangeError } };
+    }
+    const renewalRangeError = validateRenewalRange(
+      normalizedExpiryDate,
+      normalizedPeriodValue,
+      normalizedPeriodUnit,
+    );
+    if (renewalRangeError) {
+      return { status: 400, body: { success: false, message: renewalRangeError } };
+    }
+
     const avatar = normalizeAvatarFields({ iconUrl, backgroundColor: iconBackgroundColor });
     if (!avatar.success) {
       return { status: 400, body: { success: false, message: avatar.message } };
@@ -60,10 +123,10 @@ export async function createSubscriptionHandler(body: any) {
       name,
       customType: customType || '',
       category: subscriptionCategory,
-      startDate: startDate || null,
-      expiryDate,
-      periodValue: periodValue || 1,
-      periodUnit: periodUnit || 'month',
+      startDate: normalizedStartDate,
+      expiryDate: normalizedExpiryDate,
+      periodValue: normalizedPeriodValue,
+      periodUnit: normalizedPeriodUnit,
       reminderValue: reminderValue ?? 7,
       reminderUnit: reminderUnit || 'day',
       isActive: isActive !== false ? 1 : 0,
@@ -102,6 +165,58 @@ export async function updateSubscriptionHandler(id: number, body: any) {
       return { status: 404, body: { success: false, message: '订阅不存在' } };
     }
 
+    let normalizedStartDate: string | null | undefined;
+    if (startDate !== undefined) {
+      normalizedStartDate = startDate ? normalizeDateOnly(startDate) : null;
+      if (startDate && !normalizedStartDate) {
+        return { status: 400, body: { success: false, message: '开始日期必须是有效的 YYYY-MM-DD 日期' } };
+      }
+    }
+    let normalizedExpiryDate: string | undefined;
+    if (expiryDate !== undefined) {
+      normalizedExpiryDate = normalizeDateOnly(expiryDate) || undefined;
+      if (!normalizedExpiryDate) {
+        return { status: 400, body: { success: false, message: '到期日期必须是有效的 YYYY-MM-DD 日期' } };
+      }
+    }
+    let normalizedPeriodValue: number | undefined;
+    if (periodValue !== undefined) {
+      normalizedPeriodValue = normalizePositiveInteger(periodValue) || undefined;
+      if (!normalizedPeriodValue) {
+        return { status: 400, body: { success: false, message: '订阅周期必须是正整数' } };
+      }
+    }
+    let normalizedPeriodUnit: 'day' | 'month' | 'year' | undefined;
+    if (periodUnit !== undefined) {
+      if (!isDatePeriodUnit(periodUnit)) {
+        return { status: 400, body: { success: false, message: '订阅周期单位无效' } };
+      }
+      normalizedPeriodUnit = periodUnit;
+    }
+    const finalStartDate = normalizedStartDate !== undefined
+      ? normalizedStartDate
+      : normalizeDateOnly(existing.startDate);
+    const finalExpiryDate = normalizedExpiryDate || normalizeDateOnly(existing.expiryDate);
+    if (finalExpiryDate) {
+      const dateRangeError = validateDateRange(finalStartDate, finalExpiryDate);
+      if (dateRangeError) {
+        return { status: 400, body: { success: false, message: dateRangeError } };
+      }
+      const finalPeriodValue = normalizedPeriodValue
+        ?? normalizePositiveInteger(existing.periodValue)
+        ?? 1;
+      const finalPeriodUnit = normalizedPeriodUnit
+        ?? (isDatePeriodUnit(existing.periodUnit) ? existing.periodUnit : 'month');
+      const renewalRangeError = validateRenewalRange(
+        finalExpiryDate,
+        finalPeriodValue,
+        finalPeriodUnit,
+      );
+      if (renewalRangeError) {
+        return { status: 400, body: { success: false, message: renewalRangeError } };
+      }
+    }
+
     const avatar = normalizeAvatarFields(
       { iconUrl, backgroundColor: iconBackgroundColor },
       {
@@ -133,7 +248,13 @@ export async function updateSubscriptionHandler(id: number, body: any) {
     const oldPrice = existing.price || 0;
     const newPrice = price !== undefined ? price : oldPrice;
     const priceChanged = Math.abs(newPrice - oldPrice) > 0.01;
-    const expiryChanged = expiryDate && expiryDate !== existing.expiryDate && new Date(expiryDate).getTime() > new Date(existing.expiryDate).getTime();
+    const existingExpiryDate = normalizeDateOnly(existing.expiryDate);
+    const expiryChanged = Boolean(
+      normalizedExpiryDate
+      && existingExpiryDate
+      && normalizedExpiryDate !== existingExpiryDate
+      && compareDateOnly(normalizedExpiryDate, existingExpiryDate) > 0,
+    );
 
     if (priceChanged || expiryChanged) {
       await db.insert(schema.renewalLogs).values({
@@ -141,8 +262,8 @@ export async function updateSubscriptionHandler(id: number, body: any) {
         renewedAt: now,
         price: newPrice,
         currency: currency ?? existing.currency,
-        periodValue: periodValue ?? existing.periodValue,
-        periodUnit: periodUnit ?? existing.periodUnit,
+        periodValue: normalizedPeriodValue ?? existing.periodValue,
+        periodUnit: normalizedPeriodUnit ?? existing.periodUnit,
         notes: notes ?? existing.notes,
       });
     }
@@ -151,10 +272,10 @@ export async function updateSubscriptionHandler(id: number, body: any) {
       name: name ?? existing.name,
       customType: customType ?? existing.customType,
       category: finalCategory,
-      startDate: startDate !== undefined ? startDate : existing.startDate,
-      expiryDate: expiryDate ?? existing.expiryDate,
-      periodValue: periodValue ?? existing.periodValue,
-      periodUnit: periodUnit ?? existing.periodUnit,
+      startDate: normalizedStartDate !== undefined ? normalizedStartDate : existing.startDate,
+      expiryDate: normalizedExpiryDate ?? existing.expiryDate,
+      periodValue: normalizedPeriodValue ?? existing.periodValue,
+      periodUnit: normalizedPeriodUnit ?? existing.periodUnit,
       reminderValue: reminderValue ?? existing.reminderValue,
       reminderUnit: reminderUnit ?? existing.reminderUnit,
       isActive: isActive !== undefined ? (isActive ? 1 : 0) : existing.isActive,

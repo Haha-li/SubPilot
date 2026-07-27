@@ -3,6 +3,7 @@ import { testNotificationChannel, testTemplateNotification } from '../services/n
 import { resolveNotifyCron, validateCronExpression } from '../services/cronSchedule';
 import { checkAndNotify } from '../services/scheduler';
 import { getSchedulerStatus } from '../services/schedulerStatus';
+import { isValidTimeZone } from '../utils/dateOnly';
 
 function isInternalConfigKey(key: string): boolean {
   return key.startsWith('scheduler_');
@@ -30,6 +31,14 @@ export async function updateConfigHandler(body: any) {
     const updates = Object.fromEntries(
       Object.entries(body).filter(([key]) => !isInternalConfigKey(key)),
     );
+
+    if ('timezone' in updates) {
+      const timezone = String(updates.timezone).trim();
+      if (!isValidTimeZone(timezone)) {
+        return { status: 400, body: { success: false, message: '无效的时区' } };
+      }
+      updates.timezone = timezone;
+    }
 
     if ('cron_expression' in updates) {
       const cronExpression = String(updates.cron_expression).trim();

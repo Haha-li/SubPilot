@@ -4,6 +4,7 @@ import { useMediaQuery } from '@vueuse/core';
 import type { Subscription } from '../stores/subscription';
 import { solar2lunar } from '../utils/lunar';
 import { getSymbol } from '../utils/currency';
+import { getDaysUntilDate, getHoursUntilDateEnd, parseDateOnly } from '../utils/dateOnly';
 import api from '../utils/api';
 import SubscriptionBrandIcon from './SubscriptionBrandIcon.vue';
 import {
@@ -63,14 +64,15 @@ function getPriceText(sub: Subscription) {
   return `${sym}${sub.price.toFixed(2)}${priceUnitMap[sub.priceUnit] || '/月'}`;
 }
 function getLunarText(dateStr: string) {
-  const d = new Date(dateStr);
-  const lunar = solar2lunar(d.getFullYear(), d.getMonth() + 1, d.getDate());
+  const date = parseDateOnly(dateStr);
+  if (!date) return '';
+  const lunar = solar2lunar(date.year, date.month, date.day);
   return lunar ? lunar.fullStr : '';
 }
 function getDaysLeft(sub: Subscription) {
-  const diffMs = new Date(sub.expiryDate).getTime() - Date.now();
-  const diffDays = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
+  const diffDays = getDaysUntilDate(sub.expiryDate);
   if (!sub.isActive) return { text: '已停用', tone: 'muted' as const };
+  if (!Number.isFinite(diffDays)) return { text: '日期无效', tone: 'danger' as const };
   if (diffDays < 0) return { text: `已过期 ${Math.abs(diffDays)} 天`, tone: 'danger' as const };
   if (diffDays === 0) return { text: '今天到期', tone: 'danger' as const };
   if (diffDays <= 7) return { text: `还剩 ${diffDays} 天`, tone: 'warning' as const };
@@ -78,11 +80,11 @@ function getDaysLeft(sub: Subscription) {
 }
 function getStatusMeta(sub: Subscription) {
   if (!sub.isActive) return { label: '已停用', tone: 'muted' as const };
-  const diffMs = new Date(sub.expiryDate).getTime() - Date.now();
-  const diffDays = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
+  const diffDays = getDaysUntilDate(sub.expiryDate);
+  if (!Number.isFinite(diffDays)) return { label: '日期无效', tone: 'danger' as const };
   const rv = sub.reminderValue ?? 7;
   const ru = sub.reminderUnit || 'day';
-  const diffHours = diffMs / (1000 * 60 * 60);
+  const diffHours = getHoursUntilDateEnd(sub.expiryDate);
   const isSoon = ru === 'hour' ? (diffHours >= 0 && diffHours <= rv) : (diffDays >= 0 && diffDays <= rv);
   if (diffDays < 0) return { label: '已过期', tone: 'danger' as const };
   if (isSoon) return { label: '即将到期', tone: 'warning' as const };

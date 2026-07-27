@@ -7,6 +7,7 @@ import {
 import api from '../utils/api';
 import SchedulerStatusCard from '../components/SchedulerStatusCard.vue';
 import type { RunSchedulerResponse, SchedulerStatusSnapshot } from '../types/scheduler';
+import { addDateOnlyPeriod, getLocalDateOnly } from '../utils/dateOnly';
 
 const config = ref<Record<string, string>>({});
 const loading = ref(false);
@@ -33,16 +34,12 @@ const defaultTemplate = `📋 订阅提醒
 时区: {{timezone}}`;
 
 function renderPreview(template: string) {
-  const today = new Date();
-  const expiryDate = new Date(today.getTime() + 10 * 24 * 60 * 60 * 1000);
-  const yyyy = expiryDate.getFullYear();
-  const mm = String(expiryDate.getMonth() + 1).padStart(2, '0');
-  const dd = String(expiryDate.getDate()).padStart(2, '0');
+  const expiryDate = addDateOnlyPeriod(getLocalDateOnly(), 10, 'day');
 
   return (template || defaultTemplate)
     .replace(/\{\{name\}\}/g, '示例订阅')
     .replace(/\{\{type\}\}/g, '视频会员')
-    .replace(/\{\{expiryDate\}\}/g, `${yyyy}-${mm}-${dd}`)
+    .replace(/\{\{expiryDate\}\}/g, expiryDate)
     .replace(/\{\{status\}\}/g, '还有 10 天到期')
     .replace(/\{\{daysLeft\}\}/g, '10')
     .replace(/\{\{lunar\}\}/g, '四月十五')

@@ -3,6 +3,7 @@ import { ref, computed, onMounted } from 'vue';
 import { useMediaQuery } from '@vueuse/core';
 import { useSubscriptionStore, type Subscription } from '../stores/subscription';
 import { ChevronLeft, ChevronRight, CalendarDays, Circle, Dot, X } from '@lucide/vue';
+import { differenceInCalendarDays, parseDateOnly } from '../utils/dateOnly';
 
 const subStore = useSubscriptionStore();
 const isMobile = useMediaQuery('(max-width: 768px)');
@@ -32,9 +33,8 @@ function getSubsForDate(dateStr: string): Mark[] {
   return activeSubscriptions.value
     .filter((s) => {
       if (s.expiryDate === dateStr) return true;
-      const cellTime = new Date(dateStr).getTime();
-      const expiryTime = new Date(s.expiryDate).getTime();
-      const diffDays = Math.ceil((expiryTime - cellTime) / (1000 * 60 * 60 * 24));
+      if (!parseDateOnly(s.expiryDate)) return false;
+      const diffDays = differenceInCalendarDays(dateStr, s.expiryDate);
       const reminderDays = s.reminderUnit === 'day' ? (s.reminderValue ?? 7) : 0;
       return diffDays > 0 && diffDays <= reminderDays;
     })

@@ -12,6 +12,22 @@ function expectEqual<T>(expected: T, actual: T) {
   assert.deepStrictEqual(actual, expected);
 }
 
+test('配置接口拒绝无效时区', async () => {
+  let writeCount = 0;
+  setDb({
+    insert: () => ({
+      values: () => ({
+        onConflictDoUpdate: async () => { writeCount += 1; },
+      }),
+    }),
+  });
+
+  const result = await updateConfigHandler({ timezone: 'Not/A_Timezone' });
+  expectEqual(400, result.status);
+  expectEqual('无效的时区', result.body.message);
+  expectEqual(0, writeCount);
+});
+
 test('配置接口隐藏并保护调度器内部状态键', async () => {
   const writes: ConfigWrite[] = [];
   setDb({

@@ -10,6 +10,12 @@ import CurrencySelect from './CurrencySelect.vue';
 import SubscriptionBrandIcon from './SubscriptionBrandIcon.vue';
 import { getWebsiteHostname } from '../utils/brandIcon';
 import {
+  addDateOnlyPeriod,
+  differenceInCalendarDays,
+  parseDateOnly,
+  type DatePeriodUnit,
+} from '../utils/dateOnly';
+import {
   Tag as TagIcon, Calendar as CalendarIcon, Repeat, Wallet, Bell, Sparkles,
   StickyNote, Calculator, Loader2, Save, X, Moon as MoonIcon,
 } from '@lucide/vue';
@@ -116,8 +122,9 @@ function applyCommonAvatar(name: string) {
 
 function getLunarForInput(dateStr: string): string {
   if (!dateStr || !form.value.showLunar) return '';
-  const d = new Date(dateStr);
-  const lunar = solar2lunar(d.getFullYear(), d.getMonth() + 1, d.getDate());
+  const date = parseDateOnly(dateStr);
+  if (!date) return '';
+  const lunar = solar2lunar(date.year, date.month, date.day);
   return lunar ? lunar.fullStr : '';
 }
 
@@ -126,22 +133,40 @@ function calculateExpiry() {
     ElMessage.warning('请先选择开始日期');
     return;
   }
-  const date = new Date(form.value.startDate);
-
-  if (form.value.hasTrial && form.value.trialValue && form.value.trialUnit) {
-    const tv = form.value.trialValue;
-    if (form.value.trialUnit === 'day') date.setDate(date.getDate() + tv);
-    else if (form.value.trialUnit === 'month') date.setMonth(date.getMonth() + tv);
-    else if (form.value.trialUnit === 'year') date.setFullYear(date.getFullYear() + tv);
+  if (!parseDateOnly(form.value.startDate)) {
+    ElMessage.warning('开始日期无效');
+    return;
+  }
+  if (!Number.isSafeInteger(form.value.periodValue) || form.value.periodValue <= 0) {
+    ElMessage.warning('订阅周期必须是正整数');
+    return;
+  }
+  if (
+    form.value.hasTrial
+    && (!Number.isSafeInteger(form.value.trialValue) || form.value.trialValue <= 0)
+  ) {
+    ElMessage.warning('试用周期必须是正整数');
+    return;
   }
 
-  const { periodValue, periodUnit } = form.value;
-  if (periodUnit === 'day') date.setDate(date.getDate() + periodValue);
-  else if (periodUnit === 'month') date.setMonth(date.getMonth() + periodValue);
-  else if (periodUnit === 'year') date.setFullYear(date.getFullYear() + periodValue);
-
-  form.value.expiryDate = date.toISOString().split('T')[0];
-  ElMessage.success('已自动计算到期日期');
+  try {
+    let date = form.value.startDate;
+    if (form.value.hasTrial && form.value.trialValue && form.value.trialUnit) {
+      date = addDateOnlyPeriod(
+        date,
+        form.value.trialValue,
+        form.value.trialUnit as DatePeriodUnit,
+      );
+    }
+    form.value.expiryDate = addDateOnlyPeriod(
+      date,
+      form.value.periodValue,
+      form.value.periodUnit as DatePeriodUnit,
+    );
+    ElMessage.success('已自动计算到期日期');
+  } catch {
+    ElMessage.warning('无法计算到期日期，请检查日期和周期');
+  }
 }
 
 function handleClose() {
@@ -155,6 +180,21 @@ async function handleSubmit() {
   }
   if (!form.value.expiryDate) {
     ElMessage.warning('请选择到期日期');
+    return;
+  }
+  if (!parseDateOnly(form.value.expiryDate)) {
+    ElMessage.warning('到期日期无效');
+    return;
+  }
+  if (form.value.startDate && !parseDateOnly(form.value.startDate)) {
+    ElMessage.warning('开始日期无效');
+    return;
+  }
+  if (
+    form.value.startDate
+    && differenceInCalendarDays(form.value.startDate, form.value.expiryDate) < 0
+  ) {
+    ElMessage.warning('开始日期不能晚于到期日期');
     return;
   }
 
