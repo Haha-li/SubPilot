@@ -3,13 +3,14 @@ import { ref, onMounted } from 'vue';
 import { useMediaQuery } from '@vueuse/core';
 import { useNotifyLogsStore, type NotifyLog } from '../stores/notifyLogs';
 import { useSubscriptionStore } from '../stores/subscription';
-import { ElMessageBox, ElMessage } from 'element-plus';
+import { useSystemConfigStore } from '../stores/systemConfig';
 import {
   Trash2, Send, CheckCircle2, XCircle, FileText, Filter, Inbox, X as XIcon,
 } from '@lucide/vue';
 
 const logsStore = useNotifyLogsStore();
 const subStore = useSubscriptionStore();
+const systemConfigStore = useSystemConfigStore();
 const isMobile = useMediaQuery('(max-width: 768px)');
 
 const subscriptionId = ref('');
@@ -89,10 +90,18 @@ function showDetail(log: NotifyLog) {
 
 function formatTime(val: string | null): string {
   if (!val) return '-';
-  const d = new Date(val);
-  if (isNaN(d.getTime())) return val;
-  const pad = (n: number) => String(n).padStart(2, '0');
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+  const date = new Date(val);
+  if (Number.isNaN(date.getTime())) return val;
+  return new Intl.DateTimeFormat('zh-CN', {
+    timeZone: systemConfigStore.timezone,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: false,
+  }).format(date).replace(/\//g, '-');
 }
 
 onMounted(() => {

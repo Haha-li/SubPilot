@@ -3,7 +3,6 @@ import { ref } from 'vue';
 import { useRouter } from 'vue-router';
 import { useDark, useToggle } from '@vueuse/core';
 import { useAuthStore } from '../stores/auth';
-import { ElMessage } from 'element-plus';
 import {
   Lock, Compass, LogIn, Eye, EyeOff, Sun, Moon,
   LayoutGrid, CalendarDays, Bell, Coins,

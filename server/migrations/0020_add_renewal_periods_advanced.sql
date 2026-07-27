@@ -1,0 +1,1 @@
+ALTER TABLE renewal_logs ADD COLUMN periods_advanced INTEGER NOT NULL DEFAULT 1;

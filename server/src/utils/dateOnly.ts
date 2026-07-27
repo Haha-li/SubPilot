@@ -201,6 +201,33 @@ export function getDateOnlyInTimeZone(now: Date, timezone: string): string {
   return formatParts(getZonedDateTimeParts(now, timezone));
 }
 
+function getTimeZoneOffsetMilliseconds(instant: Date, timezone: string): number {
+  const parts = getZonedDateTimeParts(instant, timezone);
+  const representedAsUtc = Date.UTC(
+    parts.year,
+    parts.month - 1,
+    parts.day,
+    parts.hour,
+    parts.minute,
+    parts.second,
+  );
+  const instantWithoutMilliseconds = Math.floor(instant.getTime() / 1000) * 1000;
+  return representedAsUtc - instantWithoutMilliseconds;
+}
+
+export function getDateOnlyStartInTimeZone(date: string, timezone: string): Date {
+  const parts = requireDateOnly(date);
+  const localAsUtc = Date.UTC(parts.year, parts.month - 1, parts.day);
+  let timestamp = localAsUtc;
+  for (let attempt = 0; attempt < 4; attempt += 1) {
+    const offset = getTimeZoneOffsetMilliseconds(new Date(timestamp), timezone);
+    const adjusted = localAsUtc - offset;
+    if (adjusted === timestamp) break;
+    timestamp = adjusted;
+  }
+  return new Date(timestamp);
+}
+
 export function getCalendarHoursUntilDateEnd(
   expiryDate: string,
   now: Date,

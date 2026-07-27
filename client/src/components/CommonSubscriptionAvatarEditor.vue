@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue';
-import { ElMessage } from 'element-plus';
 import { Globe2, Image, Loader2, Palette, Search, Upload, X } from '@lucide/vue';
 import { useCommonSubscriptionStore } from '../stores/commonSubscription';
 import { resolveBrandIcon } from '../utils/brandIcon';

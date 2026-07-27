@@ -1,8 +1,9 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import type { Subscription } from '../stores/subscription';
+import { useSystemConfigStore } from '../stores/systemConfig';
 import { getSymbol } from '../utils/currency';
-import { normalizeDateOnly } from '../utils/dateOnly';
+import { getZonedDateTimeParts, normalizeDateOnly } from '../utils/dateOnly';
 import {
   getCostStatisticsInCurrency,
   getPersonalMonthlyCostInCurrency,
@@ -12,6 +13,8 @@ import {
   Wallet, TrendingUp, CalendarRange, Coins, BarChart3, Layers, LineChart, ListTree,
   CircleAlert,
 } from '@lucide/vue';
+
+const systemConfigStore = useSystemConfigStore();
 
 const props = defineProps<{
   subscriptions: Subscription[];
@@ -71,9 +74,9 @@ const maxCategoryValue = computed(() => Math.max(1, ...byCategory.value.map((ite
 const monthlyTrend = computed(() => {
   props.ratesRefreshKey;
   const months: { label: string; value: number }[] = [];
-  const now = new Date();
+  const current = getZonedDateTimeParts(new Date(), systemConfigStore.timezone);
   for (let offset = 5; offset >= 0; offset -= 1) {
-    const date = new Date(now.getFullYear(), now.getMonth() - offset, 1);
+    const date = new Date(current.year, current.month - 1 - offset, 1);
     const year = date.getFullYear();
     const month = date.getMonth();
     const monthStart = `${year}-${String(month + 1).padStart(2, '0')}-01`;

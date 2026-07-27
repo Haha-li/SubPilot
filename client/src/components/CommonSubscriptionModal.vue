@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue';
 import { useMediaQuery } from '@vueuse/core';
-import { ElMessage } from 'element-plus';
 import { Loader2, Save, Sparkles, X } from '@lucide/vue';
 import {
   type CommonSubscription,

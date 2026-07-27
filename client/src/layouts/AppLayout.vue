@@ -1,8 +1,9 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue';
+import { ref, computed, onMounted } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
 import { useDark, useToggle, useMediaQuery } from '@vueuse/core';
 import { useAuthStore } from '../stores/auth';
+import { useSystemConfigStore } from '../stores/systemConfig';
 import {
   LayoutGrid, BarChart3, Tag, CalendarDays, FileText, Settings,
   Sun, Moon, ChevronsLeft, ChevronsRight, LogOut, Menu, X, Library,
@@ -11,6 +12,7 @@ import {
 const router = useRouter();
 const route = useRoute();
 const authStore = useAuthStore();
+const systemConfigStore = useSystemConfigStore();
 const isMobile = useMediaQuery('(max-width: 768px)');
 const drawerOpen = ref(false);
 const isCollapsed = ref(localStorage.getItem('sidebarCollapsed') === 'true');
@@ -48,6 +50,10 @@ function toggleCollapse() {
   isCollapsed.value = !isCollapsed.value;
   localStorage.setItem('sidebarCollapsed', String(isCollapsed.value));
 }
+
+onMounted(() => {
+  void systemConfigStore.fetchSystemConfig();
+});
 </script>
 
 <template>

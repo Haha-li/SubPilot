@@ -2,15 +2,17 @@
 import { ref } from 'vue';
 import { useMediaQuery } from '@vueuse/core';
 import { useSubscriptionStore } from '../stores/subscription';
-import { ElMessage } from 'element-plus';
+import { useSystemConfigStore } from '../stores/systemConfig';
 import {
   Download, Upload, FileText, FileJson, FileSpreadsheet, CalendarDays, CheckCircle2, AlertCircle, Loader2, X,
 } from '@lucide/vue';
 import api from '../utils/api';
 import { generateICS } from '../utils/ics';
+import { getDateOnlyInTimeZone } from '../utils/dateOnly';
 
 const emit = defineEmits<{ close: [] }>();
 const subStore = useSubscriptionStore();
+const systemConfigStore = useSystemConfigStore();
 const isMobile = useMediaQuery('(max-width: 768px)');
 
 const drawerVisible = ref(true);
@@ -20,6 +22,7 @@ const importResult = ref('');
 const importSuccess = ref(false);
 const fileInputRef = ref<HTMLInputElement | null>(null);
 const dragOver = ref(false);
+const MAX_IMPORT_BYTES = 10 * 1024 * 1024;
 
 async function handleExport(format: string) {
   exporting.value = true;
@@ -28,7 +31,7 @@ async function handleExport(format: string) {
     const url = URL.createObjectURL(response.data);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `subscriptions_${new Date().toISOString().slice(0, 10)}.${format}`;
+    a.download = `subscriptions_${getDateOnlyInTimeZone(new Date(), systemConfigStore.timezone)}.${format}`;
     a.click();
     URL.revokeObjectURL(url);
     ElMessage.success(`已导出为 ${format.toUpperCase()} 文件`);
@@ -47,7 +50,7 @@ function handleExportICS() {
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `subscriptions_${new Date().toISOString().slice(0, 10)}.ics`;
+    a.download = `subscriptions_${getDateOnlyInTimeZone(new Date(), systemConfigStore.timezone)}.ics`;
     a.click();
     URL.revokeObjectURL(url);
     ElMessage.success('已导出为 ICS 日历文件');
@@ -59,37 +62,44 @@ function handleExportICS() {
 }
 
 async function processFile(file: File) {
-  const reader = new FileReader();
-  reader.onload = async () => {
-    const data = reader.result as string;
-    const ext = file.name.split('.').pop()?.toLowerCase();
-    const format = ext === 'csv' ? 'csv' : 'json';
+  if (importing.value) return;
+  const ext = file.name.split('.').pop()?.toLowerCase();
+  if (ext !== 'json' && ext !== 'csv') {
+    ElMessage.warning('仅支持 JSON 或 CSV 文件');
+    return;
+  }
+  if (file.size > MAX_IMPORT_BYTES) {
+    ElMessage.warning('导入文件不能超过 10 MB');
+    return;
+  }
 
-    importing.value = true;
-    importResult.value = '';
-    importSuccess.value = false;
-    try {
-      const { data: result } = await api.post('/subscriptions/import', { format, data });
-      if (result.success) {
-        importSuccess.value = true;
-        importResult.value = `导入成功: ${result.imported}/${result.total} 条`;
-        if (result.errors?.length) {
-          importResult.value += `\n跳过: ${result.errors.join('\n')}`;
-        }
-        await subStore.fetchSubscriptions();
-        ElMessage.success(`成功导入 ${result.imported} 条订阅`);
-      } else {
-        importResult.value = result.message || '导入失败';
-        ElMessage.error(importResult.value);
-      }
-    } catch (e: any) {
-      importResult.value = '导入失败: ' + (e.response?.data?.message || e.message);
-      ElMessage.error(importResult.value);
-    } finally {
-      importing.value = false;
+  importing.value = true;
+  importResult.value = '';
+  importSuccess.value = false;
+  try {
+    const data = await file.text();
+    const { data: result } = await api.post('/subscriptions/import', { format: ext, data });
+    importSuccess.value = Boolean(result.success);
+    const details = [
+      `新增 ${result.imported ?? 0} 条`,
+      `跳过重复 ${result.skipped ?? 0} 条`,
+    ];
+    if (result.renewalLogsImported) details.push(`恢复续费记录 ${result.renewalLogsImported} 条`);
+    if (result.renewalLogsSkipped) details.push(`跳过重复续费记录 ${result.renewalLogsSkipped} 条`);
+    importResult.value = `导入完成：${details.join('，')}`;
+    if (result.errors?.length) {
+      importResult.value += `\n存在问题：\n${result.errors.join('\n')}`;
     }
-  };
-  reader.readAsText(file);
+    await subStore.fetchSubscriptions();
+    ElMessage.success(result.imported > 0 ? `成功导入 ${result.imported} 条订阅` : '没有新增订阅');
+  } catch (e: any) {
+    const response = e.response?.data;
+    const details = Array.isArray(response?.errors) ? `\n${response.errors.join('\n')}` : '';
+    importResult.value = `导入失败: ${response?.message || e.message}${details}`;
+    ElMessage.error(response?.message || '导入失败');
+  } finally {
+    importing.value = false;
+  }
 }
 
 function handleFileInput(event: Event) {
@@ -103,11 +113,6 @@ function handleDrop(event: DragEvent) {
   dragOver.value = false;
   const file = event.dataTransfer?.files?.[0];
   if (!file) return;
-  const ext = file.name.split('.').pop()?.toLowerCase();
-  if (ext !== 'json' && ext !== 'csv') {
-    ElMessage.warning('仅支持 JSON 或 CSV 文件');
-    return;
-  }
   processFile(file);
 }
 
@@ -164,7 +169,7 @@ function pickFile() {
           >
             <FileJson :size="22" :stroke-width="1.75" />
             <span class="text-sm font-semibold">JSON</span>
-            <span class="text-[10px] uppercase tracking-wide text-ink-400">完整结构</span>
+            <span class="text-[10px] uppercase tracking-wide text-ink-400">含续费历史</span>
           </button>
           <button
             class="flex cursor-pointer flex-col items-center gap-2 rounded-xl border border-ink-200 bg-white/70 p-4 transition-all hover:border-brand-300 hover:bg-brand-50/50 hover:text-brand-600 dark:border-ink-700/60 dark:bg-ink-900/40 dark:hover:border-brand-500/40 dark:hover:bg-brand-500/10 dark:hover:text-brand-300 disabled:opacity-60"
@@ -173,7 +178,7 @@ function pickFile() {
           >
             <FileSpreadsheet :size="22" :stroke-width="1.75" />
             <span class="text-sm font-semibold">CSV</span>
-            <span class="text-[10px] uppercase tracking-wide text-ink-400">表格兼容</span>
+            <span class="text-[10px] uppercase tracking-wide text-ink-400">订阅表格</span>
           </button>
           <button
             class="flex cursor-pointer flex-col items-center gap-2 rounded-xl border border-ink-200 bg-white/70 p-4 transition-all hover:border-brand-300 hover:bg-brand-50/50 hover:text-brand-600 dark:border-ink-700/60 dark:bg-ink-900/40 dark:hover:border-brand-500/40 dark:hover:bg-brand-500/10 dark:hover:text-brand-300 disabled:opacity-60"
@@ -195,7 +200,7 @@ function pickFile() {
           </div>
           <div>
             <h4 class="text-sm font-semibold text-ink-900 dark:text-ink-50">导入订阅</h4>
-            <p class="text-xs text-ink-500 dark:text-ink-400">支持 JSON / CSV 格式</p>
+            <p class="text-xs text-ink-500 dark:text-ink-400">JSON 可恢复续费历史，CSV 适合表格编辑</p>
           </div>
         </header>
 

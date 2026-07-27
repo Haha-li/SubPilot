@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue';
 import { useRouter } from 'vue-router';
-import { ElMessage, ElMessageBox } from 'element-plus';
 import {
   ExternalLink, Globe2, Library, Loader2, Pencil, Plus, Search, Sparkles, Trash2,
 } from '@lucide/vue';

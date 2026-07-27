@@ -71,4 +71,8 @@ export const renewalLogs = sqliteTable('renewal_logs', {
   periodValue: integer('period_value').default(1),
   periodUnit: text('period_unit').default('month'),
   notes: text('notes').default(''),
+  source: text('source').notNull().default('manual'),
+  previousExpiryDate: text('previous_expiry_date'),
+  newExpiryDate: text('new_expiry_date'),
+  periodsAdvanced: integer('periods_advanced').notNull().default(1),
 });

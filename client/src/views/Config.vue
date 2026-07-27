@@ -1,14 +1,15 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted } from 'vue';
-import { ElMessage, ElMessageBox } from 'element-plus';
 import {
   Send, Bell, Globe2, Clock, FileCode2, Check, Sparkles, Save, Loader2,
 } from '@lucide/vue';
 import api from '../utils/api';
 import SchedulerStatusCard from '../components/SchedulerStatusCard.vue';
 import type { RunSchedulerResponse, SchedulerStatusSnapshot } from '../types/scheduler';
-import { addDateOnlyPeriod, getLocalDateOnly } from '../utils/dateOnly';
+import { addDateOnlyPeriod, getDateOnlyInTimeZone } from '../utils/dateOnly';
+import { useSystemConfigStore } from '../stores/systemConfig';
 
+const systemConfigStore = useSystemConfigStore();
 const config = ref<Record<string, string>>({});
 const loading = ref(false);
 const saving = ref(false);
@@ -34,7 +35,8 @@ const defaultTemplate = `📋 订阅提醒
 时区: {{timezone}}`;
 
 function renderPreview(template: string) {
-  const expiryDate = addDateOnlyPeriod(getLocalDateOnly(), 10, 'day');
+  const timezone = config.value.timezone || systemConfigStore.timezone;
+  const expiryDate = addDateOnlyPeriod(getDateOnlyInTimeZone(new Date(), timezone), 10, 'day');
 
   return (template || defaultTemplate)
     .replace(/\{\{name\}\}/g, '示例订阅')
@@ -88,6 +90,7 @@ async function loadConfig() {
       data.cron_expression = '0 8 * * *';
     }
     config.value = data;
+    systemConfigStore.setTimezone(data.timezone);
     activeChannels.value = (data.notify_channels || '').split(',').filter(Boolean);
   } finally {
     loading.value = false;
@@ -112,6 +115,7 @@ async function persistConfig(showMessage: boolean): Promise<boolean> {
     config.value.notify_channels = activeChannels.value.join(',');
     const { data } = await api.put('/config', config.value);
     if (data.success) {
+      systemConfigStore.setTimezone(config.value.timezone);
       if (showMessage) ElMessage.success('配置已保存');
       await loadSchedulerStatus();
       return true;

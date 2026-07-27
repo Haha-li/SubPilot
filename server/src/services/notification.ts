@@ -173,7 +173,8 @@ export async function sendNotification(
 
 export async function testNotificationChannel(channel: string, formConfig?: Record<string, string>): Promise<boolean> {
   const config = formConfig || await getConfigMap();
-  const testMessage = `🔔 通知测试\n━━━━━━━━━━━━━━\n这是一条来自 SubPilot 的测试通知。\n时间: ${new Date().toLocaleString('zh-CN')}`;
+  const timezone = isValidTimeZone(config.timezone) ? config.timezone : 'Asia/Shanghai';
+  const testMessage = `🔔 通知测试\n━━━━━━━━━━━━━━\n这是一条来自 SubPilot 的测试通知。\n时间: ${new Date().toLocaleString('zh-CN', { timeZone: timezone })}`;
 
   try {
     switch (channel) {

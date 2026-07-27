@@ -5,7 +5,6 @@ import { useSubscriptionStore, type Subscription } from '../stores/subscription'
 import { useCommonSubscriptionStore } from '../stores/commonSubscription';
 import { solar2lunar } from '../utils/lunar';
 import { getCategoryTokens, hasSharedCostCategory } from '../utils/subscriptionCost';
-import { ElMessage } from 'element-plus';
 import CurrencySelect from './CurrencySelect.vue';
 import SubscriptionBrandIcon from './SubscriptionBrandIcon.vue';
 import { getWebsiteHostname } from '../utils/brandIcon';

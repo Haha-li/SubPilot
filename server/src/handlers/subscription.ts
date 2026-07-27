@@ -3,6 +3,7 @@ import { eq } from 'drizzle-orm';
 import { sendNotification } from '../services/notification';
 import { resolveSharedCost } from '../utils/sharedCost';
 import { normalizeAvatarFields } from '../utils/avatar';
+import { executeStatementsAtomically } from '../utils/dbAtomic';
 import {
   addDateOnlyPeriod,
   compareDateOnly,
@@ -256,19 +257,7 @@ export async function updateSubscriptionHandler(id: number, body: any) {
       && compareDateOnly(normalizedExpiryDate, existingExpiryDate) > 0,
     );
 
-    if (priceChanged || expiryChanged) {
-      await db.insert(schema.renewalLogs).values({
-        subscriptionId: id,
-        renewedAt: now,
-        price: newPrice,
-        currency: currency ?? existing.currency,
-        periodValue: normalizedPeriodValue ?? existing.periodValue,
-        periodUnit: normalizedPeriodUnit ?? existing.periodUnit,
-        notes: notes ?? existing.notes,
-      });
-    }
-
-    await db.update(schema.subscriptions).set({
+    const subscriptionUpdate = {
       name: name ?? existing.name,
       customType: customType ?? existing.customType,
       category: finalCategory,
@@ -294,7 +283,32 @@ export async function updateSubscriptionHandler(id: number, body: any) {
       trialValue: trialValue !== undefined ? trialValue : existing.trialValue,
       trialUnit: trialUnit !== undefined ? trialUnit : existing.trialUnit,
       updatedAt: now,
-    }).where(eq(schema.subscriptions.id, id));
+    };
+
+    await executeStatementsAtomically((executor) => {
+      const statements: any[] = [];
+      if (priceChanged || expiryChanged) {
+        statements.push(executor.insert(schema.renewalLogs).values({
+          subscriptionId: id,
+          renewedAt: now,
+          price: newPrice,
+          currency: currency ?? existing.currency,
+          periodValue: normalizedPeriodValue ?? existing.periodValue,
+          periodUnit: normalizedPeriodUnit ?? existing.periodUnit,
+          notes: notes ?? existing.notes,
+          source: 'manual',
+          previousExpiryDate: existingExpiryDate,
+          newExpiryDate: normalizedExpiryDate ?? existingExpiryDate,
+          periodsAdvanced: 1,
+        }));
+      }
+      statements.push(
+        executor.update(schema.subscriptions)
+          .set(subscriptionUpdate)
+          .where(eq(schema.subscriptions.id, id)),
+      );
+      return statements;
+    });
 
     const [updated] = await db.select().from(schema.subscriptions).where(eq(schema.subscriptions.id, id)).limit(1);
 

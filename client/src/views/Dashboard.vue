@@ -1,9 +1,10 @@
 <script setup lang="ts">
-import { ref, reactive, computed, watch, onMounted } from 'vue';
+import { ref, reactive, computed, watch, onMounted, defineAsyncComponent } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useMediaQuery } from '@vueuse/core';
 import { useSubscriptionStore, type Subscription } from '../stores/subscription';
 import { useCommonSubscriptionStore } from '../stores/commonSubscription';
+import { useSystemConfigStore } from '../stores/systemConfig';
 import { solar2lunar } from '../utils/lunar';
 import { fetchRates, getSymbol } from '../utils/currency';
 import {
@@ -17,18 +18,19 @@ import {
   getCostStatisticsInCurrency,
   getPersonalMonthlyCostOrZero,
 } from '../utils/subscriptionCost';
-import { ElMessageBox, ElMessage } from 'element-plus';
 import {
   Plus, Search, Trash2, Copy, Pencil, Bell, Pause, Play, Download, Star, LayoutGrid,
   DollarSign, AlertCircle, Loader2, ArrowDownUp, ArrowDown, ArrowUp, CheckCheck, X,
 } from '@lucide/vue';
-import SubscriptionModal from '../components/SubscriptionModal.vue';
 import SubscriptionBrandIcon from '../components/SubscriptionBrandIcon.vue';
-import ImportExportDrawer from '../components/ImportExportDrawer.vue';
-import SubscriptionDetailDrawer from '../components/SubscriptionDetailDrawer.vue';
+
+const SubscriptionModal = defineAsyncComponent(() => import('../components/SubscriptionModal.vue'));
+const ImportExportDrawer = defineAsyncComponent(() => import('../components/ImportExportDrawer.vue'));
+const SubscriptionDetailDrawer = defineAsyncComponent(() => import('../components/SubscriptionDetailDrawer.vue'));
 
 const subStore = useSubscriptionStore();
 const commonStore = useCommonSubscriptionStore();
+const systemConfigStore = useSystemConfigStore();
 const route = useRoute();
 const router = useRouter();
 const isMobile = useMediaQuery('(max-width: 768px)');
@@ -56,6 +58,14 @@ const detailSub = ref<Subscription | null>(null);
 const currentPage = ref(1);
 const pageSize = ref(12);
 const ratesRefreshKey = ref(0);
+
+function getDaysUntil(expiryDate: string, now = new Date()): number {
+  return getDaysUntilDate(expiryDate, now, systemConfigStore.timezone);
+}
+
+function getHoursUntilEnd(expiryDate: string, now = new Date()): number {
+  return getHoursUntilDateEnd(expiryDate, now, systemConfigStore.timezone);
+}
 
 const commonSubscriptionsByName = computed(() => new Map(
   commonStore.items.map((item) => [item.name.trim().toLocaleLowerCase(), item]),
@@ -102,7 +112,7 @@ const expiringSoonSubscriptions = computed(() =>
   subStore.subscriptions
     .filter((s) => {
       if (!s.isActive) return false;
-      const diff = getDaysUntilDate(s.expiryDate);
+      const diff = getDaysUntil(s.expiryDate);
       return diff >= 0 && diff <= 7;
     })
     .sort((a, b) => {
@@ -112,7 +122,7 @@ const expiringSoonSubscriptions = computed(() =>
 );
 const expiringSoonCount = computed(() => expiringSoonSubscriptions.value.length);
 const expiredCount = computed(() => subStore.subscriptions.filter((s) =>
-  s.isActive && getDaysUntilDate(s.expiryDate) < 0
+  s.isActive && getDaysUntil(s.expiryDate) < 0
 ).length);
 
 watch([sortBy, sortOrder], () => {
@@ -164,11 +174,11 @@ const filteredSubscriptions = computed(() => {
       if (statusFilter.value === 'inactive') return !sub.isActive;
       if (statusFilter.value === 'pinned') return sub.isPinned;
       if (statusFilter.value === 'expired') {
-        return sub.isActive && getDaysUntilDate(sub.expiryDate) < 0;
+        return sub.isActive && getDaysUntil(sub.expiryDate) < 0;
       }
       if (statusFilter.value === 'soon') {
         if (!sub.isActive) return false;
-        const diffDays = getDaysUntilDate(sub.expiryDate);
+        const diffDays = getDaysUntil(sub.expiryDate);
         return diffDays >= 0 && diffDays <= 7;
       }
       return true;
@@ -251,7 +261,7 @@ async function handleBatchDelete() {
 type DaysInfo = { text: string; tone: 'danger' | 'warning' | 'success' | 'muted'; percent: number };
 
 function getDaysLeft(sub: Subscription): DaysInfo {
-  const diffDays = getDaysUntilDate(sub.expiryDate);
+  const diffDays = getDaysUntil(sub.expiryDate);
   if (!Number.isFinite(diffDays)) {
     return { text: '日期无效', tone: 'danger', percent: 100 };
   }
@@ -273,12 +283,12 @@ function getDaysLeft(sub: Subscription): DaysInfo {
 function getStatusMeta(sub: Subscription): { label: string; tone: 'danger' | 'warning' | 'success' | 'muted' } {
   if (!sub.isActive) return { label: '已停用', tone: 'muted' };
 
-  const diffDays = getDaysUntilDate(sub.expiryDate);
+  const diffDays = getDaysUntil(sub.expiryDate);
   if (!Number.isFinite(diffDays)) return { label: '日期无效', tone: 'danger' };
 
   const reminderValue = sub.reminderValue ?? 7;
   const reminderUnit = sub.reminderUnit || 'day';
-  const diffHours = getHoursUntilDateEnd(sub.expiryDate);
+  const diffHours = getHoursUntilEnd(sub.expiryDate);
 
   let isSoon = false;
   if (reminderUnit === 'hour') {

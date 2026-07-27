@@ -83,6 +83,10 @@ sqlite.exec(`
     period_value INTEGER DEFAULT 1,
     period_unit TEXT DEFAULT 'month',
     notes TEXT DEFAULT '',
+    source TEXT NOT NULL DEFAULT 'manual',
+    previous_expiry_date TEXT,
+    new_expiry_date TEXT,
+    periods_advanced INTEGER NOT NULL DEFAULT 1,
     FOREIGN KEY (subscription_id) REFERENCES subscriptions(id) ON DELETE CASCADE
   );
 `);
@@ -183,6 +187,26 @@ try {
 }
 try {
   sqlite.exec("ALTER TABLE subscriptions ADD COLUMN icon_background_color TEXT NOT NULL DEFAULT ''");
+} catch (e: any) {
+  if (!e.message.includes('duplicate column name')) throw e;
+}
+try {
+  sqlite.exec("ALTER TABLE renewal_logs ADD COLUMN source TEXT NOT NULL DEFAULT 'manual'");
+} catch (e: any) {
+  if (!e.message.includes('duplicate column name')) throw e;
+}
+try {
+  sqlite.exec('ALTER TABLE renewal_logs ADD COLUMN previous_expiry_date TEXT');
+} catch (e: any) {
+  if (!e.message.includes('duplicate column name')) throw e;
+}
+try {
+  sqlite.exec('ALTER TABLE renewal_logs ADD COLUMN new_expiry_date TEXT');
+} catch (e: any) {
+  if (!e.message.includes('duplicate column name')) throw e;
+}
+try {
+  sqlite.exec('ALTER TABLE renewal_logs ADD COLUMN periods_advanced INTEGER NOT NULL DEFAULT 1');
 } catch (e: any) {
   if (!e.message.includes('duplicate column name')) throw e;
 }

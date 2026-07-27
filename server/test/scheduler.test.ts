@@ -20,6 +20,7 @@ function expectEqual<T>(expected: T, actual: T) {
 function createMockDb(cronExpression: string, subscriptions: object[], notifyChannels = 'pushplus') {
   const writes: ConfigWrite[] = [];
   const subscriptionUpdates: SubscriptionUpdate[] = [];
+  const renewalLogs: any[] = [];
   const configs = [
     { key: 'timezone', value: 'Asia/Shanghai' },
     { key: 'cron_expression', value: cronExpression },
@@ -32,10 +33,12 @@ function createMockDb(cronExpression: string, subscriptions: object[], notifyCha
         ? Promise.resolve(configs)
         : { where: async () => subscriptions },
     }),
-    insert: () => ({
-      values: (value: ConfigWrite) => ({
-        onConflictDoUpdate: async () => { writes.push(value); },
-      }),
+    insert: (table: unknown) => ({
+      values: (value: ConfigWrite) => table === schema.renewalLogs
+        ? Promise.resolve().then(() => { renewalLogs.push(value); })
+        : ({
+            onConflictDoUpdate: async () => { writes.push(value); },
+          }),
     }),
     update: () => ({
       set: (value: SubscriptionUpdate) => ({
@@ -43,7 +46,7 @@ function createMockDb(cronExpression: string, subscriptions: object[], notifyCha
       }),
     }),
   };
-  return { instance, writes, subscriptionUpdates };
+  return { instance, writes, subscriptionUpdates, renewalLogs };
 }
 
 const matchingSubscription = {
@@ -80,7 +83,7 @@ test('自动续费后使用新到期日发送通知', async () => {
     periodValue: 1,
     periodUnit: 'month',
   };
-  const { instance } = createMockDb('0 8 * * *', [subscription]);
+  const { instance, renewalLogs } = createMockDb('0 8 * * *', [subscription]);
   setDb(instance);
   let notifiedExpiryDate = '';
 
@@ -96,6 +99,11 @@ test('自动续费后使用新到期日发送通知', async () => {
 
   expectEqual('success', result.outcome);
   expectEqual('2026-07-12', notifiedExpiryDate);
+  expectEqual(1, renewalLogs.length);
+  expectEqual('automatic', renewalLogs[0].source);
+  expectEqual('2026-06-12', renewalLogs[0].previousExpiryDate);
+  expectEqual('2026-07-12', renewalLogs[0].newExpiryDate);
+  expectEqual(1, renewalLogs[0].periodsAdvanced);
 });
 
 test('到期日当天不会因运行时刻晚于 UTC 零点而提前续费', async () => {
@@ -126,7 +134,7 @@ test('长期过期订阅在一次检查中追赶全部周期', async () => {
     periodValue: 1,
     periodUnit: 'month',
   };
-  const { instance, subscriptionUpdates } = createMockDb('0 8 * * *', [subscription]);
+  const { instance, subscriptionUpdates, renewalLogs } = createMockDb('0 8 * * *', [subscription]);
   setDb(instance);
 
   const result = await checkAndNotify(
@@ -138,6 +146,7 @@ test('长期过期订阅在一次检查中追赶全部周期', async () => {
   expectEqual('no_matching_subscriptions', result.skipReason);
   expectEqual(1, subscriptionUpdates.length);
   expectEqual('2026-04-28', subscriptionUpdates[0].expiryDate);
+  expectEqual(3, renewalLogs[0].periodsAdvanced);
 });
 
 test('单个旧订阅日期异常不会阻断其他订阅提醒', async () => {

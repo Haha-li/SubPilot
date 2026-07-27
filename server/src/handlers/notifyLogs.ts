@@ -1,5 +1,11 @@
 import { db, schema } from '../db';
-import { eq, and, gte, lte, desc } from 'drizzle-orm';
+import { eq, and, gte, lt, desc } from 'drizzle-orm';
+import {
+  addDateOnlyPeriod,
+  getDateOnlyStartInTimeZone,
+  isValidTimeZone,
+  normalizeDateOnly,
+} from '../utils/dateOnly';
 
 export async function listNotifyLogsHandler(query: any) {
   try {
@@ -9,8 +15,32 @@ export async function listNotifyLogsHandler(query: any) {
     if (subscriptionId) filters.push(eq(schema.notifyLogs.subscriptionId, Number(subscriptionId)));
     if (channel) filters.push(eq(schema.notifyLogs.channel, channel));
     if (status) filters.push(eq(schema.notifyLogs.status, status));
-    if (startDate) filters.push(gte(schema.notifyLogs.createdAt, startDate));
-    if (endDate) filters.push(lte(schema.notifyLogs.createdAt, endDate + 'T23:59:59'));
+    if (startDate || endDate) {
+      const configs = await db.select().from(schema.config);
+      const configuredTimezone = configs.find((item: any) => item.key === 'timezone')?.value;
+      const timezone = isValidTimeZone(configuredTimezone) ? configuredTimezone : 'Asia/Shanghai';
+      if (startDate) {
+        const normalizedStartDate = normalizeDateOnly(startDate);
+        if (!normalizedStartDate) {
+          return { status: 400, body: { success: false, message: '开始日期无效' } };
+        }
+        filters.push(gte(
+          schema.notifyLogs.createdAt,
+          getDateOnlyStartInTimeZone(normalizedStartDate, timezone).toISOString(),
+        ));
+      }
+      if (endDate) {
+        const normalizedEndDate = normalizeDateOnly(endDate);
+        if (!normalizedEndDate) {
+          return { status: 400, body: { success: false, message: '结束日期无效' } };
+        }
+        const nextDate = addDateOnlyPeriod(normalizedEndDate, 1, 'day');
+        filters.push(lt(
+          schema.notifyLogs.createdAt,
+          getDateOnlyStartInTimeZone(nextDate, timezone).toISOString(),
+        ));
+      }
+    }
 
     const whereClause = filters.length > 0 ? and(...filters) : undefined;
 

@@ -6,8 +6,15 @@ export interface DateOnlyParts {
   day: number;
 }
 
+export interface ZonedDateTimeParts extends DateOnlyParts {
+  hour: number;
+  minute: number;
+  second: number;
+}
+
 const DATE_ONLY_PATTERN = /^(\d{4})-(\d{2})-(\d{2})$/;
 const DAY_MS = 24 * 60 * 60 * 1000;
+const formatterCache = new Map<string, Intl.DateTimeFormat>();
 
 function daysInMonth(year: number, month: number): number {
   return new Date(Date.UTC(year, month, 0)).getUTCDate();
@@ -27,6 +34,24 @@ function assertSupportedYear(year: number): void {
   if (!Number.isInteger(year) || year < 1000 || year > 9999) {
     throw new Error('日期超出支持范围');
   }
+}
+
+function getFormatter(timezone: string): Intl.DateTimeFormat {
+  const cached = formatterCache.get(timezone);
+  if (cached) return cached;
+  const formatter = new Intl.DateTimeFormat('en-CA', {
+    timeZone: timezone,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hourCycle: 'h23',
+  });
+  formatter.format(new Date(0));
+  formatterCache.set(timezone, formatter);
+  return formatter;
 }
 
 export function parseDateOnly(value: unknown): DateOnlyParts | null {
@@ -54,6 +79,35 @@ export function getLocalDateOnly(now = new Date()): string {
   });
 }
 
+export function isValidTimeZone(timezone: unknown): timezone is string {
+  if (typeof timezone !== 'string' || !timezone.trim()) return false;
+  try {
+    getFormatter(timezone.trim());
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+export function getZonedDateTimeParts(now: Date, timezone: string): ZonedDateTimeParts {
+  const parts = getFormatter(timezone).formatToParts(now);
+  const values = Object.fromEntries(parts.map((part) => [part.type, part.value]));
+  return {
+    year: Number(values.year),
+    month: Number(values.month),
+    day: Number(values.day),
+    hour: Number(values.hour),
+    minute: Number(values.minute),
+    second: Number(values.second),
+  };
+}
+
+export function getDateOnlyInTimeZone(now = new Date(), timezone?: string): string {
+  return timezone && isValidTimeZone(timezone)
+    ? formatParts(getZonedDateTimeParts(now, timezone))
+    : getLocalDateOnly(now);
+}
+
 export function differenceInCalendarDays(from: string, to: string): number {
   const start = requireDateOnly(from);
   const end = requireDateOnly(to);
@@ -63,18 +117,25 @@ export function differenceInCalendarDays(from: string, to: string): number {
   ) / DAY_MS);
 }
 
-export function getDaysUntilDate(date: string, now = new Date()): number {
+export function getDaysUntilDate(date: string, now = new Date(), timezone?: string): number {
   try {
-    return differenceInCalendarDays(getLocalDateOnly(now), date);
+    return differenceInCalendarDays(getDateOnlyInTimeZone(now, timezone), date);
   } catch {
     return Number.NaN;
   }
 }
 
-export function getHoursUntilDateEnd(date: string, now = new Date()): number {
-  const dayDifference = getDaysUntilDate(date, now);
+export function getHoursUntilDateEnd(date: string, now = new Date(), timezone?: string): number {
+  const dayDifference = getDaysUntilDate(date, now, timezone);
   if (!Number.isFinite(dayDifference)) return Number.NaN;
-  const elapsedHours = now.getHours() + now.getMinutes() / 60 + now.getSeconds() / 3600;
+  const localNow = timezone && isValidTimeZone(timezone)
+    ? getZonedDateTimeParts(now, timezone)
+    : {
+        hour: now.getHours(),
+        minute: now.getMinutes(),
+        second: now.getSeconds(),
+      };
+  const elapsedHours = localNow.hour + localNow.minute / 60 + localNow.second / 3600;
   return dayDifference * 24 + (24 - elapsedHours);
 }
 

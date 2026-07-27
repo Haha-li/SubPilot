@@ -6,6 +6,7 @@ import {
   differenceInCalendarDays,
   getCalendarHoursUntilDateEnd,
   getDateOnlyInTimeZone,
+  getDateOnlyStartInTimeZone,
   isValidTimeZone,
   normalizeDateOnly,
 } from '../src/utils/dateOnly';
@@ -41,6 +42,17 @@ test('到期判断使用配置时区的日历日期', () => {
   assert.equal(differenceInCalendarDays('2026-07-09', '2026-07-10'), 1);
   assert.equal(isValidTimeZone('Asia/Shanghai'), true);
   assert.equal(isValidTimeZone('Not/A_Timezone'), false);
+});
+
+test('日历日期筛选边界能转换为配置时区对应的 UTC 时间', () => {
+  assert.equal(
+    getDateOnlyStartInTimeZone('2026-07-10', 'Asia/Shanghai').toISOString(),
+    '2026-07-09T16:00:00.000Z',
+  );
+  assert.equal(
+    getDateOnlyStartInTimeZone('2026-07-10', 'America/New_York').toISOString(),
+    '2026-07-10T04:00:00.000Z',
+  );
 });
 
 test('小时提醒以到期日期当天结束为边界', () => {

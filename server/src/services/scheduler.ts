@@ -9,6 +9,7 @@ import {
   SchedulerRunSource,
   SchedulerSkipReason,
 } from './schedulerStatus';
+import { executeStatementsAtomically } from '../utils/dbAtomic';
 import {
   advanceDateOnlyToAtLeast,
   compareDateOnly,
@@ -115,10 +116,26 @@ async function renewSubscriptionIfNeeded(
     ? subscription.periodUnit
     : 'month';
   const renewed = advanceDateOnlyToAtLeast(expiryDate, today, periodValue, periodUnit);
-  await db.update(schema.subscriptions).set({
-    expiryDate: renewed.expiryDate,
-    updatedAt: now.toISOString(),
-  }).where(eq(schema.subscriptions.id, subscription.id));
+  const renewedAt = now.toISOString();
+  await executeStatementsAtomically((executor) => [
+    executor.update(schema.subscriptions).set({
+      expiryDate: renewed.expiryDate,
+      updatedAt: renewedAt,
+    }).where(eq(schema.subscriptions.id, subscription.id)),
+    executor.insert(schema.renewalLogs).values({
+      subscriptionId: subscription.id,
+      renewedAt,
+      price: subscription.price ?? 0,
+      currency: subscription.currency || 'CNY',
+      periodValue,
+      periodUnit,
+      notes: subscription.notes || '',
+      source: 'automatic',
+      previousExpiryDate: expiryDate,
+      newExpiryDate: renewed.expiryDate,
+      periodsAdvanced: renewed.periodsAdvanced,
+    }),
+  ]);
   return {
     subscription: { ...subscription, expiryDate: renewed.expiryDate },
     expiryDate: renewed.expiryDate,

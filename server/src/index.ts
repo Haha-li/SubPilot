@@ -44,7 +44,8 @@ app.use(cors({
   methods: ['GET', 'HEAD', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   maxAge: 86400,
 }));
-app.use(express.json({ limit: '512kb' }));
+// Import files are embedded in JSON, so escaping can make the request body roughly twice the file size.
+app.use(express.json({ limit: '22mb' }));
 
 // API Routes
 app.use('/api/auth', authRoutes);

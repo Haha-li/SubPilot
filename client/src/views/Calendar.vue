@@ -1,17 +1,27 @@
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue';
+import { ref, computed, onMounted, watch } from 'vue';
 import { useMediaQuery } from '@vueuse/core';
 import { useSubscriptionStore, type Subscription } from '../stores/subscription';
+import { useSystemConfigStore } from '../stores/systemConfig';
 import { ChevronLeft, ChevronRight, CalendarDays, Circle, Dot, X } from '@lucide/vue';
-import { differenceInCalendarDays, parseDateOnly } from '../utils/dateOnly';
+import {
+  differenceInCalendarDays,
+  getDateOnlyInTimeZone,
+  getZonedDateTimeParts,
+  parseDateOnly,
+} from '../utils/dateOnly';
 
 const subStore = useSubscriptionStore();
+const systemConfigStore = useSystemConfigStore();
 const isMobile = useMediaQuery('(max-width: 768px)');
 
-const today = new Date();
-const todayStr = toDateStr(today);
+function getCurrentMonthDate(now = new Date()): Date {
+  const parts = getZonedDateTimeParts(now, systemConfigStore.timezone);
+  return new Date(parts.year, parts.month - 1, 1);
+}
 
-const cursor = ref(new Date(today.getFullYear(), today.getMonth(), 1));
+const todayStr = computed(() => getDateOnlyInTimeZone(new Date(), systemConfigStore.timezone));
+const cursor = ref(getCurrentMonthDate());
 const selectedDate = ref<string>('');
 
 const weekdayLabels = ['日', '一', '二', '三', '四', '五', '六'];
@@ -66,7 +76,7 @@ const calendarGrid = computed<Cell[]>(() => {
       dateStr,
       day: d.getDate(),
       inMonth: d.getMonth() === month,
-      isToday: dateStr === todayStr,
+      isToday: dateStr === todayStr.value,
       isWeekend: d.getDay() === 0 || d.getDay() === 6,
       marks: getSubsForDate(dateStr),
     });
@@ -109,8 +119,8 @@ function nextMonth() {
 }
 
 function goToday() {
-  cursor.value = new Date(today.getFullYear(), today.getMonth(), 1);
-  selectedDate.value = todayStr;
+  cursor.value = getCurrentMonthDate();
+  selectedDate.value = todayStr.value;
 }
 
 function selectCell(cell: Cell) {
@@ -119,6 +129,11 @@ function selectCell(cell: Cell) {
   }
   selectedDate.value = selectedDate.value === cell.dateStr ? '' : cell.dateStr;
 }
+
+watch(() => systemConfigStore.timezone, () => {
+  cursor.value = getCurrentMonthDate();
+  selectedDate.value = '';
+});
 
 onMounted(() => {
   if (subStore.subscriptions.length === 0) subStore.fetchSubscriptions();

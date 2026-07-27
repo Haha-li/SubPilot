@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue';
 import { useSubscriptionStore } from '../stores/subscription';
-import { ElMessageBox, ElMessage } from 'element-plus';
 import { Pencil, Trash2, Plus, Check, X, Tag as TagIcon, Palette } from '@lucide/vue';
 import api from '../utils/api';
 

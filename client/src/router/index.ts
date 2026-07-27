@@ -1,7 +1,5 @@
 import { createRouter, createWebHistory } from 'vue-router';
 import { useAuthStore } from '../stores/auth';
-import AppLayout from '../layouts/AppLayout.vue';
-
 const router = createRouter({
   history: createWebHistory(),
   routes: [
@@ -12,7 +10,7 @@ const router = createRouter({
     },
     {
       path: '/',
-      component: AppLayout,
+      component: () => import('../layouts/AppLayout.vue'),
       meta: { requiresAuth: true },
       children: [
         {

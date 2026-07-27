@@ -2,6 +2,7 @@
 import { ref, computed, onMounted } from 'vue';
 import { useMediaQuery } from '@vueuse/core';
 import type { Subscription } from '../stores/subscription';
+import { useSystemConfigStore } from '../stores/systemConfig';
 import { solar2lunar } from '../utils/lunar';
 import { getSymbol } from '../utils/currency';
 import { getDaysUntilDate, getHoursUntilDateEnd, parseDateOnly } from '../utils/dateOnly';
@@ -22,8 +23,22 @@ const emit = defineEmits<{
 }>();
 
 const isMobile = useMediaQuery('(max-width: 768px)');
+const systemConfigStore = useSystemConfigStore();
+interface RenewalLog {
+  id: number;
+  renewedAt: string;
+  price: number;
+  currency: string;
+  periodValue: number;
+  periodUnit: string;
+  source?: 'manual' | 'automatic';
+  previousExpiryDate?: string | null;
+  newExpiryDate?: string | null;
+  periodsAdvanced?: number;
+}
+
 const drawerVisible = ref(true);
-const renewalLogs = ref<any[]>([]);
+const renewalLogs = ref<RenewalLog[]>([]);
 const loadingRenewals = ref(false);
 
 async function loadRenewalHistory() {
@@ -70,7 +85,7 @@ function getLunarText(dateStr: string) {
   return lunar ? lunar.fullStr : '';
 }
 function getDaysLeft(sub: Subscription) {
-  const diffDays = getDaysUntilDate(sub.expiryDate);
+  const diffDays = getDaysUntilDate(sub.expiryDate, new Date(), systemConfigStore.timezone);
   if (!sub.isActive) return { text: '已停用', tone: 'muted' as const };
   if (!Number.isFinite(diffDays)) return { text: '日期无效', tone: 'danger' as const };
   if (diffDays < 0) return { text: `已过期 ${Math.abs(diffDays)} 天`, tone: 'danger' as const };
@@ -80,15 +95,48 @@ function getDaysLeft(sub: Subscription) {
 }
 function getStatusMeta(sub: Subscription) {
   if (!sub.isActive) return { label: '已停用', tone: 'muted' as const };
-  const diffDays = getDaysUntilDate(sub.expiryDate);
+  const diffDays = getDaysUntilDate(sub.expiryDate, new Date(), systemConfigStore.timezone);
   if (!Number.isFinite(diffDays)) return { label: '日期无效', tone: 'danger' as const };
   const rv = sub.reminderValue ?? 7;
   const ru = sub.reminderUnit || 'day';
-  const diffHours = getHoursUntilDateEnd(sub.expiryDate);
+  const diffHours = getHoursUntilDateEnd(sub.expiryDate, new Date(), systemConfigStore.timezone);
   const isSoon = ru === 'hour' ? (diffHours >= 0 && diffHours <= rv) : (diffDays >= 0 && diffDays <= rv);
   if (diffDays < 0) return { label: '已过期', tone: 'danger' as const };
   if (isSoon) return { label: '即将到期', tone: 'warning' as const };
   return { label: '正常', tone: 'success' as const };
+}
+function formatMetadataDate(value: string | null | undefined): string {
+  if (!value) return '—';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  return new Intl.DateTimeFormat('zh-CN', {
+    timeZone: systemConfigStore.timezone,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  }).format(date).replace(/\//g, '-');
+}
+function formatRenewedAt(value: string): string {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value.split('T')[0];
+  return new Intl.DateTimeFormat('en-CA', {
+    timeZone: systemConfigStore.timezone,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).format(date);
+}
+function getRenewalSourceLabel(log: RenewalLog): string {
+  return log.source === 'automatic' ? '自动续费' : '手动续费';
+}
+function getRenewalPeriodLabel(log: RenewalLog): string {
+  const periods = log.periodsAdvanced && log.periodsAdvanced > 1
+    ? ` · 补续 ${log.periodsAdvanced} 个周期`
+    : '';
+  return `${log.periodValue || 1}${periodLabel(log.periodUnit || 'month')}${periods}`;
 }
 function normalizeCategoryTokens(category: string): string[] {
   return (category || '').split(/[/,，\s]+/).map((t) => t.trim()).filter(Boolean);
@@ -255,10 +303,10 @@ function handleClose() {
         <!-- 元信息 -->
         <div class="mt-5 space-y-1.5 text-xs text-ink-400 dark:text-ink-500">
           <p class="flex items-center gap-1.5">
-            <Clock :size="12" /> 创建于 {{ subscription.createdAt || '—' }}
+            <Clock :size="12" /> 创建于 {{ formatMetadataDate(subscription.createdAt) }}
           </p>
           <p v-if="subscription.updatedAt" class="flex items-center gap-1.5">
-            <Clock :size="12" /> 更新于 {{ subscription.updatedAt }}
+            <Clock :size="12" /> 更新于 {{ formatMetadataDate(subscription.updatedAt) }}
           </p>
         </div>
 
@@ -271,17 +319,31 @@ function handleClose() {
             <div
               v-for="log in renewalLogs"
               :key="log.id"
-              class="flex items-center justify-between rounded-lg border border-ink-200 bg-white/60 px-3 py-2 text-xs dark:border-ink-700/60 dark:bg-ink-900/40"
+              class="rounded-lg border border-ink-200 bg-white/60 px-3 py-2.5 text-xs dark:border-ink-700/60 dark:bg-ink-900/40"
             >
-              <div class="flex items-center gap-2">
-                <span class="font-mono-nums text-ink-600 dark:text-ink-300">{{ log.renewedAt.split('T')[0] }}</span>
-                <span v-if="log.price > 0" class="font-mono-nums font-semibold text-ink-900 dark:text-ink-50">
+              <div class="flex items-center justify-between gap-3">
+                <div class="flex min-w-0 items-center gap-2">
+                  <span class="font-mono-nums text-ink-600 dark:text-ink-300">{{ formatRenewedAt(log.renewedAt) }}</span>
+                  <span
+                    class="rounded-full px-2 py-0.5 font-medium"
+                    :class="log.source === 'automatic'
+                      ? 'bg-brand-50 text-brand-600 dark:bg-brand-500/15 dark:text-brand-300'
+                      : 'bg-ink-100 text-ink-500 dark:bg-ink-800 dark:text-ink-300'"
+                  >
+                    {{ getRenewalSourceLabel(log) }}
+                  </span>
+                </div>
+                <span v-if="log.price > 0" class="font-mono-nums flex-shrink-0 font-semibold text-ink-900 dark:text-ink-50">
                   {{ getSymbol(log.currency) }}{{ log.price.toFixed(2) }}
                 </span>
               </div>
-              <span class="text-ink-400 dark:text-ink-500">
-                {{ log.periodValue }}{{ ({ day: '天', month: '月', year: '年' } as Record<string, string>)[log.periodUnit] || log.periodUnit }}
-              </span>
+              <div class="mt-1.5 flex items-center justify-between gap-3 text-ink-400 dark:text-ink-500">
+                <span v-if="log.previousExpiryDate && log.newExpiryDate" class="font-mono-nums truncate">
+                  {{ log.previousExpiryDate }} → {{ log.newExpiryDate }}
+                </span>
+                <span v-else>续费记录</span>
+                <span class="flex-shrink-0">{{ getRenewalPeriodLabel(log) }}</span>
+              </div>
             </div>
           </div>
         </div>
