@@ -13,6 +13,7 @@ import {
 import {
   buildRenewalForecast,
   getEstimatedRenewalCostCny,
+  getEstimatedRenewalCostInCurrency,
   getRenewedExpiryDate,
   getSuggestedRenewalPeriods,
 } from '../utils/renewalCenter';
@@ -576,7 +577,12 @@ onUnmounted(() => {
               </div>
 
               <div class="col-start-2 flex flex-wrap items-center gap-2 md:col-start-auto md:block">
-                <p class="font-mono-nums text-sm font-semibold text-ink-800 dark:text-ink-100">{{ formatCny(getEstimatedRenewalCostCny(subscription)) }}</p>
+                <p class="font-mono-nums text-sm font-semibold text-ink-800 dark:text-ink-100">
+                  {{ formatMoney(
+                    getEstimatedRenewalCostInCurrency(subscription, subscription.currency || 'CNY'),
+                    subscription.currency || 'CNY',
+                  ) }}
+                </p>
                 <span
                   class="mt-1 inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium"
                   :class="subscription.autoRenew
@@ -671,7 +677,7 @@ onUnmounted(() => {
                 <p class="truncate text-sm font-medium text-ink-800 dark:text-ink-100">{{ event.subscriptionName }}</p>
                 <p class="font-mono-nums mt-0.5 text-xs text-ink-500 dark:text-ink-400">{{ event.date }}</p>
               </div>
-              <span class="font-mono-nums flex-shrink-0 text-sm font-semibold text-ink-800 dark:text-ink-100">{{ formatCny(event.amount) }}</span>
+              <span class="font-mono-nums flex-shrink-0 text-sm font-semibold text-ink-800 dark:text-ink-100">{{ formatMoney(event.originalAmount, event.currency) }}</span>
             </li>
           </ul>
           <div v-else class="mt-4 rounded-xl bg-success/10 px-3 py-5 text-center text-sm text-success">未来 30 天暂无续费计划</div>

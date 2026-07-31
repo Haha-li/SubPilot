@@ -3,6 +3,7 @@ import test from 'node:test';
 import {
   buildRenewalForecast,
   getEstimatedRenewalCostCny,
+  getEstimatedRenewalCostInCurrency,
   getRenewedExpiryDate,
   getSuggestedRenewalPeriods,
 } from '../../client/src/utils/renewalCenter';
@@ -60,6 +61,21 @@ test('续费中心金额均使用订阅原价且不扣除合租分摊', () => {
   assert.equal(getEstimatedRenewalCostCny(item), 100);
   assert.equal(forecast.months[0].amount, 100);
   assert.equal(forecast.events[0].amount, 100);
+});
+
+test('续费事件保留原支付币种和金额', () => {
+  const item = subscription({
+    expiryDate: '2026-01-15',
+    price: 10,
+    currency: 'USD',
+  });
+  const forecast = buildRenewalForecast([item], '2026-01-01', 1);
+
+  assert.equal(getEstimatedRenewalCostInCurrency(item, 'USD'), 10);
+  assert.deepEqual(
+    forecast.events.map((event) => [event.originalAmount, event.currency]),
+    [[10, 'USD']],
+  );
 });
 
 test('六个月预测按逐周期日期和续费金额汇总', () => {

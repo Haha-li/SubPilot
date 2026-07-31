@@ -15,6 +15,8 @@ export interface RenewalForecastEvent {
   subscriptionName: string;
   date: string;
   amount: number;
+  originalAmount: number;
+  currency: string;
 }
 
 export interface RenewalForecastMonth {
@@ -86,16 +88,23 @@ export function getRenewedExpiryDate(subscription: Subscription, periods: number
   }
 }
 
-export function getEstimatedRenewalCostCny(subscription: Subscription): number {
+export function getEstimatedRenewalCostInCurrency(
+  subscription: Subscription,
+  targetCurrency: string,
+): number {
   const period = getPeriod(subscription);
   if (!period) return 0;
-  const monthlyCost = getGrossMonthlyCostInCurrency(subscription, 'CNY');
+  const monthlyCost = getGrossMonthlyCostInCurrency(subscription, targetCurrency);
   const cycleMonths = period.unit === 'year'
     ? period.value * 12
     : period.unit === 'month'
       ? period.value
       : period.value / 30;
   return Math.max(0, monthlyCost * cycleMonths);
+}
+
+export function getEstimatedRenewalCostCny(subscription: Subscription): number {
+  return getEstimatedRenewalCostInCurrency(subscription, 'CNY');
 }
 
 export function buildRenewalForecast(
@@ -129,6 +138,8 @@ export function buildRenewalForecast(
     }
 
     const amount = getEstimatedRenewalCostCny(subscription);
+    const currency = subscription.currency || 'CNY';
+    const originalAmount = getEstimatedRenewalCostInCurrency(subscription, currency);
     let eventCount = 0;
     while (monthKey(projectedDate) <= lastMonthKey && eventCount < MAX_PROJECTED_EVENTS) {
       if (compareDateOnly(projectedDate, normalizedToday) >= 0) {
@@ -141,6 +152,8 @@ export function buildRenewalForecast(
             subscriptionName: subscription.name,
             date: projectedDate,
             amount,
+            originalAmount,
+            currency,
           });
         }
       }
