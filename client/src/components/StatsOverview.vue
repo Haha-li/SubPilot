@@ -3,7 +3,11 @@ import { computed } from 'vue';
 import type { Subscription } from '../stores/subscription';
 import { useSystemConfigStore } from '../stores/systemConfig';
 import { getSymbol } from '../utils/currency';
-import { getZonedDateTimeParts, normalizeDateOnly } from '../utils/dateOnly';
+import { getZonedDateTimeParts } from '../utils/dateOnly';
+import {
+  isSubscriptionPresentInMonth,
+  type CalendarMonthRange,
+} from '../utils/statsOverview';
 import {
   getCostStatisticsInCurrency,
   getPersonalMonthlyCostInCurrency,
@@ -11,7 +15,7 @@ import {
 } from '../utils/subscriptionCost';
 import {
   Wallet, TrendingUp, CalendarRange, Coins, BarChart3, Layers, LineChart, ListTree,
-  CircleAlert,
+  CircleAlert, PieChart,
 } from '@lucide/vue';
 
 const systemConfigStore = useSystemConfigStore();
@@ -39,18 +43,52 @@ const paidSubscriptions = computed(() => {
   );
 });
 
-const byType = computed(() => {
+interface TypeCostItem {
+  label: string;
+  value: number;
+}
+
+interface LabeledMonthRange extends CalendarMonthRange {
+  label: string;
+}
+
+interface PieSegment extends TypeCostItem {
+  color: string;
+  percentage: number;
+  start: number;
+  end: number;
+}
+
+const PIE_COLORS = ['#6366F1', '#10B981', '#F59E0B', '#0EA5E9', '#F43F5E'] as const;
+const MAX_PIE_SEGMENTS = PIE_COLORS.length;
+
+function buildTypeCosts(subscriptions: Subscription[]): TypeCostItem[] {
   const totals: Record<string, number> = {};
-  paidSubscriptions.value.forEach((subscription) => {
+  subscriptions.forEach((subscription) => {
     const cost = getPersonalMonthlyCostInCurrency(subscription, props.displayCurrency);
-    if (!Number.isFinite(cost)) return;
+    if (!Number.isFinite(cost) || cost <= 0) return;
     const type = subscription.customType || '未分类';
     totals[type] = (totals[type] || 0) + cost;
   });
   return Object.entries(totals)
     .map(([label, value]) => ({ label, value }))
-    .sort((a, b) => b.value - a.value);
-});
+    .sort((left, right) => right.value - left.value);
+}
+
+function buildMonthRange(year: number, monthIndex: number): LabeledMonthRange {
+  const date = new Date(year, monthIndex, 1);
+  const normalizedYear = date.getFullYear();
+  const normalizedMonth = date.getMonth();
+  const month = String(normalizedMonth + 1).padStart(2, '0');
+  const lastDay = new Date(normalizedYear, normalizedMonth + 1, 0).getDate();
+  return {
+    start: `${normalizedYear}-${month}-01`,
+    end: `${normalizedYear}-${month}-${String(lastDay).padStart(2, '0')}`,
+    label: `${normalizedMonth + 1}月`,
+  };
+}
+
+const byType = computed(() => buildTypeCosts(paidSubscriptions.value));
 
 const byCategory = computed(() => {
   const totals: Record<string, number> = {};
@@ -71,31 +109,72 @@ const byCategory = computed(() => {
 const maxTypeValue = computed(() => Math.max(1, ...byType.value.map((item) => item.value)));
 const maxCategoryValue = computed(() => Math.max(1, ...byCategory.value.map((item) => item.value)));
 
+const currentMonthRange = computed(() => {
+  const current = getZonedDateTimeParts(new Date(), systemConfigStore.timezone);
+  return buildMonthRange(current.year, current.month - 1);
+});
+
+const currentMonthByType = computed(() => {
+  props.ratesRefreshKey;
+  const subscriptions = props.subscriptions.filter((subscription) => (
+    isSubscriptionPresentInMonth(subscription, currentMonthRange.value)
+  ));
+  return buildTypeCosts(subscriptions);
+});
+
+const currentMonthPieItems = computed<TypeCostItem[]>(() => {
+  const items = currentMonthByType.value;
+  if (items.length <= MAX_PIE_SEGMENTS) return items;
+  const visibleItems = items.slice(0, MAX_PIE_SEGMENTS - 1);
+  const otherValue = items.slice(MAX_PIE_SEGMENTS - 1)
+    .reduce((sum, item) => sum + item.value, 0);
+  return [...visibleItems, { label: '其他', value: otherValue }];
+});
+
+const currentMonthTypeTotal = computed(() => currentMonthPieItems.value
+  .reduce((sum, item) => sum + item.value, 0));
+
+const currentMonthPieSegments = computed<PieSegment[]>(() => {
+  const total = currentMonthTypeTotal.value;
+  if (total <= 0) return [];
+  let start = 0;
+  return currentMonthPieItems.value.map((item, index) => {
+    const percentage = item.value / total * 100;
+    const segment = {
+      ...item,
+      color: PIE_COLORS[index],
+      percentage,
+      start,
+      end: start + percentage,
+    };
+    start = segment.end;
+    return segment;
+  });
+});
+
+const currentMonthPieBackground = computed(() => `conic-gradient(${currentMonthPieSegments.value
+  .map((segment) => `${segment.color} ${segment.start}% ${segment.end}%`)
+  .join(', ')})`);
+
+const currentMonthPieAriaLabel = computed(() => [
+  `${currentMonthRange.value.label}个人费用按订阅类型分布`,
+  ...currentMonthPieSegments.value.map((segment) => (
+    `${segment.label}${formatMoney(segment.value)}，占比${formatPercentage(segment.percentage)}%`
+  )),
+].join('；'));
+
 const monthlyTrend = computed(() => {
   props.ratesRefreshKey;
   const months: { label: string; value: number }[] = [];
   const current = getZonedDateTimeParts(new Date(), systemConfigStore.timezone);
   for (let offset = 5; offset >= 0; offset -= 1) {
-    const date = new Date(current.year, current.month - 1 - offset, 1);
-    const year = date.getFullYear();
-    const month = date.getMonth();
-    const monthStart = `${year}-${String(month + 1).padStart(2, '0')}-01`;
-    const monthEnd = `${year}-${String(month + 1).padStart(2, '0')}-${String(new Date(year, month + 1, 0).getDate()).padStart(2, '0')}`;
+    const range = buildMonthRange(current.year, current.month - 1 - offset);
     let total = 0;
     props.subscriptions.forEach((subscription) => {
-      const expiryDate = normalizeDateOnly(subscription.expiryDate);
-      if (!expiryDate) return;
-      const startDate = subscription.startDate
-        ? normalizeDateOnly(subscription.startDate)
-        : null;
-      if (
-        expiryDate >= monthStart
-        && (!subscription.startDate || (startDate && startDate <= monthEnd))
-      ) {
-        total += getPersonalMonthlyCostOrZero(subscription, props.displayCurrency);
-      }
+      if (!isSubscriptionPresentInMonth(subscription, range)) return;
+      total += getPersonalMonthlyCostOrZero(subscription, props.displayCurrency);
     });
-    months.push({ label: `${month + 1}月`, value: Math.round(total * 100) / 100 });
+    months.push({ label: range.label, value: Math.round(total * 100) / 100 });
   }
   return months;
 });
@@ -113,6 +192,10 @@ function formatMoney(value: number): string {
   const symbol = getSymbol(props.displayCurrency);
   const amount = Math.abs(value).toFixed(2);
   return value < 0 && amount !== '0.00' ? `-${symbol}${amount}` : `${symbol}${amount}`;
+}
+
+function formatPercentage(value: number): string {
+  return value >= 10 ? value.toFixed(0) : value.toFixed(1);
 }
 
 function getTrendBarStyle(value: number, index: number) {
@@ -207,31 +290,74 @@ const toneClasses = {
     </section>
   </div>
 
-  <section v-if="!hasUnavailableExchangeRate && monthlyTrend.some((month) => month.value !== 0)" class="bento-card mb-5 p-5">
-    <header class="mb-5 flex items-center justify-between">
-      <div class="flex items-center gap-2.5">
-        <div class="flex h-8 w-8 items-center justify-center rounded-lg bg-amber-50 text-amber-600 dark:bg-amber-500/15 dark:text-amber-300"><LineChart :size="16" /></div>
-        <h3 class="text-sm font-semibold text-ink-900 dark:text-ink-50">近 6 个月个人费用趋势</h3>
-      </div>
-      <span class="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-medium text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-300"><TrendingUp :size="12" />净费用 · 收益为负</span>
-    </header>
-    <div class="flex h-56 items-end gap-3 px-2 md:gap-6">
-      <div v-for="(item, index) in monthlyTrend" :key="item.label" class="group flex h-full flex-1 flex-col items-center">
-        <div class="font-mono-nums mb-1.5 whitespace-nowrap text-[10px] font-semibold text-ink-700 opacity-100 transition-opacity duration-200 sm:text-xs md:opacity-0 md:group-hover:opacity-100 dark:text-ink-200">{{ formatMoney(item.value) }}</div>
-        <div class="relative flex w-full flex-1">
-          <div class="absolute left-0 right-0 h-px bg-ink-300 dark:bg-ink-600" :style="{ bottom: trendScale.baseline + '%' }" />
-          <div
-            class="absolute left-0 w-full shadow-sm transition-all duration-700 ease-soft"
-            :class="item.value < 0
-              ? 'rounded-b-lg bg-gradient-to-b from-sky-400 to-sky-500 group-hover:from-sky-500 group-hover:to-sky-600'
-              : 'rounded-t-lg bg-gradient-to-t from-brand-500 to-brand-400 group-hover:from-brand-600 group-hover:to-brand-500'"
-            :style="getTrendBarStyle(item.value, index)"
-          />
+  <div
+    v-if="!hasUnavailableExchangeRate && (monthlyTrend.some((month) => month.value !== 0) || currentMonthPieSegments.length > 0)"
+    class="mb-5 grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1.65fr)_minmax(300px,0.85fr)]"
+  >
+    <section class="bento-card p-5" aria-labelledby="monthly-trend-title">
+      <header class="mb-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div class="flex items-center gap-2.5">
+          <div class="flex h-8 w-8 items-center justify-center rounded-lg bg-amber-50 text-amber-600 dark:bg-amber-500/15 dark:text-amber-300"><LineChart :size="16" /></div>
+          <h3 id="monthly-trend-title" class="text-sm font-semibold text-ink-900 dark:text-ink-50">近 6 个月个人费用趋势</h3>
         </div>
-        <div class="mt-2 text-xs text-ink-500 dark:text-ink-400">{{ item.label }}</div>
+        <span class="inline-flex w-fit items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-medium text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-300"><TrendingUp :size="12" />净费用 · 收益为负</span>
+      </header>
+      <div class="flex h-56 items-end gap-3 px-2 md:gap-6">
+        <div v-for="(item, index) in monthlyTrend" :key="item.label" class="group flex h-full flex-1 flex-col items-center">
+          <div class="font-mono-nums mb-1.5 whitespace-nowrap text-[10px] font-semibold text-ink-700 opacity-100 transition-opacity duration-200 sm:text-xs md:opacity-0 md:group-hover:opacity-100 dark:text-ink-200">{{ formatMoney(item.value) }}</div>
+          <div class="relative flex w-full flex-1">
+            <div class="absolute left-0 right-0 h-px bg-ink-300 dark:bg-ink-600" :style="{ bottom: trendScale.baseline + '%' }" />
+            <div
+              class="absolute left-0 w-full shadow-sm transition-all duration-700 ease-soft"
+              :class="item.value < 0
+                ? 'rounded-b-lg bg-gradient-to-b from-sky-400 to-sky-500 group-hover:from-sky-500 group-hover:to-sky-600'
+                : 'rounded-t-lg bg-gradient-to-t from-brand-500 to-brand-400 group-hover:from-brand-600 group-hover:to-brand-500'"
+              :style="getTrendBarStyle(item.value, index)"
+            />
+          </div>
+          <div class="mt-2 text-xs text-ink-500 dark:text-ink-400">{{ item.label }}</div>
+        </div>
       </div>
-    </div>
-  </section>
+    </section>
+
+    <section class="bento-card p-5" aria-labelledby="current-month-type-title">
+      <header class="mb-5 flex items-start justify-between gap-3">
+        <div class="flex items-center gap-2.5">
+          <div class="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg bg-violet-50 text-violet-600 dark:bg-violet-500/15 dark:text-violet-300"><PieChart :size="16" /></div>
+          <div>
+            <h3 id="current-month-type-title" class="text-sm font-semibold text-ink-900 dark:text-ink-50">当月类型费用</h3>
+            <p class="mt-0.5 text-xs text-ink-500 dark:text-ink-400">{{ currentMonthRange.label }} · 个人月费</p>
+          </div>
+        </div>
+        <span v-if="currentMonthPieSegments.length" class="font-mono-nums whitespace-nowrap text-xs font-semibold text-ink-700 dark:text-ink-200">{{ formatMoney(currentMonthTypeTotal) }}</span>
+      </header>
+
+      <div v-if="currentMonthPieSegments.length" class="flex flex-col items-center gap-5 sm:flex-row sm:items-center lg:flex-col xl:flex-row">
+        <div
+          role="img"
+          :aria-label="currentMonthPieAriaLabel"
+          class="h-36 w-36 flex-shrink-0 rounded-full shadow-inner ring-1 ring-ink-200/70 dark:ring-ink-700/60"
+          :style="{ background: currentMonthPieBackground }"
+        />
+        <ul class="w-full min-w-0 space-y-2" aria-label="当月订阅类型费用明细">
+          <li v-for="segment in currentMonthPieSegments" :key="segment.label" class="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-2">
+            <span class="h-2.5 w-2.5 rounded-full" :style="{ backgroundColor: segment.color }" aria-hidden="true" />
+            <span class="truncate text-xs text-ink-600 dark:text-ink-300" :title="segment.label">{{ segment.label }}</span>
+            <span class="text-right">
+              <span class="font-mono-nums block text-xs font-semibold text-ink-900 dark:text-ink-50">{{ formatMoney(segment.value) }}</span>
+              <span class="font-mono-nums block text-[10px] text-ink-400 dark:text-ink-500">{{ formatPercentage(segment.percentage) }}%</span>
+            </span>
+          </li>
+        </ul>
+      </div>
+
+      <div v-else class="flex h-56 flex-col items-center justify-center text-center">
+        <div class="flex h-12 w-12 items-center justify-center rounded-xl bg-violet-50 text-violet-500 dark:bg-violet-500/10 dark:text-violet-300"><PieChart :size="22" /></div>
+        <p class="mt-3 text-sm font-medium text-ink-700 dark:text-ink-200">本月暂无正向费用</p>
+        <p class="mt-1 text-xs text-ink-500 dark:text-ink-400">当月有效的付费订阅会按类型汇总</p>
+      </div>
+    </section>
+  </div>
 
   <div v-if="!hasUnavailableExchangeRate && byType.length === 0 && byCategory.length === 0" class="bento-card flex flex-col items-center justify-center px-6 py-20 text-center">
     <div class="flex h-16 w-16 items-center justify-center rounded-2xl bg-brand-50 text-brand-500 dark:bg-brand-500/10 dark:text-brand-300"><BarChart3 :size="28" /></div>
