@@ -6,7 +6,7 @@ import {
   normalizeDateOnly,
   type DatePeriodUnit,
 } from './dateOnly';
-import { getPersonalMonthlyCostOrZero } from './subscriptionCost';
+import { getGrossMonthlyCostInCurrency } from './subscriptionCost';
 
 const MAX_PROJECTED_EVENTS = 10000;
 
@@ -89,7 +89,7 @@ export function getRenewedExpiryDate(subscription: Subscription, periods: number
 export function getEstimatedRenewalCostCny(subscription: Subscription): number {
   const period = getPeriod(subscription);
   if (!period) return 0;
-  const monthlyCost = getPersonalMonthlyCostOrZero(subscription, 'CNY');
+  const monthlyCost = getGrossMonthlyCostInCurrency(subscription, 'CNY');
   const cycleMonths = period.unit === 'year'
     ? period.value * 12
     : period.unit === 'month'

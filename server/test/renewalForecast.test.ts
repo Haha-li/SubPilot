@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import {
   buildRenewalForecast,
+  getEstimatedRenewalCostCny,
   getRenewedExpiryDate,
   getSuggestedRenewalPeriods,
 } from '../../client/src/utils/renewalCenter';
@@ -44,6 +45,21 @@ test('续费中心为过期订阅建议补齐到当前日期所需的周期数',
   assert.equal(getSuggestedRenewalPeriods(item, '2026-03-15'), 2);
   assert.equal(getRenewedExpiryDate(item, 2), '2026-03-28');
   assert.equal(getSuggestedRenewalPeriods(item, '2026-01-15'), 1);
+});
+
+test('续费中心金额均使用订阅原价且不扣除合租分摊', () => {
+  const item = subscription({
+    category: '合租',
+    expiryDate: '2026-01-15',
+    price: 100,
+    nonSelfPaid: 60,
+    nonSelfPaidCurrency: 'USD',
+  });
+  const forecast = buildRenewalForecast([item], '2026-01-01', 1);
+
+  assert.equal(getEstimatedRenewalCostCny(item), 100);
+  assert.equal(forecast.months[0].amount, 100);
+  assert.equal(forecast.events[0].amount, 100);
 });
 
 test('六个月预测按逐周期日期和续费金额汇总', () => {

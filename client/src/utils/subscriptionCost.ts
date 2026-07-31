@@ -26,7 +26,7 @@ export interface CostStatistics {
 
 type PeriodAmountResolver = (amount: number, unit: string | null | undefined) => number;
 
-interface PersonalCostCalculation {
+interface CostCalculation {
   subscription: SubscriptionCostInput;
   targetCurrency: string;
   converter: CurrencyConverter;
@@ -59,16 +59,21 @@ function getYearlyEstimatedAmount(amount: number, unit: string | null | undefine
   return amount;
 }
 
-function calculatePersonalCostInCurrency(input: PersonalCostCalculation): number {
+function calculateGrossCostInCurrency(input: CostCalculation): number {
   const { subscription, targetCurrency, converter, resolvePeriodAmount } = input;
   const price = normalizeAmount(subscription.price);
-  const priceUnit = subscription.priceUnit || 'month';
-  const grossCost = price === 0 ? 0 : converter(
-    resolvePeriodAmount(price, priceUnit),
+  if (price === 0) return 0;
+  return converter(
+    resolvePeriodAmount(price, subscription.priceUnit || 'month'),
     subscription.currency || 'CNY',
     targetCurrency,
   );
+}
 
+function calculatePersonalCostInCurrency(input: CostCalculation): number {
+  const { subscription, targetCurrency, converter, resolvePeriodAmount } = input;
+  const priceUnit = subscription.priceUnit || 'month';
+  const grossCost = calculateGrossCostInCurrency(input);
   const nonSelfPaid = hasSharedCostCategory(subscription.category)
     ? normalizeAmount(subscription.nonSelfPaid)
     : 0;
@@ -81,6 +86,19 @@ function calculatePersonalCostInCurrency(input: PersonalCostCalculation): number
   return Number.isFinite(grossCost) && Number.isFinite(sharedContribution)
     ? grossCost - sharedContribution
     : Number.NaN;
+}
+
+export function getGrossMonthlyCostInCurrency(
+  subscription: SubscriptionCostInput,
+  targetCurrency: string,
+  converter: CurrencyConverter = convert,
+): number {
+  return calculateGrossCostInCurrency({
+    subscription,
+    targetCurrency,
+    converter,
+    resolvePeriodAmount: getMonthlyAmount,
+  });
 }
 
 export function getPersonalMonthlyCostInCurrency(
