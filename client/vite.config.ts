@@ -19,6 +19,7 @@ export default defineConfig({
   build: {
     rollupOptions: {
       output: {
+        entryFileNames: 'assets/app.js',
         manualChunks(id) {
           if (!id.includes('node_modules')) return undefined;
           if (

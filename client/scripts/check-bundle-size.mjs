@@ -1,5 +1,22 @@
-import { readdir, stat } from 'node:fs/promises';
+import { readFile, readdir, stat } from 'node:fs/promises';
 const assetsDirectory = new URL('../dist/assets/', import.meta.url);
+const [indexHtml, headersFile] = await Promise.all([
+  readFile(new URL('../dist/index.html', import.meta.url), 'utf8'),
+  readFile(new URL('../dist/_headers', import.meta.url), 'utf8'),
+]);
+const normalizedHeaders = headersFile.replace(/\r\n/g, '\n');
+const entryCacheRule = [
+  '/assets/app.js',
+  '  ! Cache-Control',
+  '  Cache-Control: no-cache, must-revalidate',
+].join('\n');
+
+if (!indexHtml.includes('src="/assets/app.js"')) {
+  throw new Error('Production entry must use the stable /assets/app.js path');
+}
+if (!normalizedHeaders.includes(entryCacheRule)) {
+  throw new Error('/assets/app.js must be revalidated after every deployment');
+}
 const maxChunkBytes = 300 * 1024;
 const files = (await readdir(assetsDirectory)).filter((file) => file.endsWith('.js'));
 const sizes = await Promise.all(files.map(async (file) => ({
