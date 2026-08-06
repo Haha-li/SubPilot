@@ -10,6 +10,7 @@ export async function sendNotifyX(apiKey: string, message: string): Promise<bool
     }),
   });
 
-  const result: any = await response.json();
-  return result.status === 'success';
+  // NotifyX 采用异步投递：官方前端即以 HTTP 2xx 判定发送成功，
+  // 响应体 status 为 "queued"（官方文档示例），不依赖具体字段。
+  return response.ok;
 }

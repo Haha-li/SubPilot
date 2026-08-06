@@ -63,7 +63,7 @@ const channels = [
   { key: 'pushplus', name: 'PushPlus',      desc: '通过推送加发送跨平台通知',     visible: true,  tone: 'emerald' },
   { key: 'webhook',  name: 'Webhook',      desc: '自定义 HTTP 回调',           visible: false, tone: 'violet' },
   { key: 'email',    name: '邮件 (Resend)', desc: '通过 Resend API 发送邮件',   visible: false, tone: 'amber'  },
-  { key: 'notifyx',  name: 'NotifyX',      desc: '通过 NotifyX 服务推送',      visible: false, tone: 'cyan'   },
+  { key: 'notifyx',  name: 'NotifyX',      desc: '通过 NotifyX 服务推送',      visible: true,  tone: 'cyan'   },
 ];
 
 const visibleChannels = computed(() => channels.filter((c) => c.visible));
