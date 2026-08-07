@@ -1,7 +1,9 @@
+import { fetchWithRetry } from './fetchWithRetry';
+
 export async function sendNotifyX(apiKey: string, message: string): Promise<boolean> {
   if (!apiKey) return false;
 
-  const response = await fetch(`https://www.notifyx.cn/api/v1/send/${apiKey}`, {
+  const response = await fetchWithRetry(`https://www.notifyx.cn/api/v1/send/${apiKey}`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({

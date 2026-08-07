@@ -1,7 +1,9 @@
+import { fetchWithRetry } from './fetchWithRetry';
+
 export async function sendWechat(webhookUrl: string, message: string): Promise<boolean> {
   if (!webhookUrl) return false;
 
-  const response = await fetch(webhookUrl, {
+  const response = await fetchWithRetry(webhookUrl, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({

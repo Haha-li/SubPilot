@@ -1,3 +1,5 @@
+import { fetchWithRetry } from './fetchWithRetry';
+
 export async function sendWebhook(config: Record<string, string>, message: string, subscription: { name: string; customType: string | null; notes: string | null }): Promise<boolean> {
   const webhookUrl = config.webhook_url;
   if (!webhookUrl) return false;
@@ -23,7 +25,7 @@ export async function sendWebhook(config: Record<string, string>, message: strin
     .replace(/\{\{timestamp\}\}/g, now)
     .replace(/\{\{formattedMessage\}\}/g, message);
 
-  const response = await fetch(webhookUrl, {
+  const response = await fetchWithRetry(webhookUrl, {
     method,
     headers,
     body: method !== 'GET' ? body : undefined,

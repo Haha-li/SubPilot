@@ -1,3 +1,5 @@
+import { fetchWithRetry } from './fetchWithRetry';
+
 export async function sendEmail(config: Record<string, string>, message: string, subject: string): Promise<boolean> {
   const apiKey = config.email_api_key;
   const from = config.email_from;
@@ -19,7 +21,7 @@ export async function sendEmail(config: Record<string, string>, message: string,
     </div>
   `;
 
-  const response = await fetch('https://api.resend.com/emails', {
+  const response = await fetchWithRetry('https://api.resend.com/emails', {
     method: 'POST',
     headers: {
       'Authorization': `Bearer ${apiKey}`,

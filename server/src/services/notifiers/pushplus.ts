@@ -1,3 +1,5 @@
+import { fetchWithRetry } from './fetchWithRetry';
+
 export async function sendPushPlus(token: string, message: string, title = 'SubPilot 订阅提醒', topic = ''): Promise<boolean> {
   if (!token) return false;
 
@@ -11,7 +13,7 @@ export async function sendPushPlus(token: string, message: string, title = 'SubP
     body.topic = topic.trim();
   }
 
-  const response = await fetch('https://www.pushplus.plus/send', {
+  const response = await fetchWithRetry('https://www.pushplus.plus/send', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),

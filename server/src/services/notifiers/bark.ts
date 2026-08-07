@@ -1,10 +1,12 @@
+import { fetchWithRetry } from './fetchWithRetry';
+
 export async function sendBark(barkUrl: string, barkKey: string, message: string, title: string): Promise<boolean> {
   if (!barkKey) return false;
 
   const baseUrl = barkUrl || 'https://api.day.app';
   const url = `${baseUrl.replace(/\/$/, '')}/${barkKey}`;
 
-  const response = await fetch(url, {
+  const response = await fetchWithRetry(url, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
