@@ -4,9 +4,9 @@ main = "src/hono/index.ts"
 compatibility_date = "2024-12-01"
 compatibility_flags = ["nodejs_compat"]
 
-# 本地开发来源。手动部署生产环境时请改为实际 Pages/自定义域名。
+# 本地开发与 Android APK 来源。生产环境请保留 https://localhost，并添加实际 Web 域名。
 [vars]
-FRONTEND_ORIGINS = "http://localhost:5173"
+FRONTEND_ORIGINS = "http://localhost:5173,https://localhost"
 
 [[d1_databases]]
 binding = "DB"

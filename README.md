@@ -184,6 +184,68 @@ npx wrangler pages deploy dist --project-name=subpilot-frontend
 
 </details>
 
+### Android APK
+
+Android 版使用 Capacitor 将前端静态资源内置到 APK，后端仍由 Cloudflare Workers 提供。
+PC Web 与 Android 共用同一套接口和 D1 数据，互不影响构建产物。
+
+**云端构建（推荐，无需本地 Android 环境）**
+
+提交并推送到 `master` 后，GitHub Actions 会使用本次部署得到的 Workers `/api`
+地址构建调试 APK。工作流完成后进入对应运行记录，在页面底部的 **Artifacts** 区域
+下载 `subpilot-android-debug`。Artifact 保留 14 天。
+
+```bash
+git add .
+git commit -m "feat(android): 增加云端APK构建支持"
+git push origin master
+```
+
+**本地构建前置条件**
+
+- 已部署可通过 HTTPS 访问的 Workers 后端
+- Node.js 22 或更高版本
+- JDK 21，并将 `JAVA_HOME` 指向该 JDK
+- Android SDK Platform 36 与对应 Build Tools，并配置 `ANDROID_SDK_ROOT`
+
+**1. 配置 Android API 地址**
+
+```bash
+cd client
+cp .env.android.example .env.android.local
+```
+
+编辑 `.env.android.local`，填写以 `/api` 结尾的 Workers 地址：
+
+```dotenv
+VITE_API_URL=https://subpilot.<你的Workers子域>.workers.dev/api
+```
+
+该文件只用于本机 Android 构建且已被 Git 忽略。构建脚本会拒绝缺失、非 HTTPS
+或未以 `/api` 结尾的地址，避免 APK 错误请求 `https://localhost/api`。
+
+**2. 同步 Android 工程并生成调试 APK**
+
+```bash
+npm ci --include=dev
+npm run android:apk
+```
+
+调试 APK 输出到：
+
+```text
+client/android/app/build/outputs/apk/debug/app-debug.apk
+```
+
+`android:apk` 会自动构建前端并同步原生工程。也可以执行 `npm run android:open`，
+在 Android Studio 中运行应用或通过
+**Build → Generate Signed App Bundle or APK** 生成签名发布包。默认应用 ID 为
+`com.subpilot.app`，正式上架前应改为你持有的唯一 ID。
+
+Capacitor 内置页面的 Origin 固定为 `https://localhost`。GitHub Actions 部署 Workers
+时会在保留 `FRONTEND_ORIGINS` 中全部 PC 域名的基础上自动追加该 Origin；手动部署时
+则需在 `server/wrangler.toml` 中同时保留 Web 域名和 `https://localhost`。
+
 ### 本地开发
 
 ```bash

@@ -6,6 +6,10 @@ data/
 *.db-wal
 *.db-shm
 .env
+client/.env.android.local
+client/android/key.properties
+*.jks
+*.keystore
 .DS_Store
 .claude
 .gitignore

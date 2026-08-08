@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">SubPilot</string>
+    <string name="title_activity_main">SubPilot</string>
+    <string name="package_name">com.subpilot.app</string>
+    <string name="custom_url_scheme">com.subpilot.app</string>
+</resources>
