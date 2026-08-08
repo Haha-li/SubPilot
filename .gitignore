@@ -10,6 +10,8 @@ client/.env.android.local
 client/android/key.properties
 *.jks
 *.keystore
+*.p12
+github-secrets.txt
 .DS_Store
 .claude
 .gitignore

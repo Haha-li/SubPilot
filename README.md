@@ -201,6 +201,29 @@ git commit -m "feat(android): 增加云端APK构建支持"
 git push origin master
 ```
 
+**正式签名 Release**
+
+仓库配置以下 GitHub Actions Secrets 后，可使用严格的 `vMAJOR.MINOR.PATCH` Tag
+自动生成永久 Release：
+
+```text
+ANDROID_KEYSTORE_BASE64
+ANDROID_KEYSTORE_PASSWORD
+ANDROID_KEY_ALIAS
+ANDROID_KEY_PASSWORD
+```
+
+先确认对应提交已经通过 `master` 部署，再推送版本 Tag：
+
+```bash
+git tag v1.0.0
+git push origin v1.0.0
+```
+
+`Release Android` 工作流会构建 `com.subpilot.app`、使用固定证书签名、校验包名与
+版本，并将 `SubPilot-v1.0.0.apk` 及其 SHA-256 文件上传到 GitHub Releases。
+私钥不得提交到仓库；仓库只保存用于防止签名被意外替换的公开证书。
+
 **本地构建前置条件**
 
 - 已部署可通过 HTTPS 访问的 Workers 后端

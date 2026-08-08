@@ -1,5 +1,8 @@
 apply plugin: 'com.android.application'
 
+def subpilotVersionCode = providers.gradleProperty('subpilotVersionCode').getOrElse('1').toInteger()
+def subpilotVersionName = providers.gradleProperty('subpilotVersionName').getOrElse('1.0')
+
 android {
     namespace = "com.subpilot.app"
     compileSdk = rootProject.ext.compileSdkVersion
@@ -7,8 +10,8 @@ android {
         applicationId "com.subpilot.app"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 1
-        versionName "1.0"
+        versionCode subpilotVersionCode
+        versionName subpilotVersionName
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
              // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.
