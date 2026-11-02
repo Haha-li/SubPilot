@@ -4,6 +4,7 @@ import { useRoute, useRouter } from 'vue-router';
 import { useMediaQuery } from '@vueuse/core';
 import { useSubscriptionStore, type Subscription } from '../stores/subscription';
 import { useCommonSubscriptionStore } from '../stores/commonSubscription';
+import { useSubscriptionMethodStore } from '../stores/subscriptionMethod';
 import { useSystemConfigStore } from '../stores/systemConfig';
 import { solar2lunar } from '../utils/lunar';
 import { fetchRates, getSymbol } from '../utils/currency';
@@ -30,6 +31,7 @@ const SubscriptionDetailDrawer = defineAsyncComponent(() => import('../component
 
 const subStore = useSubscriptionStore();
 const commonStore = useCommonSubscriptionStore();
+const methodStore = useSubscriptionMethodStore();
 const systemConfigStore = useSystemConfigStore();
 const route = useRoute();
 const router = useRouter();
@@ -70,6 +72,10 @@ function getHoursUntilEnd(expiryDate: string, now = new Date()): number {
 const commonSubscriptionsByName = computed(() => new Map(
   commonStore.items.map((item) => [item.name.trim().toLocaleLowerCase(), item]),
 ));
+
+function getSubscriptionMethod(sub: Subscription) {
+  return methodStore.items.find((item) => item.id === sub.subscriptionMethodId);
+}
 
 function getCommonSubscription(name: string) {
   return commonSubscriptionsByName.value.get(name.trim().toLocaleLowerCase());
@@ -163,15 +169,16 @@ const filteredSubscriptions = computed(() => {
   if (searchKeyword.value.trim()) {
     const kw = searchKeyword.value.toLowerCase();
     list = list.filter((sub) => {
+      const method = getSubscriptionMethod(sub);
       const haystack = [
         sub.name,
         sub.customType,
         sub.notes,
         sub.category,
-        sub.subscriptionChannel,
-        sub.paymentMethod,
-        sub.subscriptionAccount,
-        sub.paymentReference,
+        method?.name,
+        method?.channel,
+        method?.paymentMethod,
+        method?.account,
       ].filter(Boolean).join(' ').toLowerCase();
       return haystack.includes(kw);
     });
@@ -428,6 +435,9 @@ onMounted(() => {
   subStore.fetchSubscriptions();
   if (commonStore.items.length === 0) {
     void commonStore.fetchItems().catch(() => undefined);
+  }
+  if (methodStore.items.length === 0) {
+    void methodStore.fetchItems().catch(() => undefined);
   }
   const preset = Array.isArray(route.query.preset) ? route.query.preset[0] : route.query.preset;
   if (typeof preset === 'string' && preset.trim()) {
@@ -756,9 +766,9 @@ onMounted(() => {
           </div>
 
           <!-- Tags -->
-          <div v-if="sub.category || sub.periodValue || sub.subscriptionChannel" class="mt-3 flex flex-wrap gap-1.5">
-            <span v-if="sub.subscriptionChannel" class="rounded-md bg-sky-50 px-2 py-0.5 text-xs font-medium text-sky-600 dark:bg-sky-500/15 dark:text-sky-300">
-              {{ sub.subscriptionChannel }}
+          <div v-if="sub.category || sub.periodValue || getSubscriptionMethod(sub)" class="mt-3 flex flex-wrap gap-1.5">
+            <span v-if="getSubscriptionMethod(sub)" class="max-w-full truncate rounded-md bg-sky-50 px-2 py-0.5 text-xs font-medium text-sky-600 dark:bg-sky-500/15 dark:text-sky-300">
+              {{ getSubscriptionMethod(sub)?.name }}
             </span>
             <span v-if="sub.periodValue" class="rounded-md bg-ink-100 px-2 py-0.5 text-xs text-ink-600 dark:bg-ink-800/60 dark:text-ink-300">
               周期 {{ getPeriodLabel(sub) }}<span v-if="sub.autoRenew"> · 自动续</span>

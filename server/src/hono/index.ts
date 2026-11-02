@@ -8,6 +8,7 @@ import { configRoutes } from './routes/config';
 import { notifyLogsRoutes } from './routes/notifyLogs';
 import { renewalRoutes } from './routes/renewals';
 import { commonSubscriptionRoutes } from './routes/commonSubscription';
+import { subscriptionMethodRoutes } from './routes/subscriptionMethod';
 import { checkAndNotify } from '../services/scheduler';
 import { resolveAllowedCorsOrigin } from '../utils/cors';
 
@@ -34,6 +35,7 @@ app.route('/api/config', configRoutes);
 app.route('/api/notify-logs', notifyLogsRoutes);
 app.route('/api/renewals', renewalRoutes);
 app.route('/api/common-subscriptions', commonSubscriptionRoutes);
+app.route('/api/subscription-methods', subscriptionMethodRoutes);
 
 export { app };
 

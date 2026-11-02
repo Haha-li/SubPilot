@@ -49,6 +49,11 @@ const router = createRouter({
           component: () => import('../views/CommonSubscriptions.vue'),
         },
         {
+          path: 'subscription-methods',
+          name: 'SubscriptionMethods',
+          component: () => import('../views/SubscriptionMethods.vue'),
+        },
+        {
           path: 'calendar',
           name: 'Calendar',
           component: () => import('../views/Calendar.vue'),

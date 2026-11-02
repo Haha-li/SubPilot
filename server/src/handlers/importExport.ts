@@ -5,6 +5,7 @@ import {
   normalizeCurrency,
   resolveSharedCost,
 } from '../utils/sharedCost';
+import { normalizeSubscriptionMethodInput } from './subscriptionMethod';
 import { normalizeAvatarFields } from '../utils/avatar';
 import {
   addDateOnlyPeriod,
@@ -14,7 +15,7 @@ import {
   normalizeDateOnly,
 } from '../utils/dateOnly';
 
-const BACKUP_VERSION = 3;
+const BACKUP_VERSION = 4;
 const MAX_IMPORT_BYTES = 10 * 1024 * 1024;
 const MAX_IMPORT_ROWS = 10000;
 const MAX_REPORTED_ERRORS = 100;
@@ -29,8 +30,6 @@ const SUBSCRIPTION_FIELDS = [
   'isActive', 'autoRenew', 'useLunar', 'notes', 'iconUrl',
   'iconBackgroundColor', 'price', 'priceUnit', 'currency',
   'nonSelfPaid', 'nonSelfPaidCurrency', 'nonSelfPaidUnit',
-  'subscriptionChannel', 'paymentMethod', 'subscriptionAccount',
-  'accountBalance', 'balanceCurrency', 'paymentReference',
   'isPinned', 'trialValue', 'trialUnit', 'createdAt', 'updatedAt',
 ] as const;
 
@@ -43,6 +42,8 @@ type ImportRecord = Record<string, unknown>;
 
 interface NormalizedSubscription {
   backupId: string | null;
+  methodName: string | null;
+  methodPayload: Record<string, any> | null;
   values: Record<SubscriptionField, any>;
   fingerprint: string;
 }
@@ -50,6 +51,7 @@ interface NormalizedSubscription {
 interface ParsedImportData {
   subscriptions: unknown[];
   renewalLogs: unknown[];
+  subscriptionMethods: unknown[];
   version: number;
 }
 
@@ -78,9 +80,11 @@ function escapeCSVValue(value: unknown): string {
     : safeValue;
 }
 
+const CSV_FIELDS = [...SUBSCRIPTION_FIELDS, 'subscriptionMethodName'] as const;
+
 function toCSV(items: ImportRecord[]): string {
-  const header = SUBSCRIPTION_FIELDS.join(',');
-  const rows = items.map((item) => SUBSCRIPTION_FIELDS
+  const header = CSV_FIELDS.join(',');
+  const rows = items.map((item) => CSV_FIELDS
     .map((field) => escapeCSVValue(item[field]))
     .join(','));
   return [header, ...rows].join('\r\n');
@@ -173,7 +177,7 @@ function parseJSON(text: string): ParsedImportData {
   }
 
   if (Array.isArray(parsed)) {
-    return { subscriptions: parsed, renewalLogs: [], version: 1 };
+    return { subscriptions: parsed, renewalLogs: [], subscriptionMethods: [], version: 1 };
   }
   if (!parsed || typeof parsed !== 'object') {
     throw new ImportValidationError('JSON 格式必须是订阅数组或备份对象');
@@ -193,9 +197,13 @@ function parseJSON(text: string): ParsedImportData {
   if (backup.renewalLogs !== undefined && !Array.isArray(backup.renewalLogs)) {
     throw new ImportValidationError('renewalLogs 必须是数组');
   }
+  if (backup.subscriptionMethods !== undefined && !Array.isArray(backup.subscriptionMethods)) {
+    throw new ImportValidationError('subscriptionMethods 必须是数组');
+  }
   return {
     subscriptions: backup.subscriptions,
     renewalLogs: (backup.renewalLogs as unknown[] | undefined) || [],
+    subscriptionMethods: (backup.subscriptionMethods as unknown[] | undefined) || [],
     version,
   };
 }
@@ -381,12 +389,6 @@ function normalizeSubscriptionRecord(
     nonSelfPaid: sharedCost.nonSelfPaid,
     nonSelfPaidCurrency: sharedCost.nonSelfPaidCurrency,
     nonSelfPaidUnit: sharedCost.nonSelfPaidUnit,
-    subscriptionChannel: normalizeString(row.subscriptionChannel, 'subscriptionChannel', { maxLength: 100 }),
-    paymentMethod: normalizeString(row.paymentMethod, 'paymentMethod', { maxLength: 100 }),
-    subscriptionAccount: normalizeString(row.subscriptionAccount, 'subscriptionAccount', { maxLength: 320 }),
-    accountBalance: normalizeOptionalAmount(row.accountBalance, 'accountBalance'),
-    balanceCurrency: normalizeCurrencyStrict(row.balanceCurrency, currency, 'balanceCurrency'),
-    paymentReference: normalizeString(row.paymentReference, 'paymentReference', { maxLength: 200 }),
     isPinned: normalizeBoolean(row.isPinned, false, 'isPinned'),
     trialValue,
     trialUnit,
@@ -397,7 +399,38 @@ function normalizeSubscriptionRecord(
   const backupId = backupIdValue === undefined || backupIdValue === null || backupIdValue === ''
     ? null
     : String(backupIdValue);
-  return { backupId, values, fingerprint: fingerprintSubscription(values) };
+  const explicitMethodName = normalizeString(row.subscriptionMethodName, 'subscriptionMethodName', { maxLength: 100 });
+  const legacyChannel = normalizeString(row.subscriptionChannel, 'subscriptionChannel', { maxLength: 100 });
+  const legacyPayment = normalizeString(row.paymentMethod, 'paymentMethod', { maxLength: 100 });
+  const legacyAccount = normalizeString(row.subscriptionAccount, 'subscriptionAccount', { maxLength: 320 });
+  const legacyReference = normalizeString(row.paymentReference, 'paymentReference', { maxLength: 200 });
+  const legacyBalance = normalizeOptionalAmount(row.accountBalance, 'accountBalance');
+  let methodName = explicitMethodName || null;
+  let methodPayload: Record<string, any> | null = null;
+  if (!explicitMethodName && (legacyChannel || legacyPayment || legacyAccount || legacyReference || legacyBalance !== null)) {
+    const legacyMethod = normalizeSubscriptionMethodInput({
+      name: legacyReference || legacyAccount || legacyChannel || legacyPayment,
+      channel: legacyChannel,
+      paymentMethod: legacyPayment,
+      account: legacyAccount,
+      balance: legacyBalance,
+      balanceCurrency: row.balanceCurrency || currency,
+      paymentReference: legacyReference,
+    });
+    if (!legacyMethod.success) throw new ImportValidationError(legacyMethod.message);
+    methodName = legacyMethod.value.name;
+    methodPayload = legacyMethod.value;
+  }
+  return {
+    backupId,
+    methodName,
+    methodPayload,
+    values,
+    fingerprint: JSON.stringify([
+      ...FINGERPRINT_FIELDS.map((field) => values[field] ?? null),
+      methodName,
+    ]),
+  };
 }
 
 function fingerprintSubscription(value: ImportRecord): string {
@@ -489,6 +522,12 @@ export async function exportSubscriptionsHandler(query: any) {
       return { status: 400, body: { success: false, message: '仅支持 json 或 csv 导出格式' } };
     }
     const subscriptions = await db.select().from(schema.subscriptions);
+    const methods = await db.select().from(schema.subscriptionMethods);
+    const methodNameById = new Map<number, string>(methods.map((item: any) => [item.id, item.name]));
+    const exportSubscriptions = subscriptions.map((row: any) => ({
+      ...row,
+      subscriptionMethodName: methodNameById.get(row.subscriptionMethodId) || '',
+    }));
     const configs = await db.select().from(schema.config);
     const configuredTimezone = configs.find((item: any) => item.key === 'timezone')?.value;
     const timezone = isValidTimeZone(configuredTimezone) ? configuredTimezone : 'Asia/Shanghai';
@@ -500,7 +539,7 @@ export async function exportSubscriptionsHandler(query: any) {
         download: true,
         contentType: 'text/csv; charset=utf-8',
         filename: `subscriptions_${date}.csv`,
-        body: `\uFEFF${toCSV(subscriptions)}`,
+        body: `\uFEFF${toCSV(exportSubscriptions)}`,
       };
     }
 
@@ -509,7 +548,20 @@ export async function exportSubscriptionsHandler(query: any) {
       format: 'subpilot-backup',
       version: BACKUP_VERSION,
       exportedAt: new Date().toISOString(),
-      subscriptions: subscriptions.map(createBackupSubscription),
+      subscriptionMethods: methods.map((row: any) => ({
+        backupId: row.id,
+        name: row.name,
+        channel: row.channel || '',
+        paymentMethod: row.paymentMethod || '',
+        account: row.account || '',
+        balance: row.balance ?? null,
+        balanceCurrency: row.balanceCurrency || 'CNY',
+        paymentReference: row.paymentReference || '',
+      })),
+      subscriptions: exportSubscriptions.map((row: any) => ({
+        ...createBackupSubscription(row),
+        subscriptionMethodName: row.subscriptionMethodName || null,
+      })),
       renewalLogs: renewalLogs.map(createBackupRenewalLog),
     };
     return {
@@ -544,7 +596,7 @@ export async function importSubscriptionsHandler(body: any) {
   let parsed: ParsedImportData;
   try {
     parsed = format === 'csv'
-      ? { subscriptions: parseCSV(data), renewalLogs: [], version: BACKUP_VERSION }
+      ? { subscriptions: parseCSV(data), renewalLogs: [], subscriptionMethods: [], version: BACKUP_VERSION }
       : parseJSON(data);
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
@@ -573,11 +625,41 @@ export async function importSubscriptionsHandler(body: any) {
   });
 
   try {
+    const findOrCreateMethod = async (payload: Record<string, any>) => {
+      const methods = await db.select().from(schema.subscriptionMethods);
+      const existing = methods.find((item: any) => (
+        String(item.name).trim().toLocaleLowerCase() === payload.name.trim().toLocaleLowerCase()
+      ));
+      if (existing) return existing.id as number;
+      await db.insert(schema.subscriptionMethods).values({
+        ...payload,
+        createdAt: now,
+        updatedAt: now,
+      });
+      const [created] = await db.select().from(schema.subscriptionMethods)
+        .orderBy(schema.subscriptionMethods.id, 'desc')
+        .limit(1);
+      if (!created?.id) throw new Error('无法确认订阅方式 ID');
+      return created.id as number;
+    };
+    for (let index = 0; index < parsed.subscriptionMethods.length; index += 1) {
+      const normalizedMethod = normalizeSubscriptionMethodInput(parsed.subscriptionMethods[index]);
+      if (!normalizedMethod.success) {
+        addError(errors, `订阅方式 ${index + 1}: ${normalizedMethod.message}`);
+        continue;
+      }
+      await findOrCreateMethod(normalizedMethod.value);
+    }
+    const linkedMethods = await db.select().from(schema.subscriptionMethods);
+    const methodNameById = new Map<number, string>(linkedMethods.map((item: any) => [item.id, item.name]));
     const existingRows = await db.select().from(schema.subscriptions);
   const existingByFingerprint = new Map<string, number>();
   for (const row of existingRows as ImportRecord[]) {
     try {
-      existingByFingerprint.set(normalizeSubscriptionRecord(row, now).fingerprint, Number(row.id));
+      existingByFingerprint.set(normalizeSubscriptionRecord({
+        ...row,
+        subscriptionMethodName: methodNameById.get(Number(row.subscriptionMethodId)) || '',
+      }, now).fingerprint, Number(row.id));
     } catch {
       existingByFingerprint.set(fingerprintSubscription(row), Number(row.id));
     }
@@ -606,7 +688,20 @@ export async function importSubscriptionsHandler(body: any) {
   let renewalLogsSkipped = 0;
   try {
     for (const row of rowsToInsert) {
-      await db.insert(schema.subscriptions).values(row.values);
+      const subscriptionMethodId = row.methodPayload
+        ? await findOrCreateMethod(row.methodPayload)
+        : row.methodName
+          ? await findOrCreateMethod({
+            name: row.methodName,
+            channel: '',
+            paymentMethod: '',
+            account: '',
+            balance: null,
+            balanceCurrency: 'CNY',
+            paymentReference: '',
+          })
+          : null;
+      await db.insert(schema.subscriptions).values({ ...row.values, subscriptionMethodId });
       const [created] = await db.select().from(schema.subscriptions)
         .orderBy(schema.subscriptions.id, 'desc')
         .limit(1);

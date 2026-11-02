@@ -30,17 +30,25 @@ export const subscriptions = sqliteTable('subscriptions', {
   nonSelfPaid: real('non_self_paid').default(0),
   nonSelfPaidCurrency: text('non_self_paid_currency').default('CNY'),
   nonSelfPaidUnit: text('non_self_paid_unit').default('month'),
-  subscriptionChannel: text('subscription_channel').default(''),
-  paymentMethod: text('payment_method').default(''),
-  subscriptionAccount: text('subscription_account').default(''),
-  accountBalance: real('account_balance'),
-  balanceCurrency: text('balance_currency').default('CNY'),
-  paymentReference: text('payment_reference').default(''),
+  subscriptionMethodId: integer('subscription_method_id'),
   isPinned: integer('is_pinned').default(0),
   trialValue: integer('trial_value'),
   trialUnit: text('trial_unit'),
   createdAt: text('created_at').default(new Date().toISOString()),
   updatedAt: text('updated_at').default(new Date().toISOString()),
+});
+
+export const subscriptionMethods = sqliteTable('subscription_methods', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  name: text('name').notNull().unique(),
+  channel: text('channel').notNull().default(''),
+  paymentMethod: text('payment_method').notNull().default(''),
+  account: text('account').notNull().default(''),
+  balance: real('balance'),
+  balanceCurrency: text('balance_currency').notNull().default('CNY'),
+  paymentReference: text('payment_reference').notNull().default(''),
+  createdAt: text('created_at').notNull().default(new Date().toISOString()),
+  updatedAt: text('updated_at').notNull().default(new Date().toISOString()),
 });
 
 export const commonSubscriptions = sqliteTable('common_subscriptions', {

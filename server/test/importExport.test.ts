@@ -9,9 +9,17 @@ import {
 function createMemoryDb(options: { failSubscriptionInsertAt?: number } = {}) {
   const subscriptions: any[] = [];
   const renewalLogs: any[] = [];
+  const methods: any[] = [];
   let nextSubscriptionId = 1;
   let nextRenewalId = 1;
+  let nextMethodId = 1;
   let subscriptionInsertCount = 0;
+
+  function rowsFor(table: unknown) {
+    if (table === schema.renewalLogs) return renewalLogs;
+    if (table === schema.subscriptionMethods) return methods;
+    return subscriptions;
+  }
 
   function createSelectQuery(table: unknown) {
     let descending = false;
@@ -26,8 +34,7 @@ function createMemoryDb(options: { failSubscriptionInsertAt?: number } = {}) {
         return query;
       },
       then: (resolveResult: (value: any[]) => void, rejectResult: (reason: unknown) => void) => {
-        const source = table === schema.renewalLogs ? renewalLogs : subscriptions;
-        const values = descending ? [...source].reverse() : [...source];
+        const values = descending ? [...rowsFor(table)].reverse() : [...rowsFor(table)];
         Promise.resolve(values.slice(0, maxRows)).then(resolveResult, rejectResult);
       },
     };
@@ -40,6 +47,10 @@ function createMemoryDb(options: { failSubscriptionInsertAt?: number } = {}) {
       values: async (value: any) => {
         if (table === schema.renewalLogs) {
           renewalLogs.push({ id: nextRenewalId++, ...value });
+          return;
+        }
+        if (table === schema.subscriptionMethods) {
+          methods.push({ id: nextMethodId++, ...value });
           return;
         }
         subscriptionInsertCount += 1;
@@ -56,7 +67,7 @@ function createMemoryDb(options: { failSubscriptionInsertAt?: number } = {}) {
     }),
   };
 
-  return { instance, subscriptions, renewalLogs };
+  return { instance, subscriptions, renewalLogs, methods };
 }
 
 const completeSubscription = {
@@ -82,12 +93,7 @@ const completeSubscription = {
   nonSelfPaid: 10,
   nonSelfPaidCurrency: 'USD',
   nonSelfPaidUnit: 'year',
-  subscriptionChannel: 'iOS App Store',
-  paymentMethod: 'Apple 账户余额',
-  subscriptionAccount: 'example@icloud.com',
-  accountBalance: 88.5,
-  balanceCurrency: 'USD',
-  paymentReference: '美区 Apple ID',
+  subscriptionMethodId: 3,
   isPinned: 1,
   trialValue: 14,
   trialUnit: 'day',
@@ -97,6 +103,16 @@ const completeSubscription = {
 
 test('JSON 完整备份会恢复订阅字段和续费历史', async () => {
   const source = createMemoryDb();
+  source.methods.push({
+    id: 3,
+    name: '美区 Apple ID',
+    channel: 'iOS App Store',
+    paymentMethod: 'Apple 账户余额',
+    account: 'example@icloud.com',
+    balance: 88.5,
+    balanceCurrency: 'USD',
+    paymentReference: '美区 Apple ID',
+  });
   source.subscriptions.push({ ...completeSubscription });
   source.renewalLogs.push({
     id: 3,
@@ -115,7 +131,9 @@ test('JSON 完整备份会恢复订阅字段和续费历史', async () => {
   setDb(source.instance);
   const exported = await exportSubscriptionsHandler({ format: 'json' }) as any;
   const backup = JSON.parse(exported.body);
-  assert.equal(backup.version, 3);
+  assert.equal(backup.version, 4);
+  assert.equal(backup.subscriptionMethods[0].name, '美区 Apple ID');
+  assert.equal(backup.subscriptions[0].subscriptionMethodName, '美区 Apple ID');
   assert.equal(backup.subscriptions[0].backupId, 7);
   assert.equal(backup.renewalLogs.length, 1);
 
@@ -129,12 +147,9 @@ test('JSON 完整备份会恢复订阅字段和续费历史', async () => {
   assert.equal(target.subscriptions[0].isPinned, 1);
   assert.equal(target.subscriptions[0].trialValue, 14);
   assert.equal(target.subscriptions[0].trialUnit, 'day');
-  assert.equal(target.subscriptions[0].subscriptionChannel, 'iOS App Store');
-  assert.equal(target.subscriptions[0].paymentMethod, 'Apple 账户余额');
-  assert.equal(target.subscriptions[0].subscriptionAccount, 'example@icloud.com');
-  assert.equal(target.subscriptions[0].accountBalance, 88.5);
-  assert.equal(target.subscriptions[0].balanceCurrency, 'USD');
-  assert.equal(target.subscriptions[0].paymentReference, '美区 Apple ID');
+  assert.equal(target.methods[0].name, '美区 Apple ID');
+  assert.equal(target.methods[0].balance, 88.5);
+  assert.equal(target.subscriptions[0].subscriptionMethodId, target.methods[0].id);
   assert.equal(target.subscriptions[0].createdAt, completeSubscription.createdAt);
   assert.equal(target.subscriptions[0].updatedAt, completeSubscription.updatedAt);
   assert.equal(target.renewalLogs[0].source, 'automatic');
@@ -170,8 +185,7 @@ test('CSV 往返支持多行、公式前缀和零值', async () => {
   assert.equal(target.subscriptions[0].reminderValue, 0);
   assert.equal(target.subscriptions[0].isActive, 0);
   assert.equal(target.subscriptions[0].autoRenew, 0);
-  assert.equal(target.subscriptions[0].accountBalance, 88.5);
-  assert.equal(target.subscriptions[0].balanceCurrency, 'USD');
+  assert.equal(target.subscriptions[0].subscriptionMethodId, null);
 });
 
 test('导入会正确识别字符串形式的布尔值', async () => {
@@ -192,8 +206,7 @@ test('导入会正确识别字符串形式的布尔值', async () => {
   assert.equal(target.subscriptions[0].autoRenew, 0);
   assert.equal(target.subscriptions[0].useLunar, 1);
   assert.equal(target.subscriptions[0].isPinned, 1);
-  assert.equal(target.subscriptions[0].accountBalance, null);
-  assert.equal(target.subscriptions[0].balanceCurrency, 'CNY');
+  assert.equal(target.subscriptions[0].subscriptionMethodId, null);
 });
 
 test('重复导入同一备份会跳过完全相同的订阅', async () => {
