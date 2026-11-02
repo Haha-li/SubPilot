@@ -21,8 +21,8 @@
     "cors": "^2.8.5",
     "dotenv": "^16.4.7",
     "drizzle-orm": "^0.45.2",
-    "express": "^4.21.2",
-    "hono": "^4.12.34",
+    "express": "^4.22.3",
+    "hono": "^4.13.16",
     "jsonwebtoken": "^9.0.2",
     "node-cron": "^4.6.0"
   },
@@ -36,11 +36,13 @@
     "drizzle-kit": "^0.31.10",
     "tsx": "^4.19.2",
     "typescript": "^5.7.3",
-    "wrangler": "^4.114.0"
+    "wrangler": "^4.156.1"
   },
   "overrides": {
-    "body-parser": "1.20.6",
-    "esbuild": "0.28.1",
-    "undici": "7.29.0"
+    "body-parser": "1.20.9",
+    "esbuild": "0.28.2",
+    "proxy-addr": "2.0.8",
+    "qs": "6.16.2",
+    "undici": "7.30.1"
   }
 }
