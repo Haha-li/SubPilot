@@ -82,6 +82,12 @@ const completeSubscription = {
   nonSelfPaid: 10,
   nonSelfPaidCurrency: 'USD',
   nonSelfPaidUnit: 'year',
+  subscriptionChannel: 'iOS App Store',
+  paymentMethod: 'Apple 账户余额',
+  subscriptionAccount: 'example@icloud.com',
+  accountBalance: 88.5,
+  balanceCurrency: 'USD',
+  paymentReference: '美区 Apple ID',
   isPinned: 1,
   trialValue: 14,
   trialUnit: 'day',
@@ -109,7 +115,7 @@ test('JSON 完整备份会恢复订阅字段和续费历史', async () => {
   setDb(source.instance);
   const exported = await exportSubscriptionsHandler({ format: 'json' }) as any;
   const backup = JSON.parse(exported.body);
-  assert.equal(backup.version, 2);
+  assert.equal(backup.version, 3);
   assert.equal(backup.subscriptions[0].backupId, 7);
   assert.equal(backup.renewalLogs.length, 1);
 
@@ -123,6 +129,12 @@ test('JSON 完整备份会恢复订阅字段和续费历史', async () => {
   assert.equal(target.subscriptions[0].isPinned, 1);
   assert.equal(target.subscriptions[0].trialValue, 14);
   assert.equal(target.subscriptions[0].trialUnit, 'day');
+  assert.equal(target.subscriptions[0].subscriptionChannel, 'iOS App Store');
+  assert.equal(target.subscriptions[0].paymentMethod, 'Apple 账户余额');
+  assert.equal(target.subscriptions[0].subscriptionAccount, 'example@icloud.com');
+  assert.equal(target.subscriptions[0].accountBalance, 88.5);
+  assert.equal(target.subscriptions[0].balanceCurrency, 'USD');
+  assert.equal(target.subscriptions[0].paymentReference, '美区 Apple ID');
   assert.equal(target.subscriptions[0].createdAt, completeSubscription.createdAt);
   assert.equal(target.subscriptions[0].updatedAt, completeSubscription.updatedAt);
   assert.equal(target.renewalLogs[0].source, 'automatic');
@@ -158,6 +170,8 @@ test('CSV 往返支持多行、公式前缀和零值', async () => {
   assert.equal(target.subscriptions[0].reminderValue, 0);
   assert.equal(target.subscriptions[0].isActive, 0);
   assert.equal(target.subscriptions[0].autoRenew, 0);
+  assert.equal(target.subscriptions[0].accountBalance, 88.5);
+  assert.equal(target.subscriptions[0].balanceCurrency, 'USD');
 });
 
 test('导入会正确识别字符串形式的布尔值', async () => {
@@ -178,6 +192,8 @@ test('导入会正确识别字符串形式的布尔值', async () => {
   assert.equal(target.subscriptions[0].autoRenew, 0);
   assert.equal(target.subscriptions[0].useLunar, 1);
   assert.equal(target.subscriptions[0].isPinned, 1);
+  assert.equal(target.subscriptions[0].accountBalance, null);
+  assert.equal(target.subscriptions[0].balanceCurrency, 'CNY');
 });
 
 test('重复导入同一备份会跳过完全相同的订阅', async () => {

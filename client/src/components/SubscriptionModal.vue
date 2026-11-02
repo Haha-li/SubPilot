@@ -69,6 +69,12 @@ const form = ref({
   nonSelfPaid: 0,
   nonSelfPaidCurrency: 'CNY',
   nonSelfPaidUnit: 'month',
+  subscriptionChannel: '',
+  paymentMethod: '',
+  subscriptionAccount: '',
+  accountBalance: null as number | null | '',
+  balanceCurrency: 'CNY',
+  paymentReference: '',
   hasTrial: false,
   trialValue: 7,
   trialUnit: 'day',
@@ -94,6 +100,16 @@ const periodOptions = [
 const reminderUnitOptions = [
   { label: '天', value: 'day' },
   { label: '小时', value: 'hour' },
+];
+
+const subscriptionChannelOptions = [
+  '官网直订', 'iOS App Store', 'Google Play', '第三方平台/代理商',
+  '运营商代订', '家庭/他人共享', '公司/组织提供', '线下购买', '其他',
+];
+
+const paymentMethodOptions = [
+  '信用卡', '借记卡', 'Apple 账户余额', 'Google Play 余额', '平台余额',
+  '支付宝', '微信支付', 'PayPal', '银行代扣', '银行转账', '礼品卡/兑换码', '其他',
 ];
 
 const typeOptions = [
@@ -197,6 +213,14 @@ async function handleSubmit() {
     ElMessage.warning('开始日期不能晚于到期日期');
     return;
   }
+  if (
+    form.value.accountBalance !== null
+    && form.value.accountBalance !== ''
+    && (!Number.isFinite(form.value.accountBalance) || form.value.accountBalance < 0)
+  ) {
+    ElMessage.warning('账户余额必须是非负数');
+    return;
+  }
 
   loading.value = true;
   try {
@@ -205,6 +229,7 @@ async function handleSubmit() {
       ...rest,
       category: category.join(', '),
       nonSelfPaid: hasSharedCostCategory(category) ? rest.nonSelfPaid : 0,
+      accountBalance: rest.accountBalance === '' ? null : rest.accountBalance,
       isActive: Number(rest.isActive),
       autoRenew: Number(rest.autoRenew),
       useLunar: Number(rest.useLunar),
@@ -251,6 +276,12 @@ onMounted(async () => {
       nonSelfPaid: sub.nonSelfPaid || 0,
       nonSelfPaidCurrency: sub.nonSelfPaidCurrency || sub.currency || 'CNY',
       nonSelfPaidUnit: sub.nonSelfPaidUnit || sub.priceUnit || 'month',
+      subscriptionChannel: sub.subscriptionChannel || '',
+      paymentMethod: sub.paymentMethod || '',
+      subscriptionAccount: sub.subscriptionAccount || '',
+      accountBalance: sub.accountBalance ?? null,
+      balanceCurrency: sub.balanceCurrency || sub.currency || 'CNY',
+      paymentReference: sub.paymentReference || '',
       hasTrial: !!(sub.trialValue && sub.trialUnit),
       trialValue: sub.trialValue || 7,
       trialUnit: sub.trialUnit || 'day',
@@ -500,6 +531,67 @@ onMounted(async () => {
             <p class="mt-1.5 text-xs text-ink-400 dark:text-ink-500">
               填写他人承担的金额，可选择与支付币种不同；个人费用会按汇率换算后扣减。
             </p>
+          </div>
+        </div>
+      </section>
+
+      <!-- Section: 订阅与支付 -->
+      <section class="rounded-2xl border border-ink-200 bg-white/40 p-4 dark:border-ink-700/50 dark:bg-ink-800/20">
+        <h4 class="mb-3 flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-ink-500 dark:text-ink-400">
+          <Wallet :size="13" />
+          订阅与支付
+        </h4>
+        <div class="grid grid-cols-1 gap-3 md:grid-cols-2">
+          <div>
+            <label class="mb-1 block text-xs font-medium text-ink-700 dark:text-ink-200">订阅渠道</label>
+            <el-select
+              v-model="form.subscriptionChannel"
+              filterable
+              allow-create
+              default-first-option
+              clearable
+              placeholder="选择或输入订阅渠道"
+              class="w-full"
+            >
+              <el-option v-for="item in subscriptionChannelOptions" :key="item" :label="item" :value="item" />
+            </el-select>
+          </div>
+          <div>
+            <label class="mb-1 block text-xs font-medium text-ink-700 dark:text-ink-200">支付方式</label>
+            <el-select
+              v-model="form.paymentMethod"
+              filterable
+              allow-create
+              default-first-option
+              clearable
+              placeholder="选择或输入支付方式"
+              class="w-full"
+            >
+              <el-option v-for="item in paymentMethodOptions" :key="item" :label="item" :value="item" />
+            </el-select>
+          </div>
+          <div>
+            <label class="mb-1 block text-xs font-medium text-ink-700 dark:text-ink-200">订阅账号</label>
+            <el-input v-model="form.subscriptionAccount" maxlength="320" placeholder="邮箱、手机号或用户名" clearable />
+          </div>
+          <div>
+            <label class="mb-1 block text-xs font-medium text-ink-700 dark:text-ink-200">账户余额</label>
+            <div class="flex gap-2">
+              <el-input
+                v-model.number="form.accountBalance"
+                type="number"
+                :min="0"
+                step="0.01"
+                placeholder="未记录"
+                class="min-w-0 flex-1"
+              />
+              <CurrencySelect v-model="form.balanceCurrency" width="132px" aria-label="余额币种" />
+            </div>
+          </div>
+          <div class="md:col-span-2">
+            <label class="mb-1 block text-xs font-medium text-ink-700 dark:text-ink-200">付款标识</label>
+            <el-input v-model="form.paymentReference" maxlength="200" placeholder="例如：Visa 尾号 1234、美区 Apple ID" clearable />
+            <p class="mt-1 text-xs text-ink-400 dark:text-ink-500">只填写卡片名称或尾号，不要保存完整卡号、CVV 或密码。</p>
           </div>
         </div>
       </section>

@@ -163,7 +163,16 @@ const filteredSubscriptions = computed(() => {
   if (searchKeyword.value.trim()) {
     const kw = searchKeyword.value.toLowerCase();
     list = list.filter((sub) => {
-      const haystack = [sub.name, sub.customType, sub.notes, sub.category].filter(Boolean).join(' ').toLowerCase();
+      const haystack = [
+        sub.name,
+        sub.customType,
+        sub.notes,
+        sub.category,
+        sub.subscriptionChannel,
+        sub.paymentMethod,
+        sub.subscriptionAccount,
+        sub.paymentReference,
+      ].filter(Boolean).join(' ').toLowerCase();
       return haystack.includes(kw);
     });
   }
@@ -747,7 +756,10 @@ onMounted(() => {
           </div>
 
           <!-- Tags -->
-          <div v-if="sub.category || sub.periodValue" class="mt-3 flex flex-wrap gap-1.5">
+          <div v-if="sub.category || sub.periodValue || sub.subscriptionChannel" class="mt-3 flex flex-wrap gap-1.5">
+            <span v-if="sub.subscriptionChannel" class="rounded-md bg-sky-50 px-2 py-0.5 text-xs font-medium text-sky-600 dark:bg-sky-500/15 dark:text-sky-300">
+              {{ sub.subscriptionChannel }}
+            </span>
             <span v-if="sub.periodValue" class="rounded-md bg-ink-100 px-2 py-0.5 text-xs text-ink-600 dark:bg-ink-800/60 dark:text-ink-300">
               周期 {{ getPeriodLabel(sub) }}<span v-if="sub.autoRenew"> · 自动续</span>
             </span>

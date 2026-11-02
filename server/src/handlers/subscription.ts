@@ -17,6 +17,73 @@ function normalizePositiveInteger(value: unknown): number | null {
   return Number.isSafeInteger(number) && number > 0 ? number : null;
 }
 
+function normalizeOptionalText(
+  value: unknown,
+  fallback: unknown,
+  label: string,
+  maxLength: number,
+): { success: true; value: string } | { success: false; message: string } {
+  const raw = value === undefined ? fallback : value;
+  if (raw === undefined || raw === null) return { success: true, value: '' };
+  if (typeof raw !== 'string') return { success: false, message: `${label}格式无效` };
+  const normalized = raw.trim();
+  if (normalized.length > maxLength) {
+    return { success: false, message: `${label}不能超过 ${maxLength} 个字符` };
+  }
+  return { success: true, value: normalized };
+}
+
+function normalizePaymentFields(
+  input: any,
+  existing?: any,
+  fallbackCurrency: unknown = 'CNY',
+): { success: true; value: Record<string, any> } | { success: false; message: string } {
+  const fields = [
+    ['subscriptionChannel', '订阅渠道', 100],
+    ['paymentMethod', '支付方式', 100],
+    ['subscriptionAccount', '订阅账号', 320],
+    ['paymentReference', '付款标识', 200],
+  ] as const;
+  const value: Record<string, any> = {};
+  for (const [key, label, maxLength] of fields) {
+    const normalized = normalizeOptionalText(input[key], existing?.[key], label, maxLength);
+    if (!normalized.success) return normalized;
+    value[key] = normalized.value;
+  }
+
+  const rawBalance = input.accountBalance === undefined
+    ? existing?.accountBalance
+    : input.accountBalance;
+  if (
+    rawBalance === undefined
+    || rawBalance === null
+    || typeof rawBalance === 'string' && !rawBalance.trim()
+  ) {
+    value.accountBalance = null;
+  } else {
+    if (typeof rawBalance !== 'number' && typeof rawBalance !== 'string') {
+      return { success: false, message: '账户余额必须是非负数' };
+    }
+    const accountBalance = typeof rawBalance === 'number' ? rawBalance : Number(rawBalance);
+    if (!Number.isFinite(accountBalance) || accountBalance < 0) {
+      return { success: false, message: '账户余额必须是非负数' };
+    }
+    value.accountBalance = accountBalance;
+  }
+
+  const defaultCurrency = typeof fallbackCurrency === 'string' && /^[a-z]{3}$/i.test(fallbackCurrency.trim())
+    ? fallbackCurrency.trim().toUpperCase()
+    : 'CNY';
+  const rawBalanceCurrency = input.balanceCurrency === undefined
+    ? (existing?.balanceCurrency || defaultCurrency)
+    : input.balanceCurrency;
+  if (typeof rawBalanceCurrency !== 'string' || !/^[a-z]{3}$/i.test(rawBalanceCurrency.trim())) {
+    return { success: false, message: '余额币种必须是 3 位币种代码' };
+  }
+  value.balanceCurrency = rawBalanceCurrency.trim().toUpperCase();
+  return { success: true, value };
+}
+
 function validateDateRange(startDate: string | null, expiryDate: string): string | null {
   if (startDate && compareDateOnly(startDate, expiryDate) > 0) {
     return '开始日期不能晚于到期日期';
@@ -55,7 +122,16 @@ export async function listSubscriptionsHandler(query: any) {
     if (search && typeof search === 'string' && search.trim()) {
       const keyword = search.toLowerCase();
       filtered = filtered.filter((sub: any) => {
-        const haystack = [sub.name, sub.customType, sub.notes, sub.category].filter(Boolean).join(' ').toLowerCase();
+        const haystack = [
+          sub.name,
+          sub.customType,
+          sub.notes,
+          sub.category,
+          sub.subscriptionChannel,
+          sub.paymentMethod,
+          sub.subscriptionAccount,
+          sub.paymentReference,
+        ].filter(Boolean).join(' ').toLowerCase();
         return haystack.includes(keyword);
       });
     }
@@ -109,6 +185,10 @@ export async function createSubscriptionHandler(body: any) {
     if (!avatar.success) {
       return { status: 400, body: { success: false, message: avatar.message } };
     }
+    const paymentFields = normalizePaymentFields(body, undefined, currency);
+    if (!paymentFields.success) {
+      return { status: 400, body: { success: false, message: paymentFields.message } };
+    }
 
     const now = new Date().toISOString();
     const subscriptionCategory = typeof category === 'string' ? category : '';
@@ -142,6 +222,7 @@ export async function createSubscriptionHandler(body: any) {
       nonSelfPaid: sharedCost.nonSelfPaid,
       nonSelfPaidCurrency: sharedCost.nonSelfPaidCurrency,
       nonSelfPaidUnit: sharedCost.nonSelfPaidUnit,
+      ...paymentFields.value,
       trialValue: trialValue || null,
       trialUnit: trialUnit || null,
       createdAt: now,
@@ -228,6 +309,10 @@ export async function updateSubscriptionHandler(id: number, body: any) {
     if (!avatar.success) {
       return { status: 400, body: { success: false, message: avatar.message } };
     }
+    const paymentFields = normalizePaymentFields(body, existing, currency ?? existing.currency);
+    if (!paymentFields.success) {
+      return { status: 400, body: { success: false, message: paymentFields.message } };
+    }
 
     const now = new Date().toISOString();
     const finalCategory = category ?? existing.category ?? '';
@@ -279,6 +364,7 @@ export async function updateSubscriptionHandler(id: number, body: any) {
       nonSelfPaid: sharedCost.nonSelfPaid,
       nonSelfPaidCurrency: sharedCost.nonSelfPaidCurrency,
       nonSelfPaidUnit: sharedCost.nonSelfPaidUnit,
+      ...paymentFields.value,
       isPinned: isPinned !== undefined ? (isPinned ? 1 : 0) : existing.isPinned,
       trialValue: trialValue !== undefined ? trialValue : existing.trialValue,
       trialUnit: trialUnit !== undefined ? trialUnit : existing.trialUnit,

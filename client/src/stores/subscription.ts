@@ -25,6 +25,12 @@ export interface Subscription {
   nonSelfPaid: number;
   nonSelfPaidCurrency: string;
   nonSelfPaidUnit: string;
+  subscriptionChannel: string;
+  paymentMethod: string;
+  subscriptionAccount: string;
+  accountBalance: number | null;
+  balanceCurrency: string;
+  paymentReference: string;
   isPinned: number;
   trialValue: number | null;
   trialUnit: string | null;

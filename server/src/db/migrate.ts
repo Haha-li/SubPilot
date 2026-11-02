@@ -42,6 +42,12 @@ sqlite.exec(`
     non_self_paid REAL DEFAULT 0,
     non_self_paid_currency TEXT DEFAULT 'CNY',
     non_self_paid_unit TEXT DEFAULT 'month',
+    subscription_channel TEXT DEFAULT '',
+    payment_method TEXT DEFAULT '',
+    subscription_account TEXT DEFAULT '',
+    account_balance REAL,
+    balance_currency TEXT DEFAULT 'CNY',
+    payment_reference TEXT DEFAULT '',
     created_at TEXT DEFAULT (datetime('now')),
     updated_at TEXT DEFAULT (datetime('now'))
   );
@@ -187,6 +193,36 @@ try {
 }
 try {
   sqlite.exec("ALTER TABLE subscriptions ADD COLUMN icon_background_color TEXT NOT NULL DEFAULT ''");
+} catch (e: any) {
+  if (!e.message.includes('duplicate column name')) throw e;
+}
+try {
+  sqlite.exec("ALTER TABLE subscriptions ADD COLUMN subscription_channel TEXT DEFAULT ''");
+} catch (e: any) {
+  if (!e.message.includes('duplicate column name')) throw e;
+}
+try {
+  sqlite.exec("ALTER TABLE subscriptions ADD COLUMN payment_method TEXT DEFAULT ''");
+} catch (e: any) {
+  if (!e.message.includes('duplicate column name')) throw e;
+}
+try {
+  sqlite.exec("ALTER TABLE subscriptions ADD COLUMN subscription_account TEXT DEFAULT ''");
+} catch (e: any) {
+  if (!e.message.includes('duplicate column name')) throw e;
+}
+try {
+  sqlite.exec('ALTER TABLE subscriptions ADD COLUMN account_balance REAL');
+} catch (e: any) {
+  if (!e.message.includes('duplicate column name')) throw e;
+}
+try {
+  sqlite.exec("ALTER TABLE subscriptions ADD COLUMN balance_currency TEXT DEFAULT 'CNY'");
+} catch (e: any) {
+  if (!e.message.includes('duplicate column name')) throw e;
+}
+try {
+  sqlite.exec("ALTER TABLE subscriptions ADD COLUMN payment_reference TEXT DEFAULT ''");
 } catch (e: any) {
   if (!e.message.includes('duplicate column name')) throw e;
 }

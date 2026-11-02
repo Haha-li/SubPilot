@@ -10,7 +10,7 @@ import api from '../utils/api';
 import SubscriptionBrandIcon from './SubscriptionBrandIcon.vue';
 import {
   Pencil, Bell, Pause, Play, Trash2, Star, CalendarDays,
-  Repeat, Tag, DollarSign, Clock, FileText, X, History,
+  Repeat, Tag, DollarSign, Clock, FileText, X, History, CreditCard,
 } from '@lucide/vue';
 
 const props = defineProps<{ subscription: Subscription }>();
@@ -77,6 +77,14 @@ function getPriceText(sub: Subscription) {
   if (!sub.price || sub.price <= 0) return '—';
   const sym = getSymbol(sub.currency || 'CNY');
   return `${sym}${sub.price.toFixed(2)}${priceUnitMap[sub.priceUnit] || '/月'}`;
+}
+function getBalanceText(sub: Subscription) {
+  if (sub.accountBalance === null || sub.accountBalance === undefined) return '—';
+  const currency = sub.balanceCurrency || sub.currency || 'CNY';
+  return `${getSymbol(currency)}${sub.accountBalance.toLocaleString('zh-CN', {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 2,
+  })}`;
 }
 function getLunarText(dateStr: string) {
   const date = parseDateOnly(dateStr);
@@ -146,6 +154,13 @@ const statusMeta = computed(() => getStatusMeta(props.subscription));
 const daysLeft = computed(() => getDaysLeft(props.subscription));
 const lunarText = computed(() => getLunarText(props.subscription.expiryDate));
 const categoryTokens = computed(() => normalizeCategoryTokens(props.subscription.category || ''));
+const hasPaymentDetails = computed(() => Boolean(
+  props.subscription.subscriptionChannel
+  || props.subscription.paymentMethod
+  || props.subscription.subscriptionAccount
+  || props.subscription.paymentReference
+  || props.subscription.accountBalance !== null && props.subscription.accountBalance !== undefined,
+));
 
 function handleClose() {
   // 等关闭动画结束再卸载组件
@@ -271,6 +286,35 @@ function handleClose() {
             <p class="font-mono-nums mt-1.5 text-sm font-semibold text-ink-800 dark:text-ink-100">
               {{ getPriceText(subscription) }}
             </p>
+          </div>
+        </div>
+
+        <!-- 订阅与支付 -->
+        <div v-if="hasPaymentDetails" class="mt-5">
+          <div class="mb-2 flex items-center gap-1.5 text-xs font-medium text-ink-500 dark:text-ink-400">
+            <CreditCard :size="13" /> 订阅与支付
+          </div>
+          <div class="bento-card grid grid-cols-1 gap-x-4 gap-y-3 p-4 sm:grid-cols-2">
+            <div v-if="subscription.subscriptionChannel">
+              <p class="text-xs text-ink-400 dark:text-ink-500">订阅渠道</p>
+              <p class="mt-1 text-sm font-medium text-ink-800 dark:text-ink-100">{{ subscription.subscriptionChannel }}</p>
+            </div>
+            <div v-if="subscription.paymentMethod">
+              <p class="text-xs text-ink-400 dark:text-ink-500">支付方式</p>
+              <p class="mt-1 text-sm font-medium text-ink-800 dark:text-ink-100">{{ subscription.paymentMethod }}</p>
+            </div>
+            <div v-if="subscription.subscriptionAccount">
+              <p class="text-xs text-ink-400 dark:text-ink-500">订阅账号</p>
+              <p class="mt-1 break-all text-sm font-medium text-ink-800 dark:text-ink-100">{{ subscription.subscriptionAccount }}</p>
+            </div>
+            <div v-if="subscription.accountBalance !== null && subscription.accountBalance !== undefined">
+              <p class="text-xs text-ink-400 dark:text-ink-500">账户余额</p>
+              <p class="font-mono-nums mt-1 text-sm font-semibold text-ink-800 dark:text-ink-100">{{ getBalanceText(subscription) }}</p>
+            </div>
+            <div v-if="subscription.paymentReference" class="sm:col-span-2">
+              <p class="text-xs text-ink-400 dark:text-ink-500">付款标识</p>
+              <p class="mt-1 break-all text-sm font-medium text-ink-800 dark:text-ink-100">{{ subscription.paymentReference }}</p>
+            </div>
           </div>
         </div>
 

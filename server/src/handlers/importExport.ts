@@ -14,7 +14,7 @@ import {
   normalizeDateOnly,
 } from '../utils/dateOnly';
 
-const BACKUP_VERSION = 2;
+const BACKUP_VERSION = 3;
 const MAX_IMPORT_BYTES = 10 * 1024 * 1024;
 const MAX_IMPORT_ROWS = 10000;
 const MAX_REPORTED_ERRORS = 100;
@@ -29,6 +29,8 @@ const SUBSCRIPTION_FIELDS = [
   'isActive', 'autoRenew', 'useLunar', 'notes', 'iconUrl',
   'iconBackgroundColor', 'price', 'priceUnit', 'currency',
   'nonSelfPaid', 'nonSelfPaidCurrency', 'nonSelfPaidUnit',
+  'subscriptionChannel', 'paymentMethod', 'subscriptionAccount',
+  'accountBalance', 'balanceCurrency', 'paymentReference',
   'isPinned', 'trialValue', 'trialUnit', 'createdAt', 'updatedAt',
 ] as const;
 
@@ -247,6 +249,14 @@ function normalizeAmount(value: unknown, field: string, fallback = 0): number {
   return number;
 }
 
+function normalizeOptionalAmount(value: unknown, field: string): number | null {
+  if (value === undefined || value === null || typeof value === 'string' && !value.trim()) return null;
+  if (typeof value !== 'number' && typeof value !== 'string') {
+    throw new ImportValidationError(`${field} 必须是非负数`);
+  }
+  return normalizeAmount(value, field);
+}
+
 function normalizeTimestamp(value: unknown, fallback: string, field: string): string {
   if (value === undefined || value === null || value === '') return fallback;
   const date = new Date(String(value));
@@ -371,6 +381,12 @@ function normalizeSubscriptionRecord(
     nonSelfPaid: sharedCost.nonSelfPaid,
     nonSelfPaidCurrency: sharedCost.nonSelfPaidCurrency,
     nonSelfPaidUnit: sharedCost.nonSelfPaidUnit,
+    subscriptionChannel: normalizeString(row.subscriptionChannel, 'subscriptionChannel', { maxLength: 100 }),
+    paymentMethod: normalizeString(row.paymentMethod, 'paymentMethod', { maxLength: 100 }),
+    subscriptionAccount: normalizeString(row.subscriptionAccount, 'subscriptionAccount', { maxLength: 320 }),
+    accountBalance: normalizeOptionalAmount(row.accountBalance, 'accountBalance'),
+    balanceCurrency: normalizeCurrencyStrict(row.balanceCurrency, currency, 'balanceCurrency'),
+    paymentReference: normalizeString(row.paymentReference, 'paymentReference', { maxLength: 200 }),
     isPinned: normalizeBoolean(row.isPinned, false, 'isPinned'),
     trialValue,
     trialUnit,
