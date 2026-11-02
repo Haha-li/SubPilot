@@ -7,7 +7,7 @@ import {
   useSubscriptionMethodStore,
 } from '../stores/subscriptionMethod';
 import { fetchRates, getSymbol } from '../utils/currency';
-import { getPersonalMonthlyCostOrZero } from '../utils/subscriptionCost';
+import { getGrossMonthlyCostInCurrency } from '../utils/subscriptionCost';
 import CurrencySelect from '../components/CurrencySelect.vue';
 
 const methodStore = useSubscriptionMethodStore();
@@ -55,11 +55,16 @@ function subscriptionsFor(id: number) {
   return subscriptionStore.subscriptions.filter((item) => item.subscriptionMethodId === id);
 }
 
-function monthlyCost(id: number) {
+function monthlyFee(id: number, currency: string) {
   ratesReady.value;
-  return subscriptionsFor(id)
-    .filter((item) => item.isActive)
-    .reduce((sum, item) => sum + getPersonalMonthlyCostOrZero(item, 'CNY'), 0);
+  let total = 0;
+  for (const subscription of subscriptionsFor(id)) {
+    if (!subscription.isActive) continue;
+    const cost = getGrossMonthlyCostInCurrency(subscription, currency);
+    if (!Number.isFinite(cost)) return Number.NaN;
+    if (cost > 0) total += cost;
+  }
+  return total;
 }
 
 function balanceText(item: SubscriptionMethod) {
@@ -73,6 +78,18 @@ function balanceText(item: SubscriptionMethod) {
 
 function activeCount(id: number) {
   return subscriptionsFor(id).filter((item) => item.isActive).length;
+}
+
+function monthsLeftText(item: SubscriptionMethod): string {
+  ratesReady.value;
+  if (item.balance === null || item.balance === undefined) return '未记录余额';
+  if (item.balance < 0) return '余额不足';
+  const monthly = monthlyFee(item.id, item.balanceCurrency || 'CNY');
+  if (!Number.isFinite(monthly)) return '汇率缺失';
+  if (monthly <= 0) return '暂无每月支出';
+  const months = Math.floor((item.balance / monthly) * 10) / 10;
+  const text = Number.isInteger(months) ? String(months) : months.toFixed(1);
+  return `预计还能用 ${text} 个月`;
 }
 
 function moneyText(value: number) {
@@ -216,12 +233,12 @@ onMounted(async () => {
             <p class="text-xs text-ink-500 dark:text-ink-400">账户余额</p>
             <p class="font-mono-nums mt-1 truncate text-lg font-bold text-ink-900 dark:text-ink-50">{{ balanceText(item) }}</p>
           </div>
-          <div class="rounded-xl bg-brand-50/80 px-3 py-3 dark:bg-brand-500/10" :title="`按 ${activeCount(item.id)} 个启用订阅的个人承担金额，折合成人民币每月支出`">
+          <div class="rounded-xl bg-brand-50/80 px-3 py-3 dark:bg-brand-500/10" title="按订阅里的费用折成每月，不含非自己付费">
             <p class="text-xs text-ink-500 dark:text-ink-400">每月支出</p>
-            <p class="font-mono-nums mt-1 truncate text-lg font-bold text-ink-900 dark:text-ink-50">{{ moneyText(monthlyCost(item.id)) }}</p>
+            <p class="font-mono-nums mt-1 truncate text-lg font-bold text-ink-900 dark:text-ink-50">{{ moneyText(monthlyFee(item.id, 'CNY')) }}</p>
           </div>
         </div>
-        <p class="mt-2 text-xs text-ink-400 dark:text-ink-500">{{ activeCount(item.id) }} 个启用订阅</p>
+        <p class="mt-2 text-xs font-medium text-ink-500 dark:text-ink-400">{{ monthsLeftText(item) }} · {{ activeCount(item.id) }} 个启用订阅</p>
 
         <div class="mt-4 flex items-center justify-end gap-1 border-t border-ink-100 pt-4 dark:border-ink-800/50">
           <button class="inline-flex h-11 cursor-pointer items-center gap-1.5 rounded-xl px-3 text-xs font-medium text-ink-600 transition-colors hover:bg-ink-100 hover:text-brand-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400 dark:text-ink-300 dark:hover:bg-ink-800/60" @click="openEdit(item)">

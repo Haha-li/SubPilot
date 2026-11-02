@@ -31,7 +31,7 @@ function createDb(subscriptions: any[], methods: any[]) {
   });
 }
 
-test('续费金额按订阅周期折算，而不是只看标价单位', () => {
+test('续费只按周期费用扣，不看非自己付费', () => {
   assert.equal(getRenewalCharge({ price: 100, priceUnit: 'month', periodValue: 1, periodUnit: 'month' }, 2), 200);
   assert.equal(getRenewalCharge({ price: 10, priceUnit: 'month', periodValue: 1, periodUnit: 'year' }, 1), 120);
   assert.equal(getRenewalCharge({ price: 0, priceUnit: 'month', periodValue: 1, periodUnit: 'month' }, 1), 0);
@@ -43,6 +43,7 @@ test('手动续费和批量续费扣除同币种余额', async () => {
     {
       id: 1, name: '甲', expiryDate: '2026-01-31', periodValue: 1, periodUnit: 'month',
       price: 100, priceUnit: 'month', currency: 'CNY', subscriptionMethodId: 1,
+      category: '合租', nonSelfPaid: 40, nonSelfPaidCurrency: 'CNY', nonSelfPaidUnit: 'month',
     },
     {
       id: 2, name: '乙', expiryDate: '2026-01-31', periodValue: 1, periodUnit: 'year',
