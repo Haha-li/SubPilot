@@ -1,6 +1,7 @@
 import { desc, eq } from 'drizzle-orm';
 import { db, schema } from '../db';
 import { executeStatementsAtomically } from '../utils/dbAtomic';
+import { collectBalanceUpdates, type BalanceUpdate } from '../utils/renewalCharge';
 import {
   advanceDateOnlyByPeriods,
   isDatePeriodUnit,
@@ -91,8 +92,13 @@ function createRenewalPlan(
   };
 }
 
-function buildRenewalStatements(executor: any, plans: RenewalPlan[], renewedAt: string): any[] {
-  return plans.flatMap((plan) => [
+function buildRenewalStatements(
+  executor: any,
+  plans: RenewalPlan[],
+  renewedAt: string,
+  balanceUpdates: BalanceUpdate[] = [],
+): any[] {
+  const renewalStatements = plans.flatMap((plan) => [
     executor.update(schema.subscriptions).set({
       expiryDate: plan.newExpiryDate,
       updatedAt: renewedAt,
@@ -111,6 +117,13 @@ function buildRenewalStatements(executor: any, plans: RenewalPlan[], renewedAt: 
       periodsAdvanced: plan.periods,
     }),
   ]);
+  const balanceStatements = balanceUpdates.map((update) => (
+    executor.update(schema.subscriptionMethods).set({
+      balance: update.balance,
+      updatedAt: renewedAt,
+    }).where(eq(schema.subscriptionMethods.id, update.id))
+  ));
+  return [...renewalStatements, ...balanceStatements];
 }
 
 async function loadSubscriptionsByIds(ids: number[]): Promise<SubscriptionRow[]> {
@@ -259,7 +272,8 @@ export async function renewSubscriptionHandler(id: number, body: any) {
     }
 
     const renewedAt = new Date().toISOString();
-    await executeStatementsAtomically((executor) => buildRenewalStatements(executor, [plan], renewedAt));
+    const balanceUpdates = await collectBalanceUpdates([{ subscription, periods }]);
+    await executeStatementsAtomically((executor) => buildRenewalStatements(executor, [plan], renewedAt, balanceUpdates));
     const [updated] = await db.select().from(schema.subscriptions)
       .where(eq(schema.subscriptions.id, id))
       .limit(1);
@@ -313,7 +327,11 @@ export async function batchRenewalsHandler(body: any) {
       }
 
       const renewedAt = new Date().toISOString();
-      await executeStatementsAtomically((executor) => buildRenewalStatements(executor, plans, renewedAt));
+      const balanceUpdates = await collectBalanceUpdates(plans.map((plan) => ({
+        subscription: plan.subscription,
+        periods: plan.periods,
+      })));
+      await executeStatementsAtomically((executor) => buildRenewalStatements(executor, plans, renewedAt, balanceUpdates));
       return {
         status: 200,
         body: {

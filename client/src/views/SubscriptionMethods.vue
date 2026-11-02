@@ -64,15 +64,20 @@ function monthlyCost(id: number) {
 
 function balanceText(item: SubscriptionMethod) {
   if (item.balance === null || item.balance === undefined) return '未记录';
-  return `${getSymbol(item.balanceCurrency || 'CNY')}${item.balance.toLocaleString('zh-CN', {
+  const currency = item.balanceCurrency || 'CNY';
+  return `${getSymbol(currency)}${item.balance.toLocaleString('zh-CN', {
     minimumFractionDigits: 0,
     maximumFractionDigits: 2,
-  })}`;
+  })} ${currency}`;
+}
+
+function activeCount(id: number) {
+  return subscriptionsFor(id).filter((item) => item.isActive).length;
 }
 
 function moneyText(value: number) {
   if (!Number.isFinite(value)) return '汇率缺失';
-  return `${getSymbol('CNY')}${Math.round(value).toLocaleString('zh-CN')}`;
+  return `${getSymbol('CNY')}${Math.round(value).toLocaleString('zh-CN')} CNY/月`;
 }
 
 function openAdd() {
@@ -188,43 +193,44 @@ onMounted(async () => {
       <span class="ml-2 text-sm text-ink-500 dark:text-ink-400">加载订阅方式...</span>
     </div>
 
-    <section v-else-if="filteredItems.length" aria-label="订阅方式列表" class="grid grid-cols-1 gap-4 xl:grid-cols-2">
-      <article v-for="item in filteredItems" :key="item.id" class="bento-card p-5">
-        <div class="flex items-start justify-between gap-3">
-          <div class="min-w-0">
-            <h3 class="truncate text-base font-semibold text-ink-900 dark:text-ink-50">{{ item.name }}</h3>
-            <p class="mt-1 truncate text-xs text-ink-500 dark:text-ink-400">
-              {{ [item.channel, item.paymentMethod].filter(Boolean).join(' · ') || '未填写渠道' }}
-            </p>
+    <section v-else-if="filteredItems.length" aria-label="订阅方式列表" class="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
+      <article v-for="item in filteredItems" :key="item.id" class="bento-card flex min-w-0 flex-col p-5">
+        <div class="flex min-w-0 items-start gap-3">
+          <div class="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-2xl bg-brand-50 text-brand-600 dark:bg-brand-500/15 dark:text-brand-300">
+            <CreditCard :size="22" />
           </div>
-          <div class="flex flex-shrink-0 gap-1">
-            <button class="inline-flex h-11 w-11 cursor-pointer items-center justify-center rounded-xl text-ink-500 transition-colors hover:bg-ink-100 hover:text-brand-600 dark:text-ink-400 dark:hover:bg-ink-800/60" :aria-label="`编辑 ${item.name}`" @click="openEdit(item)">
-              <Pencil :size="16" />
-            </button>
-            <button class="inline-flex h-11 w-11 cursor-pointer items-center justify-center rounded-xl text-ink-500 transition-colors hover:bg-danger/10 hover:text-danger dark:text-ink-400" :aria-label="`删除 ${item.name}`" @click="handleDelete(item)">
-              <Trash2 :size="16" />
-            </button>
+          <div class="min-w-0 flex-1">
+            <h3 class="truncate text-base font-semibold text-ink-900 dark:text-ink-50" :title="item.name">{{ item.name }}</h3>
+            <p class="mt-1 truncate text-xs text-ink-500 dark:text-ink-400">{{ item.account || '未填写账号' }}</p>
           </div>
         </div>
-        <dl class="mt-4 grid grid-cols-2 gap-3 text-sm">
-          <div>
-            <dt class="text-xs text-ink-400">订阅账号</dt>
-            <dd class="mt-1 truncate font-medium text-ink-800 dark:text-ink-100">{{ item.account || '—' }}</dd>
+
+        <div class="mt-4 flex min-h-6 flex-wrap gap-1.5">
+          <span v-if="item.channel" class="max-w-full truncate rounded-md bg-sky-50 px-2 py-0.5 text-xs font-medium text-sky-600 dark:bg-sky-500/15 dark:text-sky-300">{{ item.channel }}</span>
+          <span v-if="item.paymentMethod" class="max-w-full truncate rounded-md bg-ink-100 px-2 py-0.5 text-xs text-ink-600 dark:bg-ink-800/60 dark:text-ink-300">{{ item.paymentMethod }}</span>
+          <span v-if="item.paymentReference" class="max-w-full truncate rounded-md bg-ink-100 px-2 py-0.5 text-xs text-ink-500 dark:bg-ink-800/60 dark:text-ink-400">{{ item.paymentReference }}</span>
+        </div>
+
+        <div class="mt-4 grid grid-cols-2 gap-2">
+          <div class="rounded-xl bg-ink-50/80 px-3 py-3 dark:bg-ink-800/40">
+            <p class="text-xs text-ink-500 dark:text-ink-400">账户余额</p>
+            <p class="font-mono-nums mt-1 truncate text-lg font-bold text-ink-900 dark:text-ink-50">{{ balanceText(item) }}</p>
           </div>
-          <div>
-            <dt class="text-xs text-ink-400">账户余额</dt>
-            <dd class="font-mono-nums mt-1 font-semibold text-ink-800 dark:text-ink-100">{{ balanceText(item) }}</dd>
+          <div class="rounded-xl bg-brand-50/80 px-3 py-3 dark:bg-brand-500/10" :title="`按 ${activeCount(item.id)} 个启用订阅的个人承担金额，折合成人民币每月支出`">
+            <p class="text-xs text-ink-500 dark:text-ink-400">每月支出</p>
+            <p class="font-mono-nums mt-1 truncate text-lg font-bold text-ink-900 dark:text-ink-50">{{ moneyText(monthlyCost(item.id)) }}</p>
           </div>
-          <div>
-            <dt class="text-xs text-ink-400">使用订阅</dt>
-            <dd class="font-mono-nums mt-1 font-semibold text-ink-800 dark:text-ink-100">{{ subscriptionsFor(item.id).length }}</dd>
-          </div>
-          <div>
-            <dt class="text-xs text-ink-400">个人月费</dt>
-            <dd class="font-mono-nums mt-1 font-semibold text-ink-800 dark:text-ink-100">{{ moneyText(monthlyCost(item.id)) }}</dd>
-          </div>
-        </dl>
-        <p v-if="item.paymentReference" class="mt-3 truncate text-xs text-ink-500 dark:text-ink-400">{{ item.paymentReference }}</p>
+        </div>
+        <p class="mt-2 text-xs text-ink-400 dark:text-ink-500">{{ activeCount(item.id) }} 个启用订阅</p>
+
+        <div class="mt-4 flex items-center justify-end gap-1 border-t border-ink-100 pt-4 dark:border-ink-800/50">
+          <button class="inline-flex h-11 cursor-pointer items-center gap-1.5 rounded-xl px-3 text-xs font-medium text-ink-600 transition-colors hover:bg-ink-100 hover:text-brand-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400 dark:text-ink-300 dark:hover:bg-ink-800/60" @click="openEdit(item)">
+            <Pencil :size="15" /> 编辑
+          </button>
+          <button class="inline-flex h-11 cursor-pointer items-center gap-1.5 rounded-xl px-3 text-xs font-medium text-ink-600 transition-colors hover:bg-danger/10 hover:text-danger focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-danger dark:text-ink-300" @click="handleDelete(item)">
+            <Trash2 :size="15" /> 删除
+          </button>
+        </div>
       </article>
     </section>
 
