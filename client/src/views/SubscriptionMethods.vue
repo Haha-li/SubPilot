@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { computed, defineAsyncComponent, onMounted, ref } from 'vue';
+import { computed, defineAsyncComponent, onMounted, ref, watch } from 'vue';
+import { useMediaQuery } from '@vueuse/core';
 import {
   CircleDollarSign, Copy, CreditCard, Loader2, Pencil, Plus, Search, Trash2, Wallet,
 } from '@lucide/vue';
@@ -21,7 +22,10 @@ const MethodDetailDrawer = defineAsyncComponent(() => import('../components/Subs
 const methodStore = useSubscriptionMethodStore();
 const subscriptionStore = useSubscriptionStore();
 const systemConfigStore = useSystemConfigStore();
+const isMobile = useMediaQuery('(max-width: 768px)');
 const keyword = ref('');
+const currentPage = ref(1);
+const pageSize = ref(12);
 const showModal = ref(false);
 const editing = ref<SubscriptionMethod | null>(null);
 const copying = ref(false);
@@ -74,6 +78,11 @@ const filteredItems = computed(() => {
       .includes(query)
   ));
 });
+const pagedItems = computed(() => {
+  const start = (currentPage.value - 1) * pageSize.value;
+  return filteredItems.value.slice(start, start + pageSize.value);
+});
+watch(keyword, () => { currentPage.value = 1; });
 
 function subscriptionsFor(id: number) {
   return subscriptionStore.subscriptions.filter((item) => item.subscriptionMethodId === id);
@@ -298,8 +307,8 @@ onMounted(async () => {
       <span class="ml-2 text-sm text-ink-500 dark:text-ink-400">加载订阅方式...</span>
     </div>
 
-    <section v-else-if="filteredItems.length" aria-label="订阅方式列表" class="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
-      <article v-for="item in filteredItems" :key="item.id" class="bento-card flex min-w-0 cursor-pointer flex-col p-5" @click="openDetail(item)">
+    <section v-else-if="filteredItems.length" aria-label="订阅方式列表" class="grid grid-cols-1 gap-4 pb-16 sm:grid-cols-2 xl:grid-cols-3">
+      <article v-for="item in pagedItems" :key="item.id" class="bento-card flex min-w-0 cursor-pointer flex-col p-5" @click="openDetail(item)">
         <div class="flex min-w-0 items-start gap-3">
           <div class="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-2xl bg-brand-50 text-brand-600 dark:bg-brand-500/15 dark:text-brand-300">
             <CreditCard :size="22" />
@@ -361,6 +370,23 @@ onMounted(async () => {
         <Plus :size="16" /> 添加第一个
       </button>
     </section>
+
+    <nav
+      v-if="filteredItems.length > 0"
+      aria-label="订阅方式分页"
+      class="glass-panel fixed bottom-4 right-4 z-30 max-w-[calc(100vw-2rem)] overflow-x-auto rounded-2xl px-3 py-2 md:right-8"
+    >
+      <el-pagination
+        v-model:current-page="currentPage"
+        v-model:page-size="pageSize"
+        :total="filteredItems.length"
+        :page-sizes="[12, 24, 48]"
+        :layout="isMobile ? 'total, prev, next' : 'total, sizes, prev, pager, next'"
+        :small="isMobile"
+        background
+        class="justify-end"
+      />
+    </nav>
 
     <el-dialog v-model="showModal" :title="editing ? '编辑订阅方式' : copying ? '复制订阅方式' : '新增订阅方式'" width="560px" :close-on-click-modal="false">
       <div class="grid grid-cols-1 gap-3 md:grid-cols-2">

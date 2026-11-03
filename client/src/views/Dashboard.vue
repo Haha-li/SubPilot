@@ -41,10 +41,10 @@ const searchKeyword = ref('');
 const typeFilter = ref('');
 const categoryFilter = ref('');
 const showLunar = ref(localStorage.getItem('showLunar') === 'true');
-const statusFilter = ref('');
+const statusFilter = ref('active');
 // 快捷 tab 与状态下拉共用 statusFilter：tab 是常用入口，下拉是完整列表，两者永远同步
 const quickFilters = [
-  { key: 'all',      value: '',         label: '全部', icon: LayoutGrid },
+  { key: 'active',   value: 'active',   label: '活跃', icon: LayoutGrid },
   { key: 'inactive', value: 'inactive', label: '停用', icon: Pause },
   { key: 'pinned',   value: 'pinned',   label: '收藏', icon: Star },
 ];
@@ -508,7 +508,7 @@ onMounted(() => {
       </div>
       <div class="xl:col-span-2">
         <el-select v-model="statusFilter" placeholder="全部状态" clearable size="default" class="w-full">
-          <el-option label="正常" value="active" />
+          <el-option label="活跃" value="active" />
           <el-option label="已停用" value="inactive" />
           <el-option label="已过期" value="expired" />
           <el-option label="即将到期" value="soon" />
