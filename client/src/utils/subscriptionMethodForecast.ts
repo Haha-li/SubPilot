@@ -52,9 +52,11 @@ export function buildSubscriptionMethodForecast(
 ): SubscriptionMethodForecast {
   const currency = (method.balanceCurrency || 'CNY').toUpperCase();
   const normalizedToday = normalizeDateOnly(today);
-  const active = subscriptions.filter((item) => item.isActive && item.subscriptionMethodId === method.id);
-  const matching = active.filter((item) => (item.currency || 'CNY').toUpperCase() === currency);
-  const mismatchCount = active.length - matching.length;
+  const renewing = subscriptions.filter((item) => (
+    item.isActive && item.autoRenew && item.subscriptionMethodId === method.id
+  ));
+  const matching = renewing.filter((item) => (item.currency || 'CNY').toUpperCase() === currency);
+  const mismatchCount = renewing.length - matching.length;
   let monthlyFee = 0;
   const events: MethodRenewalEvent[] = [];
   for (const subscription of matching) {

@@ -41,7 +41,7 @@ test('农历模板变量不依赖周期按农历设置', () => {
 });
 
 test('到期提醒同时说明这笔续费扣得起扣不起', () => {
-  const paid = { ...subscription, price: 30, currency: 'CNY', subscriptionMethodId: 1 };
+  const paid = { ...subscription, price: 30, currency: 'CNY', subscriptionMethodId: 1, autoRenew: 1 };
   assert.equal(
     describeRenewalBalance(paid, { balance: 100, balanceCurrency: 'CNY' }),
     '充足 ¥100.00，本次扣 ¥30.00',
@@ -55,7 +55,11 @@ test('到期提醒同时说明这笔续费扣得起扣不起', () => {
     describeRenewalBalance(paid, { balance: 100, balanceCurrency: 'USD' }),
     '币种不一致，不自动扣款',
   );
-  assert.equal(describeRenewalBalance(subscription, null), '未关联订阅方式');
+  assert.equal(describeRenewalBalance(subscription, null), '不自动续费，不扣款');
+  assert.equal(
+    describeRenewalBalance({ ...paid, autoRenew: 0 }, { balance: 10, balanceCurrency: 'CNY' }),
+    '不自动续费，不扣款',
+  );
 
   const message = formatNotifyMessage(paid, {
     notify_template: '费用: {{price}}\n时间: {{time}}',

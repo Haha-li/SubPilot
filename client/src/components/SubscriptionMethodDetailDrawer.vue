@@ -154,6 +154,7 @@ watch(() => props.method.id, async (id) => {
                     <p class="font-mono-nums font-semibold text-ink-800 dark:text-ink-100">{{ money(nextEvent(subscription.id)!.amount) }}</p>
                     <p class="mt-1 text-ink-400">{{ nextEvent(subscription.id)!.date }}</p>
                   </template>
+                  <span v-else-if="subscription.isActive && !subscription.autoRenew" class="text-ink-400">不自动续费</span>
                   <span v-else-if="subscription.isActive" class="text-warning">币种不一致或免费</span>
                 </div>
               </div>

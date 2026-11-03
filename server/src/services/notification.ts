@@ -71,6 +71,7 @@ export function describeRenewalBalance(
   subscription: Subscription,
   method: BalanceMethod | null,
 ): string {
+  if (!subscription.autoRenew) return '不自动续费，不扣款';
   if (!method) return '未关联订阅方式';
   if (typeof method.balance !== 'number' || !Number.isFinite(method.balance)) return '未记录余额';
   const charge = getRenewalCharge(subscription, 1);

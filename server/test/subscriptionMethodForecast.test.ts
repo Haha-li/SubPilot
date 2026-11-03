@@ -55,6 +55,14 @@ test('订阅方式预测按真实续费日期逐笔扣减', () => {
   assert.equal(forecast.nextChargeAmount, 100);
   assert.equal(forecast.exhaustionDate, '2026-04-15');
   assert.equal(forecast.status, 'warning');
+  const stopped = buildSubscriptionMethodForecast(
+    method,
+    [subscription({ autoRenew: 0 })],
+    '2026-01-20',
+  );
+  assert.equal(stopped.events.length, 0);
+  assert.equal(stopped.monthlyFee, 0);
+  assert.equal(stopped.status, 'idle');
 });
 
 test('余额不足和币种不一致会被识别', () => {
