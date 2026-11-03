@@ -28,6 +28,7 @@ const defaultTemplate = `📋 订阅提醒
 费用: {{price}}
 周期: {{period}}
 续费: {{autoRenew}}
+余额: {{balance}}
 提醒: {{reminder}}
 农历: {{lunar}}
 备注: {{notes}}
@@ -38,7 +39,11 @@ function renderPreview(template: string) {
   const timezone = config.value.timezone || systemConfigStore.timezone;
   const expiryDate = addDateOnlyPeriod(getDateOnlyInTimeZone(new Date(), timezone), 10, 'day');
 
-  return (template || defaultTemplate)
+  const source = template || defaultTemplate;
+  const withBalance = source.includes('{{balance}}') || !source.includes('时间: {{time}}')
+    ? source
+    : source.replace('时间: {{time}}', '余额: {{balance}}\n时间: {{time}}');
+  return withBalance
     .replace(/\{\{name\}\}/g, '示例订阅')
     .replace(/\{\{type\}\}/g, '视频会员')
     .replace(/\{\{expiryDate\}\}/g, expiryDate)
@@ -49,6 +54,7 @@ function renderPreview(template: string) {
     .replace(/\{\{price\}\}/g, '¥25.00/月')
     .replace(/\{\{period\}\}/g, '1月')
     .replace(/\{\{autoRenew\}\}/g, '自动续费')
+    .replace(/\{\{balance\}\}/g, '充足 ¥100.00，本次扣 ¥25.00')
     .replace(/\{\{reminder\}\}/g, '7天前')
     .replace(/\{\{time\}\}/g, new Date().toLocaleString('zh-CN', { timeZone: config.value.timezone || 'Asia/Shanghai' }))
     .replace(/\{\{timezone\}\}/g, config.value.timezone || 'Asia/Shanghai');
@@ -324,7 +330,7 @@ onUnmounted(() => {
         </div>
 
         <div class="mt-4 rounded-xl bg-ink-50/70 p-3 text-xs text-ink-500 dark:bg-ink-800/40 dark:text-ink-400">
-          <span v-pre>变量：<code class="rounded bg-white px-1 py-0.5 font-mono dark:bg-ink-900/60">{{name}}</code> 名称 · <code class="rounded bg-white px-1 py-0.5 font-mono dark:bg-ink-900/60">{{type}}</code> 类型 · <code class="rounded bg-white px-1 py-0.5 font-mono dark:bg-ink-900/60">{{expiryDate}}</code> 到期日 · <code class="rounded bg-white px-1 py-0.5 font-mono dark:bg-ink-900/60">{{status}}</code> 状态 · <code class="rounded bg-white px-1 py-0.5 font-mono dark:bg-ink-900/60">{{daysLeft}}</code> 剩余天数 · <code class="rounded bg-white px-1 py-0.5 font-mono dark:bg-ink-900/60">{{price}}</code> 费用 · <code class="rounded bg-white px-1 py-0.5 font-mono dark:bg-ink-900/60">{{period}}</code> 周期 · <code class="rounded bg-white px-1 py-0.5 font-mono dark:bg-ink-900/60">{{autoRenew}}</code> 续费方式 · <code class="rounded bg-white px-1 py-0.5 font-mono dark:bg-ink-900/60">{{reminder}}</code> 提前提醒 · <code class="rounded bg-white px-1 py-0.5 font-mono dark:bg-ink-900/60">{{lunar}}</code> 农历 · <code class="rounded bg-white px-1 py-0.5 font-mono dark:bg-ink-900/60">{{notes}}</code> 备注 · <code class="rounded bg-white px-1 py-0.5 font-mono dark:bg-ink-900/60">{{time}}</code> 当前时间 · <code class="rounded bg-white px-1 py-0.5 font-mono dark:bg-ink-900/60">{{timezone}}</code> 时区</span>
+          <span v-pre>变量：<code class="rounded bg-white px-1 py-0.5 font-mono dark:bg-ink-900/60">{{name}}</code> 名称 · <code class="rounded bg-white px-1 py-0.5 font-mono dark:bg-ink-900/60">{{type}}</code> 类型 · <code class="rounded bg-white px-1 py-0.5 font-mono dark:bg-ink-900/60">{{expiryDate}}</code> 到期日 · <code class="rounded bg-white px-1 py-0.5 font-mono dark:bg-ink-900/60">{{status}}</code> 状态 · <code class="rounded bg-white px-1 py-0.5 font-mono dark:bg-ink-900/60">{{daysLeft}}</code> 剩余天数 · <code class="rounded bg-white px-1 py-0.5 font-mono dark:bg-ink-900/60">{{price}}</code> 费用 · <code class="rounded bg-white px-1 py-0.5 font-mono dark:bg-ink-900/60">{{period}}</code> 周期 · <code class="rounded bg-white px-1 py-0.5 font-mono dark:bg-ink-900/60">{{autoRenew}}</code> 续费方式 · <code class="rounded bg-white px-1 py-0.5 font-mono dark:bg-ink-900/60">{{balance}}</code> 余额 · <code class="rounded bg-white px-1 py-0.5 font-mono dark:bg-ink-900/60">{{reminder}}</code> 提前提醒 · <code class="rounded bg-white px-1 py-0.5 font-mono dark:bg-ink-900/60">{{lunar}}</code> 农历 · <code class="rounded bg-white px-1 py-0.5 font-mono dark:bg-ink-900/60">{{notes}}</code> 备注 · <code class="rounded bg-white px-1 py-0.5 font-mono dark:bg-ink-900/60">{{time}}</code> 当前时间 · <code class="rounded bg-white px-1 py-0.5 font-mono dark:bg-ink-900/60">{{timezone}}</code> 时区</span>
         </div>
       </section>
 

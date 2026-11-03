@@ -9,6 +9,7 @@ import { sendEmail } from './notifiers/email';
 import { sendNotifyX } from './notifiers/notifyx';
 import { sendPushPlus } from './notifiers/pushplus';
 import { getCurrencySymbol } from '../utils/currency';
+import { getRenewalCharge } from '../utils/renewalCharge';
 import {
   addDateOnlyPeriod,
   differenceInCalendarDays,
@@ -36,6 +37,64 @@ interface Subscription {
   price: number | null;
   priceUnit: string | null;
   currency: string | null;
+  subscriptionMethodId?: number | null;
+}
+
+interface BalanceMethod {
+  balance?: number | null;
+  balanceCurrency?: string | null;
+}
+
+const DEFAULT_NOTIFY_TEMPLATE = `📋 订阅提醒
+━━━━━━━━━━━━━━
+名称: {{name}}
+类型: {{type}}
+到期: {{expiryDate}}
+状态: {{status}}
+剩余: {{daysLeft}} 天
+费用: {{price}}
+周期: {{period}}
+续费: {{autoRenew}}
+余额: {{balance}}
+提醒: {{reminder}}
+农历: {{lunar}}
+备注: {{notes}}
+时间: {{time}}
+时区: {{timezone}}`;
+
+function money(amount: number, currency: string): string {
+  const rounded = Math.round(amount * 100) / 100;
+  return `${getCurrencySymbol(currency)}${rounded.toFixed(2)}`;
+}
+
+export function describeRenewalBalance(
+  subscription: Subscription,
+  method: BalanceMethod | null,
+): string {
+  if (!method) return '未关联订阅方式';
+  if (typeof method.balance !== 'number' || !Number.isFinite(method.balance)) return '未记录余额';
+  const charge = getRenewalCharge(subscription, 1);
+  if (charge <= 0) return '本次不扣款';
+  const balanceCurrency = (method.balanceCurrency || 'CNY').toUpperCase();
+  const subscriptionCurrency = (subscription.currency || 'CNY').toUpperCase();
+  if (balanceCurrency !== subscriptionCurrency) return '币种不一致，不自动扣款';
+  const balanceText = money(method.balance, balanceCurrency);
+  const chargeText = money(charge, subscriptionCurrency);
+  if (method.balance >= charge) return `充足 ${balanceText}，本次扣 ${chargeText}`;
+  return `不足 ${balanceText}，本次扣 ${chargeText}，差 ${money(charge - method.balance, subscriptionCurrency)}`;
+}
+
+async function renewalBalanceText(subscription: Subscription): Promise<string> {
+  if (!subscription.subscriptionMethodId) return describeRenewalBalance(subscription, null);
+  const [method] = await db.select().from(schema.subscriptionMethods)
+    .where(eq(schema.subscriptionMethods.id, subscription.subscriptionMethodId))
+    .limit(1);
+  return describeRenewalBalance(subscription, method || null);
+}
+
+function withBalanceLine(template: string): string {
+  if (template.includes('{{balance}}') || !template.includes('时间: {{time}}')) return template;
+  return template.replace('时间: {{time}}', '余额: {{balance}}\n时间: {{time}}');
 }
 
 async function getConfigMap(): Promise<Record<string, string>> {
@@ -49,6 +108,7 @@ export function formatNotifyMessage(
   subscription: Subscription,
   config: Record<string, string>,
   now = new Date(),
+  balanceText = '未关联订阅方式',
 ): string {
   const timezone = isValidTimeZone(config.timezone) ? config.timezone : 'Asia/Shanghai';
   const expiryDate = normalizeDateOnly(subscription.expiryDate);
@@ -68,7 +128,7 @@ export function formatNotifyMessage(
                  diffDays === 0 ? '今天到期' :
                  `还有 ${diffDays} 天到期`;
 
-  const template = config.notify_template || '📋 订阅提醒\n━━━━━━━━━━━━━━\n名称: {{name}}\n类型: {{type}}\n到期: {{expiryDate}}\n状态: {{status}}\n剩余: {{daysLeft}} 天\n费用: {{price}}\n周期: {{period}}\n续费: {{autoRenew}}\n提醒: {{reminder}}\n农历: {{lunar}}\n备注: {{notes}}\n时间: {{time}}\n时区: {{timezone}}';
+  const template = withBalanceLine(config.notify_template || DEFAULT_NOTIFY_TEMPLATE);
 
   const unitMap: Record<string, string> = { day: '/天', month: '/月', year: '/年' };
   const periodUnitMap: Record<string, string> = { day: '天', month: '月', year: '年' };
@@ -93,6 +153,7 @@ export function formatNotifyMessage(
     .replace(/\{\{price\}\}/g, price)
     .replace(/\{\{period\}\}/g, period)
     .replace(/\{\{autoRenew\}\}/g, autoRenew)
+    .replace(/\{\{balance\}\}/g, balanceText)
     .replace(/\{\{reminder\}\}/g, reminder)
     .replace(/\{\{time\}\}/g, now.toLocaleString('zh-CN', { timeZone: timezone }))
     .replace(/\{\{timezone\}\}/g, timezone);
@@ -112,7 +173,7 @@ export async function sendNotification(
 
   const message = isTest
     ? `🔔 测试通知\n━━━━━━━━━━━━━━\n名称: ${subscription.name}\n这是一条测试通知，说明通知渠道配置正确。`
-    : formatNotifyMessage(subscription, config, now);
+    : formatNotifyMessage(subscription, config, now, await renewalBalanceText(subscription));
 
   let success = false;
 
@@ -227,7 +288,7 @@ export async function testTemplateNotification(channel: string, formConfig?: Rec
     currency: 'CNY',
   };
 
-  const message = formatNotifyMessage(mockSub, config, now);
+  const message = formatNotifyMessage(mockSub, config, now, '充足 ¥100.00，本次扣 ¥29.00');
 
   try {
     switch (channel) {
