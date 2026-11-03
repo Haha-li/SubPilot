@@ -59,14 +59,18 @@ export function buildSubscriptionMethodForecast(
   const mismatchCount = renewing.length - matching.length;
   let monthlyFee = 0;
   const events: MethodRenewalEvent[] = [];
-  for (const subscription of matching) {
+  for (const subscription of renewing) {
     const monthly = getGrossMonthlyCostInCurrency(subscription, currency);
-    if (Number.isFinite(monthly) && monthly > 0) monthlyFee += monthly;
+    if (!Number.isFinite(monthly)) {
+      monthlyFee = Number.NaN;
+      break;
+    }
+    if (monthly > 0) monthlyFee += monthly;
   }
 
   if (normalizedToday) {
     const limitDate = addDateOnlyPeriod(normalizedToday, FORECAST_YEARS, 'year');
-    for (const subscription of matching) {
+    for (const subscription of renewing) {
       const subscriptionPeriod = period(subscription);
       let projectedDate = normalizeDateOnly(subscription.expiryDate);
       if (!subscriptionPeriod || !projectedDate) continue;

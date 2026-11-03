@@ -14,6 +14,8 @@ import { useSystemConfigStore } from '../stores/systemConfig';
 import { getSymbol } from '../utils/currency';
 import { getDateOnlyInTimeZone } from '../utils/dateOnly';
 import { buildSubscriptionMethodForecast } from '../utils/subscriptionMethodForecast';
+import { getEstimatedRenewalCostInCurrency } from '../utils/renewalCenter';
+import type { Subscription } from '../stores/subscription';
 
 const props = defineProps<{ method: SubscriptionMethod }>();
 const emit = defineEmits<{
@@ -60,6 +62,12 @@ function monthsText() {
 
 function nextEvent(subscriptionId: number) {
   return forecast.value.events.find((event) => event.subscriptionId === subscriptionId);
+}
+
+function ownChargeText(subscription: Subscription): string {
+  const currency = (subscription.currency || 'CNY').toUpperCase();
+  const amount = getEstimatedRenewalCostInCurrency(subscription, currency);
+  return Number.isFinite(amount) && amount > 0 ? money(amount, currency) : '';
 }
 
 function logType(type: SubscriptionMethodLog['type']) {
@@ -134,7 +142,7 @@ watch(() => props.method.id, async (id) => {
           <div class="bento-card p-4">
             <p class="text-xs text-ink-500 dark:text-ink-400">预计用完</p>
             <p class="font-mono-nums mt-1 text-sm font-bold text-ink-900 dark:text-ink-50">{{ forecast.exhaustionDate || '暂无' }}</p>
-            <p v-if="forecast.mismatchCount" class="mt-1 text-xs text-warning">{{ forecast.mismatchCount }} 个币种不一致</p>
+            <p v-if="forecast.mismatchCount" class="mt-1 text-xs text-ink-400">{{ forecast.mismatchCount }} 个按当天汇率折算</p>
           </div>
         </section>
 
@@ -150,12 +158,13 @@ watch(() => props.method.id, async (id) => {
                   <p class="mt-1 text-xs text-ink-500 dark:text-ink-400">{{ subscription.expiryDate }} · {{ subscription.isActive ? '启用' : '停用' }}</p>
                 </div>
                 <div class="flex-shrink-0 text-right text-xs">
-                  <template v-if="nextEvent(subscription.id)">
-                    <p class="font-mono-nums font-semibold text-ink-800 dark:text-ink-100">{{ money(nextEvent(subscription.id)!.amount) }}</p>
-                    <p class="mt-1 text-ink-400">{{ nextEvent(subscription.id)!.date }}</p>
+                  <template v-if="ownChargeText(subscription) && subscription.autoRenew">
+                    <p class="font-mono-nums font-semibold text-ink-800 dark:text-ink-100">{{ ownChargeText(subscription) }}</p>
+                    <p v-if="nextEvent(subscription.id)" class="mt-1 text-ink-400">{{ nextEvent(subscription.id)!.date }}</p>
+                    <p v-else class="mt-1 text-warning">汇率缺失，暂不计入</p>
                   </template>
                   <span v-else-if="subscription.isActive && !subscription.autoRenew" class="text-ink-400">不自动续费</span>
-                  <span v-else-if="subscription.isActive" class="text-warning">币种不一致或免费</span>
+                  <span v-else-if="subscription.isActive" class="text-ink-400">免费</span>
                 </div>
               </div>
             </div>

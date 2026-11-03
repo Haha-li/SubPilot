@@ -73,4 +73,6 @@ test('余额不足和币种不一致会被识别', () => {
   );
   assert.equal(forecast.status, 'insufficient');
   assert.equal(forecast.mismatchCount, 1);
+  assert.equal(forecast.monthlyFee, 100 + 100 * 7.25);
+  assert.equal(forecast.nextChargeAmount, 100 + 100 * 7.25);
 });

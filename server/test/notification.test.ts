@@ -52,8 +52,12 @@ test('到期提醒同时说明这笔续费扣得起扣不起', () => {
   );
   assert.equal(describeRenewalBalance(paid, { balance: null, balanceCurrency: 'CNY' }), '未记录余额');
   assert.equal(
+    describeRenewalBalance(paid, { balance: 100, balanceCurrency: 'USD' }, 30 / 7.25),
+    '充足 $100.00，本次扣 ¥30.00 ≈ $4.14',
+  );
+  assert.equal(
     describeRenewalBalance(paid, { balance: 100, balanceCurrency: 'USD' }),
-    '币种不一致，不自动扣款',
+    '汇率缺失，暂不扣款',
   );
   assert.equal(describeRenewalBalance(subscription, null), '不自动续费，不扣款');
   assert.equal(

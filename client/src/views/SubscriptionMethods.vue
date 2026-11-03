@@ -103,7 +103,11 @@ function activeCount(id: number) {
 
 function monthsLeftText(item: SubscriptionMethod): string {
   const forecast = methodForecast(item);
-  if (forecast.monthsLeft === null) return forecast.status === 'unrecorded' ? '未记录余额' : '暂无每月支出';
+  if (forecast.monthsLeft === null) {
+    if (forecast.status === 'unrecorded') return '未记录余额';
+    if (forecast.monthlyFee > 0 && forecast.mismatchCount > 0) return '汇率缺失，未计入扣款';
+    return '暂无每月支出';
+  }
   const months = Math.floor(forecast.monthsLeft * 10) / 10;
   const text = Number.isInteger(months) ? String(months) : months.toFixed(1);
   return forecast.exhaustionDate
@@ -320,7 +324,7 @@ onMounted(async () => {
             <p class="text-xs text-ink-500 dark:text-ink-400">账户余额</p>
             <p class="font-mono-nums mt-1 truncate text-lg font-bold text-ink-900 dark:text-ink-50">{{ balanceText(item) }}</p>
           </div>
-          <div class="rounded-xl bg-brand-50/80 px-3 py-3 dark:bg-brand-500/10" title="按订阅里的费用折成每月，不含非自己付费">
+          <div class="rounded-xl bg-brand-50/80 px-3 py-3 dark:bg-brand-500/10" title="按订阅费用折成每月，币种不同时换算成余额币种，不含非自己付费">
             <p class="text-xs text-ink-500 dark:text-ink-400">每月支出</p>
             <p class="font-mono-nums mt-1 truncate text-lg font-bold text-ink-900 dark:text-ink-50">{{ moneyText(methodForecast(item).monthlyFee, item.balanceCurrency || 'CNY') }}</p>
           </div>

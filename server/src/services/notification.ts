@@ -9,6 +9,7 @@ import { sendEmail } from './notifiers/email';
 import { sendNotifyX } from './notifiers/notifyx';
 import { sendPushPlus } from './notifiers/pushplus';
 import { getCurrencySymbol } from '../utils/currency';
+import { convertToCurrency } from '../utils/exchangeRate';
 import { getRenewalCharge } from '../utils/renewalCharge';
 import {
   addDateOnlyPeriod,
@@ -70,6 +71,7 @@ function money(amount: number, currency: string): string {
 export function describeRenewalBalance(
   subscription: Subscription,
   method: BalanceMethod | null,
+  chargeInBalanceCurrency?: number,
 ): string {
   if (!subscription.autoRenew) return '不自动续费，不扣款';
   if (!method) return '未关联订阅方式';
@@ -78,11 +80,15 @@ export function describeRenewalBalance(
   if (charge <= 0) return '本次不扣款';
   const balanceCurrency = (method.balanceCurrency || 'CNY').toUpperCase();
   const subscriptionCurrency = (subscription.currency || 'CNY').toUpperCase();
-  if (balanceCurrency !== subscriptionCurrency) return '币种不一致，不自动扣款';
+  const sameCurrency = balanceCurrency === subscriptionCurrency;
+  const due = sameCurrency ? charge : chargeInBalanceCurrency;
+  if (due === undefined || !Number.isFinite(due) || due <= 0) return '汇率缺失，暂不扣款';
   const balanceText = money(method.balance, balanceCurrency);
-  const chargeText = money(charge, subscriptionCurrency);
-  if (method.balance >= charge) return `充足 ${balanceText}，本次扣 ${chargeText}`;
-  return `不足 ${balanceText}，本次扣 ${chargeText}，差 ${money(charge - method.balance, subscriptionCurrency)}`;
+  const chargeText = sameCurrency
+    ? money(charge, subscriptionCurrency)
+    : `${money(charge, subscriptionCurrency)} ≈ ${money(due, balanceCurrency)}`;
+  if (method.balance >= due) return `充足 ${balanceText}，本次扣 ${chargeText}`;
+  return `不足 ${balanceText}，本次扣 ${chargeText}，差 ${money(due - method.balance, balanceCurrency)}`;
 }
 
 async function renewalBalanceText(subscription: Subscription): Promise<string> {
@@ -90,7 +96,14 @@ async function renewalBalanceText(subscription: Subscription): Promise<string> {
   const [method] = await db.select().from(schema.subscriptionMethods)
     .where(eq(schema.subscriptionMethods.id, subscription.subscriptionMethodId))
     .limit(1);
-  return describeRenewalBalance(subscription, method || null);
+  if (!method) return describeRenewalBalance(subscription, null);
+  const balanceCurrency = String(method.balanceCurrency || 'CNY').toUpperCase();
+  const subscriptionCurrency = String(subscription.currency || 'CNY').toUpperCase();
+  const charge = getRenewalCharge(subscription, 1);
+  const converted = balanceCurrency === subscriptionCurrency
+    ? charge
+    : await convertToCurrency(charge, subscriptionCurrency, balanceCurrency);
+  return describeRenewalBalance(subscription, method, converted);
 }
 
 function withBalanceLine(template: string): string {

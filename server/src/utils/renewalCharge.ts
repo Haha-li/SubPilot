@@ -1,4 +1,5 @@
 import { db, schema } from '../db';
+import { convertToCurrency } from './exchangeRate';
 
 const MONTHS_PER_YEAR = 12;
 const DAYS_PER_MONTH = 30;
@@ -83,7 +84,7 @@ export async function collectBalanceChanges(
   const needed = items.filter((item) => item.subscription.subscriptionMethodId);
   if (needed.length === 0) return { updates: [], logs: [] };
   const rows = await db.select().from(schema.subscriptionMethods);
-  // ponytail: 币种不一致不折算，服务端没有汇率；同一次续费按顺序累计余额
+  // ponytail: 同一次续费按顺序累计；币种不同按扣款时刻的汇率折成余额币种
   const methods = Array.isArray(rows) ? rows : [];
   const methodsById = new Map<number, any>(methods.map((item: any) => [item.id, item]));
   const balances = new Map<number, number>();
@@ -94,20 +95,26 @@ export async function collectBalanceChanges(
     if (!method || typeof method.balance !== 'number' || !Number.isFinite(method.balance)) continue;
     const methodCurrency = String(method.balanceCurrency || 'CNY').toUpperCase();
     const subscriptionCurrency = String(item.subscription.currency || 'CNY').toUpperCase();
-    if (methodCurrency !== subscriptionCurrency) continue;
     const charge = getRenewalCharge(item.subscription, item.periods);
     if (charge <= 0) continue;
+    const converted = methodCurrency === subscriptionCurrency
+      ? charge
+      : roundMoney(await convertToCurrency(charge, subscriptionCurrency, methodCurrency, new Date(createdAt)));
+    if (!Number.isFinite(converted) || converted <= 0) continue;
     const beforeBalance = balances.get(methodId) ?? method.balance;
-    const afterBalance = roundMoney(beforeBalance - charge);
+    const afterBalance = roundMoney(beforeBalance - converted);
     balances.set(methodId, afterBalance);
+    const name = item.subscription.name ? `${item.subscription.name} 续费` : '订阅续费';
     logs.push({
       subscriptionMethodId: methodId,
       subscriptionId: item.subscription.id || null,
       type,
-      amount: -charge,
+      amount: -converted,
       beforeBalance,
       afterBalance,
-      note: item.subscription.name ? `${item.subscription.name} 续费` : '订阅续费',
+      note: methodCurrency === subscriptionCurrency
+        ? name
+        : `${name} ${charge} ${subscriptionCurrency} ≈ ${converted} ${methodCurrency}`,
       createdAt,
     });
   }

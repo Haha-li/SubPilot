@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { schema, setDb } from '../src/db';
 import { batchRenewalsHandler, renewSubscriptionHandler } from '../src/handlers/renewals';
+import { setRateLoader } from '../src/utils/exchangeRate';
 import { getRenewalCharge } from '../src/utils/renewalCharge';
 
 function createDb(subscriptions: any[], methods: any[]) {
@@ -71,14 +72,21 @@ test('手动续费和批量续费扣除同币种余额', async () => {
   assert.equal(balanceLogs[0].amount, -200);
 });
 
-test('币种不同或未记录余额时不扣除', async () => {
+test('币种不同按当天汇率扣除，未记录余额不扣除', async () => {
   const mismatch = [{ id: 2, balance: 500, balanceCurrency: 'USD' }];
-  createDb([{
+  const balanceLogs = createDb([{
     id: 2, name: '不同币种', expiryDate: '2026-01-31', periodValue: 1, periodUnit: 'month',
     price: 100, priceUnit: 'month', currency: 'CNY', subscriptionMethodId: 2,
   }], mismatch);
-  assert.equal((await renewSubscriptionHandler(2, { periods: 1 })).status, 200);
-  assert.equal(mismatch[0].balance, 500);
+  setRateLoader(async () => ({ CNY: 1, USD: 7.25 }));
+  try {
+    assert.equal((await renewSubscriptionHandler(2, { periods: 1 })).status, 200);
+    assert.equal(mismatch[0].balance, 486.21);
+    assert.equal(balanceLogs[0].amount, -13.79);
+    assert.match(balanceLogs[0].note, /100 CNY ≈ 13.79 USD/);
+  } finally {
+    setRateLoader(null);
+  }
 
   const unrecorded = [{ id: 3, balance: null, balanceCurrency: 'CNY' }];
   createDb([{
