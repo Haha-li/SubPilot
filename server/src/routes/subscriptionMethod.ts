@@ -6,6 +6,7 @@ import {
   deleteSubscriptionMethodHandler,
   listSubscriptionMethodLogsHandler,
   listSubscriptionMethodsHandler,
+  setSubscriptionMethodSubscriptionsHandler,
   updateSubscriptionMethodHandler,
 } from '../handlers/subscriptionMethod';
 
@@ -28,6 +29,11 @@ router.get('/:id/logs', authMiddleware, async (req: AuthRequest, res: Response) 
 
 router.post('/:id/adjust', authMiddleware, async (req: AuthRequest, res: Response) => {
   const result = await adjustSubscriptionMethodBalanceHandler(Number(req.params.id), req.body);
+  res.status(result.status).json(result.body);
+});
+
+router.put('/:id/subscriptions', authMiddleware, async (req: AuthRequest, res: Response) => {
+  const result = await setSubscriptionMethodSubscriptionsHandler(Number(req.params.id), req.body);
   res.status(result.status).json(result.body);
 });
 

@@ -7,6 +7,7 @@ import {
   deleteSubscriptionMethodHandler,
   listSubscriptionMethodLogsHandler,
   listSubscriptionMethodsHandler,
+  setSubscriptionMethodSubscriptionsHandler,
   updateSubscriptionMethodHandler,
 } from '../../handlers/subscriptionMethod';
 
@@ -29,6 +30,14 @@ methods.get('/:id/logs', honoAuth, async (c) => {
 
 methods.post('/:id/adjust', honoAuth, async (c) => {
   const result = await adjustSubscriptionMethodBalanceHandler(
+    Number(c.req.param('id')),
+    await c.req.json(),
+  );
+  return c.json(result.body, result.status as any);
+});
+
+methods.put('/:id/subscriptions', honoAuth, async (c) => {
+  const result = await setSubscriptionMethodSubscriptionsHandler(
     Number(c.req.param('id')),
     await c.req.json(),
   );

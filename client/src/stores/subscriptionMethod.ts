@@ -84,6 +84,11 @@ export const useSubscriptionMethodStore = defineStore('subscriptionMethod', () =
     return data;
   }
 
+  async function setSubscriptions(id: number, subscriptionIds: number[]) {
+    const { data } = await api.put(`/subscription-methods/${id}/subscriptions`, { subscriptionIds });
+    return data;
+  }
+
   async function deleteItem(id: number) {
     const { data } = await api.delete(`/subscription-methods/${id}`);
     if (data.success) items.value = items.value.filter((item) => item.id !== id);
@@ -92,6 +97,6 @@ export const useSubscriptionMethodStore = defineStore('subscriptionMethod', () =
 
   return {
     items, loading,
-    fetchItems, createItem, updateItem, adjustBalance, fetchLogs, deleteItem,
+    fetchItems, createItem, updateItem, adjustBalance, fetchLogs, setSubscriptions, deleteItem,
   };
 });

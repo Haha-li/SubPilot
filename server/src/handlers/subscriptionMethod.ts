@@ -142,6 +142,41 @@ export async function updateSubscriptionMethodHandler(id: number, body: any) {
   }
 }
 
+export async function setSubscriptionMethodSubscriptionsHandler(id: number, body: any) {
+  try {
+    const methodRows = await db.select().from(schema.subscriptionMethods);
+    if (!methodRows.some((item: any) => item.id === id)) {
+      return { status: 404, body: { success: false, message: '订阅方式不存在' } };
+    }
+    if (!Array.isArray(body?.subscriptionIds)) {
+      return { status: 400, body: { success: false, message: 'subscriptionIds 必须是数组' } };
+    }
+    const ids = [...new Set<number>(body.subscriptionIds.map((value: unknown) => Number(value)))];
+    if (ids.some((value) => !Number.isSafeInteger(value) || value <= 0)) {
+      return { status: 400, body: { success: false, message: '订阅 ID 无效' } };
+    }
+    const subscriptions = await db.select().from(schema.subscriptions);
+    const existingIds = new Set(subscriptions.map((item: any) => item.id));
+    if (ids.some((value) => !existingIds.has(value))) {
+      return { status: 400, body: { success: false, message: '包含不存在的订阅' } };
+    }
+    const selected = new Set(ids);
+    const now = new Date().toISOString();
+    const changed = subscriptions.filter((item: any) => (
+      selected.has(item.id) ? item.subscriptionMethodId !== id : item.subscriptionMethodId === id
+    ));
+    await executeStatementsAtomically((executor) => changed.map((item: any) => (
+      executor.update(schema.subscriptions).set({
+        subscriptionMethodId: selected.has(item.id) ? id : null,
+        updatedAt: now,
+      }).where(eq(schema.subscriptions.id, item.id))
+    )));
+    return { status: 200, body: { success: true, linkedCount: ids.length } };
+  } catch (error: any) {
+    return { status: 500, body: { success: false, message: error.message } };
+  }
+}
+
 export async function listSubscriptionMethodLogsHandler(id: number) {
   try {
     const methods = await db.select().from(schema.subscriptionMethods);

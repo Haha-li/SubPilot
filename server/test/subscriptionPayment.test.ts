@@ -13,6 +13,7 @@ import {
   createSubscriptionMethodHandler,
   deleteSubscriptionMethodHandler,
   listSubscriptionMethodLogsHandler,
+  setSubscriptionMethodSubscriptionsHandler,
   updateSubscriptionMethodHandler,
 } from '../src/handlers/subscriptionMethod';
 
@@ -123,6 +124,17 @@ test('订阅只保存所选订阅方式，方式本身集中维护', async () =>
     subscriptionMethodId: database.methods[0].id,
   });
   assert.equal(created.status, 200);
+  assert.equal(database.subscriptions[0].subscriptionMethodId, database.methods[0].id);
+
+  const unlinked = await setSubscriptionMethodSubscriptionsHandler(database.methods[0].id, {
+    subscriptionIds: [],
+  });
+  assert.equal(unlinked.status, 200);
+  assert.equal(database.subscriptions[0].subscriptionMethodId, null);
+  const relinked = await setSubscriptionMethodSubscriptionsHandler(database.methods[0].id, {
+    subscriptionIds: [database.subscriptions[0].id],
+  });
+  assert.equal(relinked.status, 200);
   assert.equal(database.subscriptions[0].subscriptionMethodId, database.methods[0].id);
 
   const updated = await updateSubscriptionHandler(database.subscriptions[0].id, { notes: '保留方式' });

@@ -31,6 +31,7 @@ const editing = ref<SubscriptionMethod | null>(null);
 const copying = ref(false);
 const copyBalance = ref(false);
 const copySourceBalance = ref<number | null>(null);
+const selectedSubscriptionIds = ref<number[]>([]);
 const saving = ref(false);
 const adjustmentVisible = ref(false);
 const adjusting = ref<SubscriptionMethod | null>(null);
@@ -54,6 +55,9 @@ const adjustedBalance = computed(() => {
   const amount = adjustmentAmount.value === '' ? 0 : Math.round(Number(adjustmentAmount.value) * 100) / 100;
   return Number.isFinite(amount) ? Math.round((current + amount) * 100) / 100 : current;
 });
+const subscriptionOptions = computed(() => [...subscriptionStore.subscriptions].sort((left, right) => (
+  Number(right.isActive) - Number(left.isActive) || left.name.localeCompare(right.name, 'zh-CN')
+)));
 
 function emptyForm() {
   return {
@@ -86,6 +90,15 @@ watch(keyword, () => { currentPage.value = 1; });
 
 function subscriptionsFor(id: number) {
   return subscriptionStore.subscriptions.filter((item) => item.subscriptionMethodId === id);
+}
+
+function subscriptionOptionLabel(subscription: (typeof subscriptionOptions.value)[number]) {
+  const linkedMethod = methodStore.items.find((item) => item.id === subscription.subscriptionMethodId);
+  const status = subscription.isActive ? '' : '（已停用）';
+  const linked = linkedMethod && linkedMethod.id !== editing.value?.id
+    ? ` · 已关联 ${linkedMethod.name}`
+    : '';
+  return `${subscription.name}${status}${linked}`;
 }
 
 function methodForecast(item: SubscriptionMethod) {
@@ -158,6 +171,7 @@ function openAdd() {
   editing.value = null;
   copying.value = false;
   copyBalance.value = false;
+  selectedSubscriptionIds.value = [];
   form.value = emptyForm();
   showModal.value = true;
 }
@@ -167,6 +181,7 @@ function openEdit(item: SubscriptionMethod) {
   editing.value = item;
   copying.value = false;
   copyBalance.value = false;
+  selectedSubscriptionIds.value = subscriptionsFor(item.id).map((subscription) => subscription.id);
   form.value = formFrom(item);
   showModal.value = true;
 }
@@ -176,6 +191,7 @@ function openCopy(item: SubscriptionMethod) {
   editing.value = null;
   copying.value = true;
   copyBalance.value = false;
+  selectedSubscriptionIds.value = [];
   copySourceBalance.value = item.balance;
   form.value = { ...formFrom(item), name: `${item.name} 副本`, balance: null };
   showModal.value = true;
@@ -208,14 +224,17 @@ async function save() {
   }
   const payload = {
     ...form.value,
-    balance: copying.value && !copyBalance.value
-      ? null
-      : form.value.balance === '' ? null : form.value.balance,
+    balance: form.value.balance === '' ? null : form.value.balance,
   };
   saving.value = true;
   try {
-    if (editing.value) await methodStore.updateItem(editing.value.id, payload);
-    else await methodStore.createItem(payload);
+    const result = editing.value
+      ? await methodStore.updateItem(editing.value.id, payload)
+      : await methodStore.createItem(payload);
+    const methodId = editing.value?.id || result.subscriptionMethod?.id;
+    if (!methodId) throw new Error('无法确认订阅方式 ID');
+    await methodStore.setSubscriptions(methodId, selectedSubscriptionIds.value);
+    await subscriptionStore.fetchSubscriptions();
     showModal.value = false;
     ElMessage.success(editing.value ? '已更新订阅方式' : copying.value ? '已复制订阅方式' : '已添加订阅方式');
   } catch (error: any) {
@@ -417,12 +436,32 @@ onMounted(async () => {
             <CurrencySelect v-model="form.balanceCurrency" width="132px" aria-label="余额币种" :disabled="balanceLocked" />
           </div>
         </div>
+        <div class="md:col-span-2">
+          <label class="mb-1 block text-xs font-medium text-ink-700 dark:text-ink-200">关联订阅</label>
+          <el-select
+            v-model="selectedSubscriptionIds"
+            multiple
+            filterable
+            collapse-tags
+            collapse-tags-tooltip
+            placeholder="选择要使用此方式的订阅"
+            class="w-full"
+          >
+            <el-option
+              v-for="subscription in subscriptionOptions"
+              :key="subscription.id"
+              :label="subscriptionOptionLabel(subscription)"
+              :value="subscription.id"
+            />
+          </el-select>
+          <p class="mt-1 text-xs text-ink-400">已关联其他方式的订阅被选中后，会改绑到当前方式。</p>
+        </div>
         <div v-if="copying" class="md:col-span-2 rounded-xl bg-ink-50/70 px-3 py-2 dark:bg-ink-800/30">
           <label class="flex cursor-pointer items-center justify-between gap-3 text-sm text-ink-700 dark:text-ink-200">
-            <span>复制当前余额</span>
+            <span>带入原余额</span>
             <el-switch v-model="copyBalance" @change="form.balance = copyBalance ? copySourceBalance : null" />
           </label>
-          <p class="mt-1 text-xs text-ink-400">默认不复制余额，只复制渠道、账号等配置。</p>
+          <p class="mt-1 text-xs text-ink-400">默认不带入原余额；也可以在上方手动填写新余额。</p>
         </div>
         <div v-if="editing" class="md:col-span-2 text-xs text-ink-400">余额请使用“调整余额”保留流水。已记录余额后不能改币种。</div>
         <div class="md:col-span-2">
