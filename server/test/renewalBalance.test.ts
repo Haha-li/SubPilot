@@ -5,6 +5,7 @@ import { batchRenewalsHandler, renewSubscriptionHandler } from '../src/handlers/
 import { getRenewalCharge } from '../src/utils/renewalCharge';
 
 function createDb(subscriptions: any[], methods: any[]) {
+  const balanceLogs: any[] = [];
   setDb({
     select: () => ({
       from: (table: unknown) => {
@@ -27,8 +28,13 @@ function createDb(subscriptions: any[], methods: any[]) {
         },
       }),
     }),
-    insert: () => ({ values: async () => undefined }),
+    insert: (table: unknown) => ({
+      values: async (value: any) => {
+        if (table === schema.subscriptionMethodLogs) balanceLogs.push(value);
+      },
+    }),
   });
+  return balanceLogs;
 }
 
 test('续费只按周期费用扣，不看非自己付费', () => {
@@ -50,7 +56,7 @@ test('手动续费和批量续费扣除同币种余额', async () => {
       price: 10, priceUnit: 'month', currency: 'CNY', subscriptionMethodId: 1,
     },
   ];
-  createDb(subscriptions, methods);
+  const balanceLogs = createDb(subscriptions, methods);
 
   assert.equal((await renewSubscriptionHandler(1, { periods: 2 })).status, 200);
   assert.equal(methods[0].balance, 300);
@@ -60,6 +66,9 @@ test('手动续费和批量续费扣除同币种余额', async () => {
     items: [{ id: 2, periods: 1 }],
   })).status, 200);
   assert.equal(methods[0].balance, 180);
+  assert.equal(balanceLogs.length, 2);
+  assert.equal(balanceLogs[0].type, 'manual_renewal');
+  assert.equal(balanceLogs[0].amount, -200);
 });
 
 test('币种不同或未记录余额时不扣除', async () => {

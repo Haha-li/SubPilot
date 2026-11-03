@@ -20,6 +20,19 @@ export type SubscriptionMethodPayload = Pick<
   'name' | 'channel' | 'paymentMethod' | 'account' | 'balance' | 'balanceCurrency' | 'paymentReference'
 >;
 
+export interface SubscriptionMethodLog {
+  id: number;
+  subscriptionMethodId: number;
+  subscriptionId: number | null;
+  subscriptionName: string;
+  type: 'initial' | 'manual_adjustment' | 'manual_renewal' | 'automatic_renewal';
+  amount: number;
+  beforeBalance: number;
+  afterBalance: number;
+  note: string;
+  createdAt: string;
+}
+
 export const useSubscriptionMethodStore = defineStore('subscriptionMethod', () => {
   const items = ref<SubscriptionMethod[]>([]);
   const loading = ref(false);
@@ -56,11 +69,29 @@ export const useSubscriptionMethodStore = defineStore('subscriptionMethod', () =
     return data;
   }
 
+  async function adjustBalance(id: number, amount: number, note = '') {
+    const { data } = await api.post(`/subscription-methods/${id}/adjust`, { amount, note });
+    if (data.success && data.subscriptionMethod) {
+      items.value = sortItems(items.value.map((item) => (
+        item.id === id ? data.subscriptionMethod : item
+      )));
+    }
+    return data;
+  }
+
+  async function fetchLogs(id: number): Promise<SubscriptionMethodLog[]> {
+    const { data } = await api.get(`/subscription-methods/${id}/logs`);
+    return data;
+  }
+
   async function deleteItem(id: number) {
     const { data } = await api.delete(`/subscription-methods/${id}`);
     if (data.success) items.value = items.value.filter((item) => item.id !== id);
     return data;
   }
 
-  return { items, loading, fetchItems, createItem, updateItem, deleteItem };
+  return {
+    items, loading,
+    fetchItems, createItem, updateItem, adjustBalance, fetchLogs, deleteItem,
+  };
 });

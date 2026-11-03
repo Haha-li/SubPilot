@@ -51,6 +51,18 @@ export const subscriptionMethods = sqliteTable('subscription_methods', {
   updatedAt: text('updated_at').notNull().default(new Date().toISOString()),
 });
 
+export const subscriptionMethodLogs = sqliteTable('subscription_method_logs', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  subscriptionMethodId: integer('subscription_method_id').notNull(),
+  subscriptionId: integer('subscription_id'),
+  type: text('type').notNull(),
+  amount: real('amount').notNull(),
+  beforeBalance: real('before_balance').notNull(),
+  afterBalance: real('after_balance').notNull(),
+  note: text('note').notNull().default(''),
+  createdAt: text('created_at').notNull().default(new Date().toISOString()),
+});
+
 export const commonSubscriptions = sqliteTable('common_subscriptions', {
   id: integer('id').primaryKey({ autoIncrement: true }),
   name: text('name').notNull().unique(),

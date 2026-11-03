@@ -8,11 +8,13 @@ const props = withDefaults(defineProps<{
   size?: 'large' | 'default' | 'small';
   placeholder?: string;
   ariaLabel?: string;
+  disabled?: boolean;
 }>(), {
   width: '128px',
   size: 'default',
   placeholder: '选择币种',
   ariaLabel: '币种',
+  disabled: false,
 });
 
 const emit = defineEmits<{
@@ -46,6 +48,7 @@ function handleVisibleChange(visible: boolean) {
     :size="size"
     :placeholder="placeholder"
     :aria-label="ariaLabel"
+    :disabled="disabled"
     no-match-text="无匹配币种"
     @visible-change="handleVisibleChange"
   >

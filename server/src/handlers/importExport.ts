@@ -15,7 +15,7 @@ import {
   normalizeDateOnly,
 } from '../utils/dateOnly';
 
-const BACKUP_VERSION = 4;
+const BACKUP_VERSION = 5;
 const MAX_IMPORT_BYTES = 10 * 1024 * 1024;
 const MAX_IMPORT_ROWS = 10000;
 const MAX_REPORTED_ERRORS = 100;
@@ -23,6 +23,7 @@ const BOOLEAN_TRUE_VALUES = new Set(['1', 'true', 'yes', 'on']);
 const BOOLEAN_FALSE_VALUES = new Set(['0', 'false', 'no', 'off']);
 const REMINDER_UNITS = new Set(['day', 'hour']);
 const RENEWAL_SOURCES = new Set(['manual', 'automatic']);
+const METHOD_LOG_TYPES = new Set(['initial', 'manual_adjustment', 'manual_renewal', 'automatic_renewal']);
 
 const SUBSCRIPTION_FIELDS = [
   'name', 'customType', 'category', 'startDate', 'expiryDate',
@@ -52,6 +53,7 @@ interface ParsedImportData {
   subscriptions: unknown[];
   renewalLogs: unknown[];
   subscriptionMethods: unknown[];
+  subscriptionMethodLogs: unknown[];
   version: number;
 }
 
@@ -177,7 +179,7 @@ function parseJSON(text: string): ParsedImportData {
   }
 
   if (Array.isArray(parsed)) {
-    return { subscriptions: parsed, renewalLogs: [], subscriptionMethods: [], version: 1 };
+    return { subscriptions: parsed, renewalLogs: [], subscriptionMethods: [], subscriptionMethodLogs: [], version: 1 };
   }
   if (!parsed || typeof parsed !== 'object') {
     throw new ImportValidationError('JSON 格式必须是订阅数组或备份对象');
@@ -200,10 +202,14 @@ function parseJSON(text: string): ParsedImportData {
   if (backup.subscriptionMethods !== undefined && !Array.isArray(backup.subscriptionMethods)) {
     throw new ImportValidationError('subscriptionMethods 必须是数组');
   }
+  if (backup.subscriptionMethodLogs !== undefined && !Array.isArray(backup.subscriptionMethodLogs)) {
+    throw new ImportValidationError('subscriptionMethodLogs 必须是数组');
+  }
   return {
     subscriptions: backup.subscriptions,
     renewalLogs: (backup.renewalLogs as unknown[] | undefined) || [],
     subscriptionMethods: (backup.subscriptionMethods as unknown[] | undefined) || [],
+    subscriptionMethodLogs: (backup.subscriptionMethodLogs as unknown[] | undefined) || [],
     version,
   };
 }
@@ -263,6 +269,15 @@ function normalizeOptionalAmount(value: unknown, field: string): number | null {
     throw new ImportValidationError(`${field} 必须是非负数`);
   }
   return normalizeAmount(value, field);
+}
+
+function normalizeFiniteAmount(value: unknown, field: string): number {
+  if (typeof value !== 'number' && typeof value !== 'string') {
+    throw new ImportValidationError(`${field} 必须是数字`);
+  }
+  const number = typeof value === 'number' ? value : Number(value);
+  if (!Number.isFinite(number)) throw new ImportValidationError(`${field} 必须是数字`);
+  return number;
 }
 
 function normalizeTimestamp(value: unknown, fallback: string, field: string): string {
@@ -483,6 +498,43 @@ function fingerprintRenewalLog(value: ImportRecord): string {
   ]);
 }
 
+function normalizeMethodLog(
+  value: unknown,
+  subscriptionMethodId: number,
+  subscriptionId: number | null,
+  fallbackNow: string,
+): ImportRecord {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    throw new ImportValidationError('余额流水必须是对象');
+  }
+  const row = value as ImportRecord;
+  const type = normalizeString(row.type, 'type', { required: true });
+  if (!METHOD_LOG_TYPES.has(type)) throw new ImportValidationError('余额流水 type 无效');
+  return {
+    subscriptionMethodId,
+    subscriptionId,
+    type,
+    amount: normalizeFiniteAmount(row.amount, 'amount'),
+    beforeBalance: normalizeFiniteAmount(row.beforeBalance, 'beforeBalance'),
+    afterBalance: normalizeFiniteAmount(row.afterBalance, 'afterBalance'),
+    note: normalizeString(row.note, 'note', { maxLength: 500, trim: false }),
+    createdAt: normalizeTimestamp(row.createdAt, fallbackNow, 'createdAt'),
+  };
+}
+
+function fingerprintMethodLog(value: ImportRecord): string {
+  return JSON.stringify([
+    value.subscriptionMethodId,
+    value.subscriptionId || null,
+    value.type,
+    value.amount,
+    value.beforeBalance,
+    value.afterBalance,
+    value.note || '',
+    value.createdAt,
+  ]);
+}
+
 function createBackupSubscription(row: ImportRecord): ImportRecord {
   const item: ImportRecord = { backupId: row.id };
   for (const field of SUBSCRIPTION_FIELDS) item[field] = row[field] ?? null;
@@ -544,6 +596,7 @@ export async function exportSubscriptionsHandler(query: any) {
     }
 
     const renewalLogs = await db.select().from(schema.renewalLogs);
+    const methodLogs = await db.select().from(schema.subscriptionMethodLogs);
     const backup = {
       format: 'subpilot-backup',
       version: BACKUP_VERSION,
@@ -563,6 +616,16 @@ export async function exportSubscriptionsHandler(query: any) {
         subscriptionMethodName: row.subscriptionMethodName || null,
       })),
       renewalLogs: renewalLogs.map(createBackupRenewalLog),
+      subscriptionMethodLogs: methodLogs.map((row: any) => ({
+        subscriptionMethodName: methodNameById.get(row.subscriptionMethodId) || '',
+        subscriptionBackupId: row.subscriptionId,
+        type: row.type,
+        amount: row.amount,
+        beforeBalance: row.beforeBalance,
+        afterBalance: row.afterBalance,
+        note: row.note || '',
+        createdAt: row.createdAt,
+      })),
     };
     return {
       status: 200,
@@ -596,7 +659,7 @@ export async function importSubscriptionsHandler(body: any) {
   let parsed: ParsedImportData;
   try {
     parsed = format === 'csv'
-      ? { subscriptions: parseCSV(data), renewalLogs: [], subscriptionMethods: [], version: BACKUP_VERSION }
+      ? { subscriptions: parseCSV(data), renewalLogs: [], subscriptionMethods: [], subscriptionMethodLogs: [], version: BACKUP_VERSION }
       : parseJSON(data);
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
@@ -610,6 +673,9 @@ export async function importSubscriptionsHandler(body: any) {
   }
   if (parsed.renewalLogs.length > MAX_IMPORT_ROWS * 10) {
     return { status: 413, body: { success: false, message: '续费历史记录数量过多' } };
+  }
+  if (parsed.subscriptionMethodLogs.length > MAX_IMPORT_ROWS * 20) {
+    return { status: 413, body: { success: false, message: '余额流水记录数量过多' } };
   }
 
   const now = new Date().toISOString();
@@ -686,6 +752,8 @@ export async function importSubscriptionsHandler(body: any) {
   const insertedIds: number[] = [];
   let renewalLogsImported = 0;
   let renewalLogsSkipped = 0;
+  let methodLogsImported = 0;
+  let methodLogsSkipped = 0;
   try {
     for (const row of rowsToInsert) {
       const subscriptionMethodId = row.methodPayload
@@ -744,6 +812,53 @@ export async function importSubscriptionsHandler(body: any) {
         addError(errors, `续费记录 ${index + 1}: ${message}`);
       }
     }
+
+    const existingMethodLogs = parsed.subscriptionMethodLogs.length > 0
+      ? await db.select().from(schema.subscriptionMethodLogs)
+      : [];
+    const methodLogFingerprints = new Set(
+      (existingMethodLogs as ImportRecord[]).map(fingerprintMethodLog),
+    );
+    for (let index = 0; index < parsed.subscriptionMethodLogs.length; index += 1) {
+      const rawLog = parsed.subscriptionMethodLogs[index];
+      if (!rawLog || typeof rawLog !== 'object' || Array.isArray(rawLog)) {
+        addError(errors, `余额流水 ${index + 1}: 记录必须是对象`);
+        continue;
+      }
+      try {
+        const methodName = normalizeString(
+          (rawLog as ImportRecord).subscriptionMethodName,
+          'subscriptionMethodName',
+          { required: true, maxLength: 100 },
+        );
+        const subscriptionMethodId = await findOrCreateMethod({
+          name: methodName,
+          channel: '',
+          paymentMethod: '',
+          account: '',
+          balance: null,
+          balanceCurrency: 'CNY',
+          paymentReference: '',
+        });
+        const backupIdValue = (rawLog as ImportRecord).subscriptionBackupId
+          ?? (rawLog as ImportRecord).subscriptionId;
+        const subscriptionId = backupIdValue === undefined || backupIdValue === null
+          ? null
+          : backupIdMap.get(String(backupIdValue)) || null;
+        const log = normalizeMethodLog(rawLog, subscriptionMethodId, subscriptionId, now);
+        const fingerprint = fingerprintMethodLog(log);
+        if (methodLogFingerprints.has(fingerprint)) {
+          methodLogsSkipped += 1;
+          continue;
+        }
+        await db.insert(schema.subscriptionMethodLogs).values(log);
+        methodLogFingerprints.add(fingerprint);
+        methodLogsImported += 1;
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        addError(errors, `余额流水 ${index + 1}: ${message}`);
+      }
+    }
   } catch (error) {
     try {
       await rollbackSubscriptions(insertedIds);
@@ -777,6 +892,8 @@ export async function importSubscriptionsHandler(body: any) {
         skipped,
         renewalLogsImported,
         renewalLogsSkipped,
+        methodLogsImported,
+        methodLogsSkipped,
         total: parsed.subscriptions.length,
         errors: errors.length > 0 ? errors : undefined,
         errorsTruncated: errors.length >= MAX_REPORTED_ERRORS || undefined,

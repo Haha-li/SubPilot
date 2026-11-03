@@ -4,6 +4,8 @@ const MONTHS_PER_YEAR = 12;
 const DAYS_PER_MONTH = 30;
 
 interface ChargeSubscription {
+  id?: number | null;
+  name?: string | null;
   price?: number | null;
   priceUnit?: string | null;
   currency?: string | null;
@@ -15,6 +17,22 @@ interface ChargeSubscription {
 export interface BalanceUpdate {
   id: number;
   balance: number;
+}
+
+export interface BalanceLogValue {
+  subscriptionMethodId: number;
+  subscriptionId: number | null;
+  type: 'manual_renewal' | 'automatic_renewal';
+  amount: number;
+  beforeBalance: number;
+  afterBalance: number;
+  note: string;
+  createdAt: string;
+}
+
+export interface BalanceChanges {
+  updates: BalanceUpdate[];
+  logs: BalanceLogValue[];
 }
 
 function roundMoney(value: number): number {
@@ -57,28 +75,44 @@ export function getRenewalCharge(subscription: ChargeSubscription, periods: numb
   return roundMoney(cycleCharge(price, subscription.priceUnit, periodValue, periodUnit, periods));
 }
 
-export async function collectBalanceUpdates(
+export async function collectBalanceChanges(
   items: { subscription: ChargeSubscription; periods: number }[],
-): Promise<BalanceUpdate[]> {
+  type: BalanceLogValue['type'],
+  createdAt: string,
+): Promise<BalanceChanges> {
   const needed = items.filter((item) => item.subscription.subscriptionMethodId);
-  if (needed.length === 0) return [];
+  if (needed.length === 0) return { updates: [], logs: [] };
   const rows = await db.select().from(schema.subscriptionMethods);
-  // ponytail: 币种不一致不折算，服务端没有汇率；同一次续费先汇总再写余额
+  // ponytail: 币种不一致不折算，服务端没有汇率；同一次续费按顺序累计余额
   const methods = Array.isArray(rows) ? rows : [];
   const methodsById = new Map<number, any>(methods.map((item: any) => [item.id, item]));
-  const charges = new Map<number, number>();
+  const balances = new Map<number, number>();
+  const logs: BalanceLogValue[] = [];
   for (const item of needed) {
-    const method = methodsById.get(item.subscription.subscriptionMethodId as number);
+    const methodId = item.subscription.subscriptionMethodId as number;
+    const method = methodsById.get(methodId);
     if (!method || typeof method.balance !== 'number' || !Number.isFinite(method.balance)) continue;
     const methodCurrency = String(method.balanceCurrency || 'CNY').toUpperCase();
     const subscriptionCurrency = String(item.subscription.currency || 'CNY').toUpperCase();
     if (methodCurrency !== subscriptionCurrency) continue;
     const charge = getRenewalCharge(item.subscription, item.periods);
     if (charge <= 0) continue;
-    charges.set(method.id, roundMoney((charges.get(method.id) || 0) + charge));
+    const beforeBalance = balances.get(methodId) ?? method.balance;
+    const afterBalance = roundMoney(beforeBalance - charge);
+    balances.set(methodId, afterBalance);
+    logs.push({
+      subscriptionMethodId: methodId,
+      subscriptionId: item.subscription.id || null,
+      type,
+      amount: -charge,
+      beforeBalance,
+      afterBalance,
+      note: item.subscription.name ? `${item.subscription.name} 续费` : '订阅续费',
+      createdAt,
+    });
   }
-  return [...charges].map(([id, charge]) => ({
-    id,
-    balance: roundMoney(methodsById.get(id).balance - charge),
-  }));
+  return {
+    updates: [...balances].map(([id, balance]) => ({ id, balance })),
+    logs,
+  };
 }

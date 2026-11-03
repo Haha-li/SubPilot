@@ -9,18 +9,25 @@ import {
   updateSubscriptionHandler,
 } from '../src/handlers/subscription';
 import {
+  adjustSubscriptionMethodBalanceHandler,
   createSubscriptionMethodHandler,
   deleteSubscriptionMethodHandler,
+  listSubscriptionMethodLogsHandler,
+  updateSubscriptionMethodHandler,
 } from '../src/handlers/subscriptionMethod';
 
 function createMemoryDb() {
   const subscriptions: any[] = [];
   const methods: any[] = [];
+  const logs: any[] = [];
   let nextSubscriptionId = 1;
   let nextMethodId = 1;
+  let nextLogId = 1;
 
   function rowsFor(table: unknown) {
-    return table === schema.subscriptionMethods ? methods : subscriptions;
+    if (table === schema.subscriptionMethods) return methods;
+    if (table === schema.subscriptionMethodLogs) return logs;
+    return subscriptions;
   }
 
   function selectQuery(table: unknown) {
@@ -47,11 +54,13 @@ function createMemoryDb() {
   return {
     subscriptions,
     methods,
+    logs,
     instance: {
       select: () => ({ from: (table: unknown) => selectQuery(table) }),
       insert: (table: unknown) => ({
         values: async (value: any) => {
           if (table === schema.subscriptionMethods) methods.push({ id: nextMethodId++, ...value });
+          else if (table === schema.subscriptionMethodLogs) logs.push({ id: nextLogId++, ...value });
           else subscriptions.push({ id: nextSubscriptionId++, ...value });
         },
       }),
@@ -86,6 +95,27 @@ test('订阅只保存所选订阅方式，方式本身集中维护', async () =>
   assert.equal(database.methods[0].name, '美区 Apple ID');
   assert.equal(database.methods[0].balance, 0);
   assert.equal(database.methods[0].balanceCurrency, 'USD');
+  assert.equal(database.logs[0].type, 'initial');
+
+  const adjusted = await adjustSubscriptionMethodBalanceHandler(database.methods[0].id, {
+    amount: 25,
+    note: '礼品卡充值',
+  });
+  assert.equal(adjusted.status, 200);
+  assert.equal(database.methods[0].balance, 25);
+  assert.equal(database.logs[1].type, 'manual_adjustment');
+  assert.equal(database.logs[1].note, '礼品卡充值');
+  const listedLogs = await listSubscriptionMethodLogsHandler(database.methods[0].id);
+  assert.equal(listedLogs.status, 200);
+  assert.equal((listedLogs.body as any[]).length, 2);
+
+  const keptLedger = await updateSubscriptionMethodHandler(database.methods[0].id, {
+    balance: 999,
+    balanceCurrency: 'CNY',
+  });
+  assert.equal(keptLedger.status, 200);
+  assert.equal(database.methods[0].balance, 25);
+  assert.equal(database.methods[0].balanceCurrency, 'USD');
 
   const created = await createSubscriptionHandler({
     name: 'App Store 订阅',
@@ -104,7 +134,7 @@ test('订阅只保存所选订阅方式，方式本身集中维护', async () =>
   assert.equal(database.methods.length, 1);
 });
 
-test('不存在的订阅方式和负数余额会被拒绝', async () => {
+test('不存在的订阅方式和非数字余额会被拒绝，负数余额允许保存', async () => {
   const database = createMemoryDb();
   setDb(database.instance);
 
@@ -116,14 +146,21 @@ test('不存在的订阅方式和负数余额会被拒绝', async () => {
   assert.equal(missing.status, 400);
   assert.equal((missing.body as any).message, '订阅方式不存在');
 
-  const invalidBalance = await createSubscriptionMethodHandler({
-    name: '错误余额',
+  const negativeBalance = await createSubscriptionMethodHandler({
+    name: '欠费账户',
     balance: -1,
   });
+  assert.equal(negativeBalance.status, 201);
+  assert.equal(database.methods[0].balance, -1);
+
+  const invalidBalance = await createSubscriptionMethodHandler({
+    name: '错误余额',
+    balance: 'abc',
+  });
   assert.equal(invalidBalance.status, 400);
-  assert.equal((invalidBalance.body as any).message, '账户余额必须是非负数');
+  assert.equal((invalidBalance.body as any).message, '账户余额必须是数字');
   assert.equal(database.subscriptions.length, 0);
-  assert.equal(database.methods.length, 0);
+  assert.equal(database.methods.length, 1);
 });
 
 test('D1 迁移把已有支付信息归入订阅方式', () => {
@@ -152,5 +189,17 @@ test('D1 迁移把已有支付信息归入订阅方式', () => {
   assert.equal(method.balance, 20);
   assert.equal(method.balance_currency, 'USD');
   assert.equal(subscription.subscription_method_id, 1);
+
+  database.exec(readFileSync(
+    resolve(process.cwd(), 'migrations/0023_create_subscription_method_logs.sql'),
+    'utf8',
+  ));
+  const log = database.prepare(
+    'SELECT type, amount, before_balance, after_balance FROM subscription_method_logs',
+  ).get() as any;
+  assert.equal(log.type, 'initial');
+  assert.equal(log.amount, 20);
+  assert.equal(log.before_balance, 0);
+  assert.equal(log.after_balance, 20);
   database.close();
 });

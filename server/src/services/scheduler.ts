@@ -10,7 +10,7 @@ import {
   SchedulerSkipReason,
 } from './schedulerStatus';
 import { executeStatementsAtomically } from '../utils/dbAtomic';
-import { collectBalanceUpdates } from '../utils/renewalCharge';
+import { collectBalanceChanges } from '../utils/renewalCharge';
 import {
   advanceDateOnlyToAtLeast,
   compareDateOnly,
@@ -118,10 +118,11 @@ async function renewSubscriptionIfNeeded(
     : 'month';
   const renewed = advanceDateOnlyToAtLeast(expiryDate, today, periodValue, periodUnit);
   const renewedAt = now.toISOString();
-  const balanceUpdates = await collectBalanceUpdates([{
-    subscription,
-    periods: renewed.periodsAdvanced,
-  }]);
+  const balanceChanges = await collectBalanceChanges(
+    [{ subscription, periods: renewed.periodsAdvanced }],
+    'automatic_renewal',
+    renewedAt,
+  );
   await executeStatementsAtomically((executor) => [
     executor.update(schema.subscriptions).set({
       expiryDate: renewed.expiryDate,
@@ -140,10 +141,11 @@ async function renewSubscriptionIfNeeded(
       newExpiryDate: renewed.expiryDate,
       periodsAdvanced: renewed.periodsAdvanced,
     }),
-    ...balanceUpdates.map((update) => executor.update(schema.subscriptionMethods).set({
+    ...balanceChanges.updates.map((update) => executor.update(schema.subscriptionMethods).set({
       balance: update.balance,
       updatedAt: renewedAt,
     }).where(eq(schema.subscriptionMethods.id, update.id))),
+    ...balanceChanges.logs.map((log) => executor.insert(schema.subscriptionMethodLogs).values(log)),
   ]);
   return {
     subscription: { ...subscription, expiryDate: renewed.expiryDate },

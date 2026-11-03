@@ -25,6 +25,7 @@ declare module 'vue' {
     ElPagination: typeof import('element-plus/es')['ElPagination']
     ElPopover: typeof import('element-plus/es')['ElPopover']
     ElSelect: typeof import('element-plus/es')['ElSelect']
+    ElSwitch: typeof import('element-plus/es')['ElSwitch']
     ElTable: typeof import('element-plus/es')['ElTable']
     ElTableColumn: typeof import('element-plus/es')['ElTableColumn']
     ImportExportDrawer: typeof import('./components/ImportExportDrawer.vue')['default']
@@ -34,6 +35,7 @@ declare module 'vue' {
     StatsOverview: typeof import('./components/StatsOverview.vue')['default']
     SubscriptionBrandIcon: typeof import('./components/SubscriptionBrandIcon.vue')['default']
     SubscriptionDetailDrawer: typeof import('./components/SubscriptionDetailDrawer.vue')['default']
+    SubscriptionMethodDetailDrawer: typeof import('./components/SubscriptionMethodDetailDrawer.vue')['default']
     SubscriptionModal: typeof import('./components/SubscriptionModal.vue')['default']
   }
   export interface GlobalDirectives {

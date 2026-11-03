@@ -1,8 +1,10 @@
 import { Router, Response } from 'express';
 import { authMiddleware, AuthRequest } from '../middleware/auth';
 import {
+  adjustSubscriptionMethodBalanceHandler,
   createSubscriptionMethodHandler,
   deleteSubscriptionMethodHandler,
+  listSubscriptionMethodLogsHandler,
   listSubscriptionMethodsHandler,
   updateSubscriptionMethodHandler,
 } from '../handlers/subscriptionMethod';
@@ -16,6 +18,16 @@ router.get('/', authMiddleware, async (_req: AuthRequest, res: Response) => {
 
 router.post('/', authMiddleware, async (req: AuthRequest, res: Response) => {
   const result = await createSubscriptionMethodHandler(req.body);
+  res.status(result.status).json(result.body);
+});
+
+router.get('/:id/logs', authMiddleware, async (req: AuthRequest, res: Response) => {
+  const result = await listSubscriptionMethodLogsHandler(Number(req.params.id));
+  res.status(result.status).json(result.body);
+});
+
+router.post('/:id/adjust', authMiddleware, async (req: AuthRequest, res: Response) => {
+  const result = await adjustSubscriptionMethodBalanceHandler(Number(req.params.id), req.body);
   res.status(result.status).json(result.body);
 });
 

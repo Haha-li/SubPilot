@@ -10,14 +10,17 @@ function createMemoryDb(options: { failSubscriptionInsertAt?: number } = {}) {
   const subscriptions: any[] = [];
   const renewalLogs: any[] = [];
   const methods: any[] = [];
+  const methodLogs: any[] = [];
   let nextSubscriptionId = 1;
   let nextRenewalId = 1;
   let nextMethodId = 1;
+  let nextMethodLogId = 1;
   let subscriptionInsertCount = 0;
 
   function rowsFor(table: unknown) {
     if (table === schema.renewalLogs) return renewalLogs;
     if (table === schema.subscriptionMethods) return methods;
+    if (table === schema.subscriptionMethodLogs) return methodLogs;
     return subscriptions;
   }
 
@@ -53,6 +56,10 @@ function createMemoryDb(options: { failSubscriptionInsertAt?: number } = {}) {
           methods.push({ id: nextMethodId++, ...value });
           return;
         }
+        if (table === schema.subscriptionMethodLogs) {
+          methodLogs.push({ id: nextMethodLogId++, ...value });
+          return;
+        }
         subscriptionInsertCount += 1;
         if (subscriptionInsertCount === options.failSubscriptionInsertAt) {
           throw new Error('模拟数据库写入失败');
@@ -67,7 +74,7 @@ function createMemoryDb(options: { failSubscriptionInsertAt?: number } = {}) {
     }),
   };
 
-  return { instance, subscriptions, renewalLogs, methods };
+  return { instance, subscriptions, renewalLogs, methods, methodLogs };
 }
 
 const completeSubscription = {
@@ -114,6 +121,17 @@ test('JSON 完整备份会恢复订阅字段和续费历史', async () => {
     paymentReference: '美区 Apple ID',
   });
   source.subscriptions.push({ ...completeSubscription });
+  source.methodLogs.push({
+    id: 4,
+    subscriptionMethodId: 3,
+    subscriptionId: 7,
+    type: 'automatic_renewal',
+    amount: -29.9,
+    beforeBalance: 118.4,
+    afterBalance: 88.5,
+    note: '完整备份订阅 续费',
+    createdAt: '2026-02-01T00:00:00.000Z',
+  });
   source.renewalLogs.push({
     id: 3,
     subscriptionId: 7,
@@ -131,11 +149,12 @@ test('JSON 完整备份会恢复订阅字段和续费历史', async () => {
   setDb(source.instance);
   const exported = await exportSubscriptionsHandler({ format: 'json' }) as any;
   const backup = JSON.parse(exported.body);
-  assert.equal(backup.version, 4);
+  assert.equal(backup.version, 5);
   assert.equal(backup.subscriptionMethods[0].name, '美区 Apple ID');
   assert.equal(backup.subscriptions[0].subscriptionMethodName, '美区 Apple ID');
   assert.equal(backup.subscriptions[0].backupId, 7);
   assert.equal(backup.renewalLogs.length, 1);
+  assert.equal(backup.subscriptionMethodLogs.length, 1);
 
   const target = createMemoryDb();
   setDb(target.instance);
@@ -144,6 +163,7 @@ test('JSON 完整备份会恢复订阅字段和续费历史', async () => {
   assert.equal(imported.status, 200);
   assert.equal((imported.body as any).imported, 1);
   assert.equal((imported.body as any).renewalLogsImported, 1);
+  assert.equal((imported.body as any).methodLogsImported, 1);
   assert.equal(target.subscriptions[0].isPinned, 1);
   assert.equal(target.subscriptions[0].trialValue, 14);
   assert.equal(target.subscriptions[0].trialUnit, 'day');
@@ -155,12 +175,17 @@ test('JSON 完整备份会恢复订阅字段和续费历史', async () => {
   assert.equal(target.renewalLogs[0].source, 'automatic');
   assert.equal(target.renewalLogs[0].previousExpiryDate, '2026-01-31');
   assert.equal(target.renewalLogs[0].newExpiryDate, '2026-02-28');
+  assert.equal(target.methodLogs[0].type, 'automatic_renewal');
+  assert.equal(target.methodLogs[0].amount, -29.9);
 
   const repeated = await importSubscriptionsHandler({ format: 'json', data: exported.body });
   assert.equal((repeated.body as any).imported, 0);
   assert.equal((repeated.body as any).renewalLogsImported, 0);
   assert.equal((repeated.body as any).renewalLogsSkipped, 1);
+  assert.equal((repeated.body as any).methodLogsImported, 0);
+  assert.equal((repeated.body as any).methodLogsSkipped, 1);
   assert.equal(target.renewalLogs.length, 1);
+  assert.equal(target.methodLogs.length, 1);
 });
 
 test('CSV 往返支持多行、公式前缀和零值', async () => {

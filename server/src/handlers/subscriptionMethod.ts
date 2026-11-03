@@ -1,7 +1,9 @@
 import { desc, eq } from 'drizzle-orm';
 import { db, schema } from '../db';
+import { executeStatementsAtomically } from '../utils/dbAtomic';
 
 const MAX_NAME_LENGTH = 100;
+const MAX_ADJUSTMENT_NOTE_LENGTH = 500;
 
 export interface SubscriptionMethodValue {
   name: string;
@@ -43,11 +45,11 @@ export function normalizeSubscriptionMethodInput(input: any): NormalizeResult {
   let balance: number | null = null;
   if (!(rawBalance === undefined || rawBalance === null || (typeof rawBalance === 'string' && !rawBalance.trim()))) {
     if (typeof rawBalance !== 'number' && typeof rawBalance !== 'string') {
-      return { success: false, message: '账户余额必须是非负数' };
+      return { success: false, message: '账户余额必须是数字' };
     }
     const parsed = typeof rawBalance === 'number' ? rawBalance : Number(rawBalance);
-    if (!Number.isFinite(parsed) || parsed < 0) {
-      return { success: false, message: '账户余额必须是非负数' };
+    if (!Number.isFinite(parsed)) {
+      return { success: false, message: '账户余额必须是数字' };
     }
     balance = parsed;
   }
@@ -92,6 +94,18 @@ export async function createSubscriptionMethodHandler(body: any) {
     await db.insert(schema.subscriptionMethods).values({ ...normalized.value, createdAt: now, updatedAt: now });
     const [created] = await db.select().from(schema.subscriptionMethods)
       .orderBy(desc(schema.subscriptionMethods.id)).limit(1);
+    if (created?.id && typeof created.balance === 'number') {
+      await db.insert(schema.subscriptionMethodLogs).values({
+        subscriptionMethodId: created.id,
+        subscriptionId: null,
+        type: 'initial',
+        amount: created.balance,
+        beforeBalance: 0,
+        afterBalance: created.balance,
+        note: '初始余额',
+        createdAt: now,
+      });
+    }
     return { status: 201, body: { success: true, subscriptionMethod: created } };
   } catch (error: any) {
     return { status: 500, body: { success: false, message: error.message } };
@@ -103,7 +117,15 @@ export async function updateSubscriptionMethodHandler(id: number, body: any) {
     const rows = await db.select().from(schema.subscriptionMethods);
     const existing = rows.find((item: any) => item.id === id);
     if (!existing) return { status: 404, body: { success: false, message: '订阅方式不存在' } };
-    const normalized = normalizeSubscriptionMethodInput({ ...existing, ...body, name: body?.name ?? existing.name });
+    const normalized = normalizeSubscriptionMethodInput({
+      ...existing,
+      ...body,
+      name: body?.name ?? existing.name,
+      balance: existing.balance,
+      balanceCurrency: typeof existing.balance === 'number'
+        ? existing.balanceCurrency
+        : body?.balanceCurrency,
+    });
     if (!normalized.success) return { status: 400, body: { success: false, message: normalized.message } };
     if (duplicateName(rows, normalized.value.name, id)) {
       return { status: 409, body: { success: false, message: '该订阅方式已存在' } };
@@ -112,6 +134,73 @@ export async function updateSubscriptionMethodHandler(id: number, body: any) {
       ...normalized.value,
       updatedAt: new Date().toISOString(),
     }).where(eq(schema.subscriptionMethods.id, id));
+    const [updated] = await db.select().from(schema.subscriptionMethods)
+      .where(eq(schema.subscriptionMethods.id, id)).limit(1);
+    return { status: 200, body: { success: true, subscriptionMethod: updated } };
+  } catch (error: any) {
+    return { status: 500, body: { success: false, message: error.message } };
+  }
+}
+
+export async function listSubscriptionMethodLogsHandler(id: number) {
+  try {
+    const methods = await db.select().from(schema.subscriptionMethods);
+    if (!methods.some((item: any) => item.id === id)) {
+      return { status: 404, body: { success: false, message: '订阅方式不存在' } };
+    }
+    const logs = await db.select().from(schema.subscriptionMethodLogs)
+      .where(eq(schema.subscriptionMethodLogs.subscriptionMethodId, id))
+      .orderBy(desc(schema.subscriptionMethodLogs.createdAt))
+      .limit(100);
+    const subscriptions = await db.select().from(schema.subscriptions);
+    const names = new Map<number, string>(subscriptions.map((item: any) => [item.id, item.name]));
+    return {
+      status: 200,
+      body: logs.map((log: any) => ({
+        ...log,
+        subscriptionName: log.subscriptionId ? names.get(log.subscriptionId) || '已删除订阅' : '',
+      })),
+    };
+  } catch (error: any) {
+    return { status: 500, body: { success: false, message: error.message } };
+  }
+}
+
+export async function adjustSubscriptionMethodBalanceHandler(id: number, body: any) {
+  try {
+    const methods = await db.select().from(schema.subscriptionMethods);
+    const method = methods.find((item: any) => item.id === id);
+    if (!method) return { status: 404, body: { success: false, message: '订阅方式不存在' } };
+    const rawAmount = typeof body?.amount === 'number' ? body.amount : Number(body?.amount);
+    const amount = Math.round(rawAmount * 100) / 100;
+    if (!Number.isFinite(rawAmount) || amount === 0) {
+      return { status: 400, body: { success: false, message: '调整金额必须是非零数字且最多两位小数' } };
+    }
+    const note = body?.note === undefined || body?.note === null ? '' : String(body.note).trim();
+    if (note.length > MAX_ADJUSTMENT_NOTE_LENGTH) {
+      return { status: 400, body: { success: false, message: `调整备注不能超过 ${MAX_ADJUSTMENT_NOTE_LENGTH} 个字符` } };
+    }
+    const beforeBalance = typeof method.balance === 'number' && Number.isFinite(method.balance)
+      ? method.balance
+      : 0;
+    const afterBalance = Math.round((beforeBalance + amount) * 100) / 100;
+    const createdAt = new Date().toISOString();
+    await executeStatementsAtomically((executor) => [
+      executor.update(schema.subscriptionMethods).set({
+        balance: afterBalance,
+        updatedAt: createdAt,
+      }).where(eq(schema.subscriptionMethods.id, id)),
+      executor.insert(schema.subscriptionMethodLogs).values({
+        subscriptionMethodId: id,
+        subscriptionId: null,
+        type: 'manual_adjustment',
+        amount,
+        beforeBalance,
+        afterBalance,
+        note,
+        createdAt,
+      }),
+    ]);
     const [updated] = await db.select().from(schema.subscriptionMethods)
       .where(eq(schema.subscriptionMethods.id, id)).limit(1);
     return { status: 200, body: { success: true, subscriptionMethod: updated } };
@@ -131,7 +220,11 @@ export async function deleteSubscriptionMethodHandler(id: number) {
     if (usedCount > 0) {
       return { status: 409, body: { success: false, message: `仍有 ${usedCount} 个订阅使用该方式` } };
     }
-    await db.delete(schema.subscriptionMethods).where(eq(schema.subscriptionMethods.id, id));
+    await executeStatementsAtomically((executor) => [
+      executor.delete(schema.subscriptionMethodLogs)
+        .where(eq(schema.subscriptionMethodLogs.subscriptionMethodId, id)),
+      executor.delete(schema.subscriptionMethods).where(eq(schema.subscriptionMethods.id, id)),
+    ]);
     return { status: 200, body: { success: true, message: '删除成功' } };
   } catch (error: any) {
     return { status: 500, body: { success: false, message: error.message } };
