@@ -637,15 +637,36 @@ onMounted(async () => {
 </template>
 
 <style>
+.sub-modal {
+  display: flex;
+  max-height: 90vh;
+  margin: 5vh auto !important;
+  flex-direction: column;
+  overflow: hidden;
+}
 .sub-modal .el-dialog__header {
+  flex: 0 0 auto;
+  margin-right: 0;
   padding: 18px 20px 14px !important;
 }
 .sub-modal .el-dialog__body {
-  padding: 18px 20px !important;
-  max-height: calc(100vh - 220px);
+  min-height: 0;
+  flex: 1 1 auto;
   overflow-y: auto;
+  padding: 18px 20px !important;
 }
 .sub-modal .el-dialog__footer {
+  flex: 0 0 auto;
+  border-top: 1px solid rgb(226 232 240 / 0.7);
   padding: 14px 20px !important;
+}
+.dark .sub-modal .el-dialog__footer {
+  border-top-color: rgb(51 65 85 / 0.5);
+}
+@media (max-width: 768px) {
+  .sub-modal {
+    max-height: 96vh;
+    margin: 2vh auto !important;
+  }
 }
 </style>

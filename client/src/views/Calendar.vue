@@ -22,9 +22,9 @@ function getCurrentMonthDate(now = new Date()): Date {
 
 const todayStr = computed(() => getDateOnlyInTimeZone(new Date(), systemConfigStore.timezone));
 const cursor = ref(getCurrentMonthDate());
-const selectedDate = ref<string>('');
+const selectedDate = ref(todayStr.value);
 
-const weekdayLabels = ['日', '一', '二', '三', '四', '五', '六'];
+const weekdayLabels = ['一', '二', '三', '四', '五', '六', '日'];
 
 function toDateStr(d: Date): string {
   const y = d.getFullYear();
@@ -65,7 +65,7 @@ const calendarGrid = computed<Cell[]>(() => {
   const year = cursor.value.getFullYear();
   const month = cursor.value.getMonth();
   const firstDay = new Date(year, month, 1);
-  const startOffset = firstDay.getDay();
+  const startOffset = (firstDay.getDay() + 6) % 7;
   const cells: Cell[] = [];
 
   for (let i = 0; i < 42; i++) {
@@ -132,7 +132,7 @@ function selectCell(cell: Cell) {
 
 watch(() => systemConfigStore.timezone, () => {
   cursor.value = getCurrentMonthDate();
-  selectedDate.value = '';
+  selectedDate.value = todayStr.value;
 });
 
 onMounted(() => {
@@ -200,7 +200,7 @@ onMounted(() => {
           v-for="(d, i) in weekdayLabels"
           :key="d"
           class="px-2 py-2.5 text-center text-xs font-semibold uppercase tracking-wide"
-          :class="i === 0 || i === 6 ? 'text-ink-400 dark:text-ink-500' : 'text-ink-500 dark:text-ink-400'"
+          :class="i >= 5 ? 'text-ink-400 dark:text-ink-500' : 'text-ink-500 dark:text-ink-400'"
         >
           {{ d }}
         </div>
