@@ -1,12 +1,12 @@
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue';
+import { ref, computed, onMounted, watch } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
 import { useDark, useToggle, useMediaQuery } from '@vueuse/core';
 import { useAuthStore } from '../stores/auth';
 import { useSystemConfigStore } from '../stores/systemConfig';
 import {
   LayoutGrid, BarChart3, Tag, CalendarDays, FileText, Settings, RefreshCw,
-  Sun, Moon, ChevronsLeft, ChevronsRight, LogOut, Menu, X, Library, CreditCard,
+  Sun, Moon, ChevronsLeft, ChevronsRight, ChevronDown, LogOut, Menu, X, Library, CreditCard,
 } from '@lucide/vue';
 
 const router = useRouter();
@@ -20,17 +20,35 @@ const isCollapsed = ref(localStorage.getItem('sidebarCollapsed') === 'true');
 const isDark = useDark();
 const toggleDark = useToggle(isDark);
 
-const navItems = [
-  { path: '/',           label: '订阅管理', icon: LayoutGrid },
-  { path: '/renewals',   label: '续费中心', icon: RefreshCw },
-  { path: '/common-subscriptions', label: '常用订阅', icon: Library },
-  { path: '/subscription-methods', label: '订阅方式', icon: CreditCard },
-  { path: '/stats',      label: '费用统计', icon: BarChart3 },
-  { path: '/categories', label: '分类管理', icon: Tag },
-  { path: '/calendar',   label: '订阅日历', icon: CalendarDays },
-  { path: '/logs',       label: '通知日志', icon: FileText },
-  { path: '/config',     label: '系统配置', icon: Settings },
+const primaryItems = [
+  { path: '/', label: '订阅管理', icon: LayoutGrid },
+  { path: '/calendar', label: '订阅日历', icon: CalendarDays },
 ];
+const navGroups = [
+  {
+    key: 'subscription-settings', label: '订阅设置', icon: Library,
+    items: [
+      { path: '/common-subscriptions', label: '常用订阅', icon: Library },
+      { path: '/subscription-methods', label: '订阅方式', icon: CreditCard },
+      { path: '/categories', label: '分类管理', icon: Tag },
+    ],
+  },
+  {
+    key: 'finance', label: '财务管理', icon: BarChart3,
+    items: [
+      { path: '/renewals', label: '续费中心', icon: RefreshCw },
+      { path: '/stats', label: '费用管理', icon: BarChart3 },
+    ],
+  },
+  {
+    key: 'system', label: '系统管理', icon: Settings,
+    items: [
+      { path: '/logs', label: '通知日志', icon: FileText },
+      { path: '/config', label: '系统设置', icon: Settings },
+    ],
+  },
+];
+const expandedGroups = ref<Set<string>>(new Set());
 
 const sidebarWidth = computed(() => (isCollapsed.value ? '76px' : '232px'));
 
@@ -43,6 +61,33 @@ function isActive(path: string) {
   return route.path === path;
 }
 
+function isGroupActive(group: (typeof navGroups)[number]) {
+  return group.items.some((item) => isActive(item.path));
+}
+
+function isGroupOpen(key: string) {
+  return expandedGroups.value.has(key);
+}
+
+function openActiveGroup() {
+  const active = navGroups.find(isGroupActive);
+  if (!active || expandedGroups.value.has(active.key)) return;
+  expandedGroups.value = new Set([...expandedGroups.value, active.key]);
+}
+
+function toggleGroup(key: string) {
+  if (!isMobile.value && isCollapsed.value) {
+    isCollapsed.value = false;
+    localStorage.setItem('sidebarCollapsed', 'false');
+    expandedGroups.value = new Set([...expandedGroups.value, key]);
+    return;
+  }
+  const next = new Set(expandedGroups.value);
+  if (next.has(key)) next.delete(key);
+  else next.add(key);
+  expandedGroups.value = next;
+}
+
 async function handleLogout() {
   await authStore.logout();
   router.push('/login');
@@ -52,6 +97,8 @@ function toggleCollapse() {
   isCollapsed.value = !isCollapsed.value;
   localStorage.setItem('sidebarCollapsed', String(isCollapsed.value));
 }
+
+watch(() => route.path, openActiveGroup, { immediate: true });
 
 onMounted(() => {
   void systemConfigStore.fetchSystemConfig();
@@ -91,11 +138,11 @@ onMounted(() => {
             <X :size="20" />
           </button>
         </div>
-        <nav class="flex-1 overflow-y-auto px-3 py-2">
+        <nav class="flex-1 overflow-y-auto px-3 py-2" aria-label="主导航">
           <button
-            v-for="item in navItems"
+            v-for="item in primaryItems"
             :key="item.path"
-            class="group mb-1 flex w-full cursor-pointer items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors duration-200"
+            class="group mb-1 flex min-h-11 w-full cursor-pointer items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors duration-200"
             :class="isActive(item.path)
               ? 'bg-brand-50 text-brand-600 dark:bg-brand-500/15 dark:text-brand-300'
               : 'text-ink-600 hover:bg-ink-100/70 dark:text-ink-300 dark:hover:bg-ink-800/40'"
@@ -104,6 +151,35 @@ onMounted(() => {
             <component :is="item.icon" :size="18" :stroke-width="isActive(item.path) ? 2.25 : 2" />
             <span>{{ item.label }}</span>
           </button>
+
+          <div v-for="group in navGroups" :key="group.key" class="mb-1">
+            <button
+              class="flex min-h-11 w-full cursor-pointer items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold transition-colors duration-200"
+              :class="isGroupActive(group)
+                ? 'bg-brand-50/70 text-brand-600 dark:bg-brand-500/10 dark:text-brand-300'
+                : 'text-ink-600 hover:bg-ink-100/70 dark:text-ink-300 dark:hover:bg-ink-800/40'"
+              :aria-expanded="isGroupOpen(group.key)"
+              @click="toggleGroup(group.key)"
+            >
+              <component :is="group.icon" :size="18" class="flex-shrink-0" />
+              <span>{{ group.label }}</span>
+              <ChevronDown :size="15" class="ml-auto transition-transform duration-200" :class="isGroupOpen(group.key) ? 'rotate-180' : ''" />
+            </button>
+            <div v-show="isGroupOpen(group.key)" class="ml-5 mt-1 space-y-1 border-l border-ink-200/70 pl-2 dark:border-ink-700/60">
+              <button
+                v-for="item in group.items"
+                :key="item.path"
+                class="flex min-h-11 w-full cursor-pointer items-center gap-3 rounded-xl px-3 py-2 text-sm font-medium transition-colors duration-200"
+                :class="isActive(item.path)
+                  ? 'bg-brand-50 text-brand-600 dark:bg-brand-500/15 dark:text-brand-300'
+                  : 'text-ink-500 hover:bg-ink-100/70 hover:text-ink-800 dark:text-ink-400 dark:hover:bg-ink-800/40 dark:hover:text-ink-200'"
+                @click="go(item.path)"
+              >
+                <component :is="item.icon" :size="17" :stroke-width="isActive(item.path) ? 2.25 : 2" />
+                <span>{{ item.label }}</span>
+              </button>
+            </div>
+          </div>
         </nav>
         <div class="space-y-1 border-t border-ink-200/60 px-3 py-3 dark:border-ink-700/40">
           <button class="flex w-full cursor-pointer items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-ink-600 hover:bg-ink-100/70 dark:text-ink-300 dark:hover:bg-ink-800/40" @click="toggleDark()">
@@ -128,12 +204,12 @@ onMounted(() => {
         <span v-show="!isCollapsed" class="font-heading text-lg font-bold tracking-tight">SubPilot</span>
       </div>
 
-      <nav class="flex-1 overflow-y-auto overflow-x-hidden px-3 py-2">
+      <nav class="flex-1 overflow-y-auto overflow-x-hidden px-3 py-2" aria-label="主导航">
         <button
-          v-for="item in navItems"
+          v-for="item in primaryItems"
           :key="item.path"
           :title="isCollapsed ? item.label : undefined"
-          class="group mb-1 flex w-full cursor-pointer items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors duration-200"
+          class="group mb-1 flex min-h-11 w-full cursor-pointer items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors duration-200"
           :class="[
             isActive(item.path)
               ? 'bg-brand-50 text-brand-600 dark:bg-brand-500/15 dark:text-brand-300'
@@ -146,6 +222,49 @@ onMounted(() => {
           <span v-show="!isCollapsed" class="whitespace-nowrap">{{ item.label }}</span>
           <span v-if="isActive(item.path) && !isCollapsed" class="ml-auto h-1.5 w-1.5 rounded-full bg-brand-500" />
         </button>
+
+        <div v-for="group in navGroups" :key="group.key" class="mb-1">
+          <button
+            :title="isCollapsed ? `${group.label}（点击展开）` : undefined"
+            class="flex min-h-11 w-full cursor-pointer items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold transition-colors duration-200"
+            :class="[
+              isGroupActive(group)
+                ? 'bg-brand-50/70 text-brand-600 dark:bg-brand-500/10 dark:text-brand-300'
+                : 'text-ink-600 hover:bg-ink-100/70 dark:text-ink-300 dark:hover:bg-ink-800/40',
+              isCollapsed ? 'justify-center px-2' : '',
+            ]"
+            :aria-expanded="!isCollapsed && isGroupOpen(group.key)"
+            @click="toggleGroup(group.key)"
+          >
+            <component :is="group.icon" :size="18" class="flex-shrink-0" />
+            <span v-show="!isCollapsed" class="whitespace-nowrap">{{ group.label }}</span>
+            <ChevronDown
+              v-show="!isCollapsed"
+              :size="15"
+              class="ml-auto flex-shrink-0 transition-transform duration-200"
+              :class="isGroupOpen(group.key) ? 'rotate-180' : ''"
+            />
+          </button>
+          <div
+            v-if="!isCollapsed"
+            v-show="isGroupOpen(group.key)"
+            class="ml-5 mt-1 space-y-1 border-l border-ink-200/70 pl-2 dark:border-ink-700/60"
+          >
+            <button
+              v-for="item in group.items"
+              :key="item.path"
+              class="flex min-h-10 w-full cursor-pointer items-center gap-3 rounded-xl px-3 py-2 text-sm font-medium transition-colors duration-200"
+              :class="isActive(item.path)
+                ? 'bg-brand-50 text-brand-600 dark:bg-brand-500/15 dark:text-brand-300'
+                : 'text-ink-500 hover:bg-ink-100/70 hover:text-ink-800 dark:text-ink-400 dark:hover:bg-ink-800/40 dark:hover:text-ink-200'"
+              @click="go(item.path)"
+            >
+              <component :is="item.icon" :size="17" :stroke-width="isActive(item.path) ? 2.25 : 2" class="flex-shrink-0" />
+              <span class="whitespace-nowrap">{{ item.label }}</span>
+              <span v-if="isActive(item.path)" class="ml-auto h-1.5 w-1.5 rounded-full bg-brand-500" />
+            </button>
+          </div>
+        </div>
       </nav>
 
       <div class="space-y-1 border-t border-ink-200/60 px-3 py-3 dark:border-ink-700/40">

@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue';
+import { computed, onMounted, ref, watch } from 'vue';
 import { useRouter } from 'vue-router';
+import { useMediaQuery } from '@vueuse/core';
 import {
   ExternalLink, Globe2, Library, Loader2, Pencil, Plus, Search, Sparkles, Trash2,
 } from '@lucide/vue';
@@ -14,7 +15,10 @@ import SubscriptionBrandIcon from '../components/SubscriptionBrandIcon.vue';
 
 const store = useCommonSubscriptionStore();
 const router = useRouter();
+const isMobile = useMediaQuery('(max-width: 768px)');
 const keyword = ref('');
+const currentPage = ref(1);
+const pageSize = ref(12);
 const showModal = ref(false);
 const editingItem = ref<CommonSubscription | null>(null);
 
@@ -25,6 +29,11 @@ const filteredItems = computed(() => {
     `${item.name} ${item.website}`.toLocaleLowerCase().includes(query),
   );
 });
+const pagedItems = computed(() => {
+  const start = (currentPage.value - 1) * pageSize.value;
+  return filteredItems.value.slice(start, start + pageSize.value);
+});
+watch(keyword, () => { currentPage.value = 1; });
 
 function openAdd() {
   editingItem.value = null;
@@ -107,8 +116,8 @@ onMounted(async () => {
       <span class="ml-2 text-sm text-ink-500 dark:text-ink-400">加载常用订阅...</span>
     </div>
 
-    <section v-else-if="filteredItems.length" aria-label="常用订阅列表" class="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
-      <article v-for="item in filteredItems" :key="item.id" class="bento-card flex min-w-0 flex-col p-5">
+    <section v-else-if="filteredItems.length" aria-label="常用订阅列表" class="grid grid-cols-1 gap-4 pb-16 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
+      <article v-for="item in pagedItems" :key="item.id" class="bento-card flex min-w-0 flex-col p-5">
         <div class="flex min-w-0 items-start gap-3">
           <SubscriptionBrandIcon
             :name="item.name"
@@ -158,6 +167,23 @@ onMounted(async () => {
         <Plus :size="16" /> 添加第一个
       </button>
     </section>
+
+    <nav
+      v-if="filteredItems.length > 0"
+      aria-label="常用订阅分页"
+      class="glass-panel fixed bottom-4 right-4 z-30 max-w-[calc(100vw-2rem)] overflow-x-auto rounded-2xl px-3 py-2 md:right-8"
+    >
+      <el-pagination
+        v-model:current-page="currentPage"
+        v-model:page-size="pageSize"
+        :total="filteredItems.length"
+        :page-sizes="[12, 24, 48]"
+        :layout="isMobile ? 'total, prev, next' : 'total, sizes, prev, pager, next'"
+        :small="isMobile"
+        background
+        class="justify-end"
+      />
+    </nav>
 
     <CommonSubscriptionModal v-if="showModal" :item="editingItem" @close="closeModal" @saved="closeModal" />
   </div>
